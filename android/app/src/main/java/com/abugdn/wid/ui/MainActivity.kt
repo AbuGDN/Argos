@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -174,6 +175,15 @@ private fun App(
         }
         onShortcutHandled()
     }
+    // O app fechou sozinho da última vez: mostra o erro para a pessoa poder mandar.
+    val context = LocalContext.current
+    var crash by remember { mutableStateOf(com.abugdn.wid.CrashLog.pending(context)) }
+    crash?.let { text ->
+        CrashDialog(text) {
+            com.abugdn.wid.CrashLog.clear(context)
+            crash = null
+        }
+    }
     // Aparece a cada abertura até a pessoa marcar "não mostrar de novo".
     val changelog = remember { repo.pendingChangelog() }
     var whatsNewOpen by rememberSaveable { mutableStateOf(changelog.isNotEmpty()) }
@@ -283,4 +293,34 @@ private fun App(
         }
         }
     }
+}
+
+/** Erro do último fechamento inesperado, com botão para compartilhar o texto. */
+@Composable
+private fun CrashDialog(text: String, onClose: () -> Unit) {
+    val context = LocalContext.current
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("O Argos fechou sozinho") },
+        text = {
+            androidx.compose.foundation.layout.Column(
+                Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())
+            ) {
+                Text("Da última vez o app parou por um erro. Compartilhe o texto abaixo com quem cuida do app para corrigir.")
+                Text(
+                    text,
+                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                context.startActivity(Intent.createChooser(send, "Compartilhar erro"))
+                onClose()
+            }) { Text("Compartilhar") }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onClose) { Text("Fechar") } },
+    )
 }

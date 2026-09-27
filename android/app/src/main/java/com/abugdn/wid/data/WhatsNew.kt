@@ -11,6 +11,13 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        24,
+        listOf(
+            "🐞 Corrigido: o app fechava sozinho ao carregar fotos e bandeiras (cartões de pessoas, regiões e “Quem manda”).",
+            "🧯 Se o Argos fechar sozinho, na próxima abertura aparece o erro com um botão para compartilhar. Ajuda a corrigir rápido.",
+        ),
+    ),
+    ChangelogEntry(
         21,
         listOf(
             "🐞 Corrigido o travamento ao abrir o cartão de uma pessoa, grupo ou arma. A lista de notícias também ficou mais rápida.",
