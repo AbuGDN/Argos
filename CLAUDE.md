@@ -108,6 +108,11 @@ web/                     página de download (index.html, icon.svg); build.py co
   alternativas na config). Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita
   `OPENSKY_CLIENT_ID/SECRET` opcionais. A cobertura do OpenSky no Oriente Médio é pequena (poucos aviões
   visíveis); por isso o status só sai depois de 3 dias de linha de base.
+- **Regex em loop trava o app**: nunca compile `Regex(...)` dentro de funções chamadas por notícia
+  (cartão de pessoa travava assim). Use `wordRegex()` (Settings.kt, com cache) e tire buscas no feed
+  inteiro da thread principal (`produceState` + `Dispatchers.Default`).
+- **Fotos**: `WIKI_TITLES`/`REGION_FLAGS` em `data/Images.kt`; Wikimedia exige o user-agent do Coil
+  configurado em `WidApp.newImageLoader()`.
 - Extração de números: idades ("14-year-old"), anos e porcentagens não são vítimas (há teste).
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
