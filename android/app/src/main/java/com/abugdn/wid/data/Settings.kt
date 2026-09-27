@@ -106,11 +106,27 @@ class SettingsStore(private val prefs: SharedPreferences) {
     )
 }
 
+private val MARKS = Regex("\\p{M}+")
+
 /** Minúsculas e sem acento, para comparar "Irã" com "ira" e "Líbano" com "libano". */
 fun normalize(text: String): String =
     java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "")
+        .replace(MARKS, "")
         .lowercase()
+
+private val wordRegexCache = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+
+/**
+ * Regex de palavra inteira para um termo já normalizado, compilada uma vez só e reaproveitada.
+ * Compilar a cada chamada (centenas de termos × centenas de notícias) travava o app.
+ * [suffix] vai depois do termo antes da fronteira final ("s?" aceita plural); [open] não exige
+ * fronteira no fim (casa o começo da palavra).
+ */
+fun wordRegex(term: String, suffix: String = "", open: Boolean = false, digits: Boolean = true): Regex =
+    wordRegexCache.getOrPut("$term|$suffix|$open|$digits") {
+        val boundary = if (digits) "[\\p{L}\\d]" else "[\\p{L}]"
+        Regex("(?<!$boundary)" + Regex.escape(term) + suffix + if (open) "" else "(?!$boundary)")
+    }
 
 /** Primeiro termo vigiado que aparece na notícia (no original ou na tradução). */
 fun Cluster.matchWatchWord(words: Set<String>, translated: (String) -> String): String? {
@@ -124,7 +140,7 @@ fun Cluster.matchWatchWord(words: Set<String>, translated: (String) -> String): 
     // Casa no início de uma palavra: "hezbollah" acha "Hezbollah's", mas "ira" não acha "mira".
     return words.firstOrNull { word ->
         val w = normalize(word.trim())
-        w.isNotEmpty() && Regex("(?<![\\p{L}\\d])" + Regex.escape(w)).containsMatchIn(haystack)
+        w.isNotEmpty() && wordRegex(w, open = true).containsMatchIn(haystack)
     }
 }
 
@@ -135,8 +151,10 @@ private val SENSITIVE_TERMS = listOf(
     "casualties", "bodies", "body", "massacre", "slaughter", "toll",
 )
 
+private val SENSITIVE_NORMALIZED by lazy { SENSITIVE_TERMS.map(::normalize).distinct() }
+
 /** Notícia que fala de mortos ou feridos: a foto aparece borrada até tocar. */
 fun Cluster.isSensitive(translated: (String) -> String): Boolean {
     val text = normalize("$title $summary ${translated(title)}")
-    return SENSITIVE_TERMS.any { Regex("(?<![\\p{L}])" + Regex.escape(normalize(it)) + "(?![\\p{L}])").containsMatchIn(text) }
+    return SENSITIVE_NORMALIZED.any { wordRegex(it, digits = false).containsMatchIn(text) }
 }

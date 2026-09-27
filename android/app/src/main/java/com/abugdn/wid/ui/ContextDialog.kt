@@ -24,6 +24,8 @@ import com.abugdn.wid.data.Cluster
 import com.abugdn.wid.data.SOURCE_DISCLAIMER
 import com.abugdn.wid.data.SOURCE_PROFILES
 import com.abugdn.wid.data.related
+import com.abugdn.wid.data.WIKI_TITLES
+import com.abugdn.wid.data.isPerson
 import com.abugdn.wid.repository
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -48,13 +50,20 @@ fun ContextDialog(
     onOpen: ((String) -> Unit)? = null,
     footer: String = CONTEXT_DISCLAIMER,
     extra: (@Composable () -> Unit)? = null,
+    /** Foto ou bandeira acima do título. */
+    image: (@Composable () -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val translator = LocalContext.current.repository.translator
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } },
-        title = { Text(title) },
+        title = {
+            Column {
+                image?.invoke()
+                Text(title)
+            }
+        },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(text)
@@ -93,7 +102,11 @@ fun RegionContextDialog(tag: String, onOpen: ((String) -> Unit)? = null, exclude
     val text = REGION_CONTEXT[tag] ?: return
     val feed by LocalContext.current.repository.feed.collectAsStateWithLifecycle()
     val related = feed?.clusters.orEmpty().filter { tag in it.tags && it.id != exclude }.take(5)
-    ContextDialog(TAG_LABELS[tag] ?: tag, text, MILESTONES[tag], related = related, onOpen = onOpen, onDismiss = onDismiss)
+    ContextDialog(
+        TAG_LABELS[tag] ?: tag, text, MILESTONES[tag], related = related, onOpen = onOpen,
+        image = { RegionFlags(tag, Modifier.padding(bottom = 8.dp), height = 28.dp) },
+        onDismiss = onDismiss,
+    )
 }
 
 /** Contexto de um ator, pessoa ou arma, com as notícias recentes que o citam. */
@@ -101,7 +114,12 @@ fun RegionContextDialog(tag: String, onOpen: ((String) -> Unit)? = null, exclude
 fun ActorContextDialog(actor: Actor, onOpen: ((String) -> Unit)?, exclude: String? = null, onDismiss: () -> Unit) {
     val repo = LocalContext.current.repository
     val feed by repo.feed.collectAsStateWithLifecycle()
-    val related = remember(actor.key, feed) { actor.related(feed?.clusters.orEmpty(), repo.translator::cached, exclude) }
+    // Procura fora da thread principal: com o feed cheio, fazer isso ao abrir o cartão travava a tela.
+    val related by androidx.compose.runtime.produceState(emptyList<Cluster>(), actor.key, feed) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            actor.related(feed?.clusters.orEmpty(), repo.translator::cached, exclude)
+        }
+    }
     val quotes by repo.quotes.collectAsStateWithLifecycle()
     val said = quotes.filter { it.person == actor.key }.take(6)
     val sheet = WEAPON_SHEETS[actor.key]
@@ -111,6 +129,12 @@ fun ActorContextDialog(actor: Actor, onOpen: ((String) -> Unit)?, exclude: Strin
         extra = {
             if (sheet != null) WeaponSheetBlock(sheet) { onDismiss(); openMap(it) }
             if (said.isNotEmpty()) SaidBlock(said) { id -> onDismiss(); onOpen?.invoke(id) }
+        },
+        image = {
+            WikiImage(
+                WIKI_TITLES[actor.key], person = isPerson(actor),
+                modifier = Modifier.padding(bottom = 8.dp), size = if (isPerson(actor)) 88.dp else 64.dp,
+            )
         },
         onDismiss = onDismiss,
     )

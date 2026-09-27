@@ -11,6 +11,16 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        21,
+        listOf(
+            "🐞 Corrigido o travamento ao abrir o cartão de uma pessoa, grupo ou arma. A lista de notícias também ficou mais rápida.",
+            "🖼 Fotos nos cartões de pessoas, grupos e armas (da Wikipédia) e nos chips de pessoas dentro da notícia.",
+            "🏳 Bandeiras nos cartões e páginas de países e regiões, nos chips da notícia e em “Quem manda” (Radar → Contexto), agora com a foto de cada um.",
+            "🔥 Focos de calor por satélite ligados: veja em Radar → Sensores e no botão 🔥 Focos do Mapa.",
+            "📶 Com a economia de dados ligada, fotos e bandeiras não são baixadas.",
+        ),
+    ),
+    ChangelogEntry(
         19,
         listOf(
             "📡 Aba nova: Radar. Dados de fora da imprensa em 6 categorias: Sensores, Mercados, Números, Vozes, Análise e Contexto.",

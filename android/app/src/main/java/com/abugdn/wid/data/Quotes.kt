@@ -25,9 +25,7 @@ private val SENTENCE = Regex("(?<=[.!?])\\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕ“\"«])
 
 private fun namesIn(text: String): List<Actor> {
     val norm = normalize(text)
-    return PEOPLE.filter { p ->
-        p.terms.any { Regex("(?<![\\p{L}\\d])" + Regex.escape(normalize(it)) + "(?![\\p{L}\\d])").containsMatchIn(norm) }
-    }
+    return PEOPLE.filter { p -> p.terms.any { wordRegex(normalize(it)).containsMatchIn(norm) } }
 }
 
 object Quotes {

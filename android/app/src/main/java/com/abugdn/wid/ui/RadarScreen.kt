@@ -73,6 +73,7 @@ import com.abugdn.wid.data.RadarItem
 import com.abugdn.wid.data.SectionStatus
 import com.abugdn.wid.data.TAG_LABELS
 import com.abugdn.wid.data.onThisDay
+import com.abugdn.wid.data.wikiTitleForName
 import com.abugdn.wid.data.sunTimes
 import com.abugdn.wid.data.upcomingAgenda
 import com.abugdn.wid.data.normalize
@@ -890,24 +891,34 @@ private fun PowerCards() {
         SectionTitle("🧭 QUEM MANDA EM CADA LADO")
         POWER.forEach { side ->
             val open = expanded == side.title
-            Text(
-                (if (open) "▾ " else "▸ ") + side.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth().clickable { expanded = if (open) null else side.title }.padding(vertical = 8.dp),
-            )
+            Row(
+                Modifier.fillMaxWidth().clickable { expanded = if (open) null else side.title }.padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    (if (open) "▾ " else "▸ ") + side.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                RegionFlags(side.tag, height = 16.dp)
+            }
             if (open) {
                 side.roles.forEach { r ->
                     val actor = r.person?.let { key -> PEOPLE.firstOrNull { it.key == key } }
-                    Column(
-                        Modifier.fillMaxWidth().clickable(enabled = actor != null) { person = actor }.padding(start = 16.dp, bottom = 6.dp),
+                    Row(
+                        Modifier.fillMaxWidth().clickable(enabled = actor != null) { person = actor }.padding(start = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(r.role, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            r.name + if (actor != null) "  ⓘ" else "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (actor != null) Accent else MaterialTheme.colorScheme.onSurface,
-                        )
+                        WikiImage(wikiTitleForName(r.name, r.person), person = true, size = 40.dp, modifier = Modifier.padding(end = 10.dp))
+                        Column {
+                            Text(r.role, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                r.name + if (actor != null) "  ⓘ" else "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (actor != null) Accent else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
             }

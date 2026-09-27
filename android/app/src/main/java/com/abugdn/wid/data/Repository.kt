@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import net.dankito.readability4j.extended.Readability4JExtended
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -24,6 +26,9 @@ val DATA_URLS = listOf(
     "https://raw.githubusercontent.com/AbuGDN/Argos/gh-pages",
     "https://raw.githubusercontent.com/AbuGDN/WID/gh-pages",
 )
+
+/** A Wikimedia pede um user-agent que identifique o app. */
+const val WIKI_USER_AGENT = "Argos/1.0 (https://github.com/AbuGDN/Argos; app pessoal de notícias)"
 
 private const val USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36"
@@ -380,6 +385,41 @@ class Repository(context: Context) {
         val top = listOfNotNull(feed.topOfDay) + feed.clusters.take(limit)
         for (c in top.distinctBy { it.id }) fullText(c)
         storage.pruneFullTexts(keep = _saved.value.map { it.id }.toSet())
+    }
+
+    private val wikiImages = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Foto principal do artigo da Wikipédia (em inglês) [title]. Guardada nas preferências: cada
+     * foto é procurada uma vez só. Null se o artigo não tem foto ou se não deu para buscar agora.
+     */
+    suspend fun wikiImage(title: String): String? = withContext(Dispatchers.IO) {
+        wikiImages[title]?.let { return@withContext it.ifEmpty { null } }
+        val prefKey = "wimg:$title"
+        storage.prefs.getString(prefKey, null)?.let {
+            wikiImages[title] = it
+            return@withContext it.ifEmpty { null }
+        }
+        val encoded = java.net.URLEncoder.encode(title, "UTF-8").replace("+", "_")
+        val request = Request.Builder()
+            .url("https://en.wikipedia.org/api/rest_v1/page/summary/$encoded")
+            .header("User-Agent", WIKI_USER_AGENT)
+            .build()
+        val url = runCatching {
+            http.newCall(request).execute().use { resp ->
+                when {
+                    resp.code == 404 -> ""
+                    !resp.isSuccessful -> null
+                    else -> {
+                        val body = json.parseToJsonElement(resp.body?.string().orEmpty()).jsonObject
+                        body["thumbnail"]?.jsonObject?.get("source")?.jsonPrimitive?.content.orEmpty()
+                    }
+                }
+            }
+        }.getOrNull() ?: return@withContext null
+        wikiImages[title] = url
+        storage.prefs.edit().putString(prefKey, url).apply()
+        url.ifEmpty { null }
     }
 
     /** Baixa um arquivo da gh-pages, tentando cada endereço do repositório. */

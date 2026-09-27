@@ -324,16 +324,25 @@ val SOURCE_PROFILES = mapOf(
 
 const val SOURCE_DISCLAIMER = "Resumo geral; a linha editorial é uma avaliação aproximada."
 
+/** Termos do ator já normalizados (calculados uma vez). */
+private val normalizedTerms = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
+
+private fun Actor.normTerms(): List<String> = normalizedTerms.getOrPut(key) { terms.map(::normalize).distinct() }
+
+/** O ator aparece no texto (já normalizado)? Aceita plural simples ("houthis"). */
+fun Actor.mentionedIn(normText: String): Boolean = normTerms().any { wordRegex(it, suffix = "s?").containsMatchIn(normText) }
+
+private fun Cluster.normText(translated: (String) -> String) =
+    normalize("$title\n$summary\n${translated(title)}\n${translated(summary)}")
+
 /** Atores e armas citados na notícia (título, resumo e tradução). */
 fun Cluster.actors(translated: (String) -> String): List<Actor> {
-    val text = normalize("$title\n$summary\n${translated(title)}\n${translated(summary)}")
-    return (PEOPLE + ACTORS + GLOSSARY).filter { actor ->
-        actor.terms.any { Regex("(?<![\\p{L}\\d])" + Regex.escape(normalize(it)) + "s?(?![\\p{L}\\d])").containsMatchIn(text) }
-    }
+    val text = normText(translated)
+    return (PEOPLE + ACTORS + GLOSSARY).filter { it.mentionedIn(text) }
 }
 
-/** Histórias do feed que citam o ator/pessoa (para "notícias recentes"). */
+/** Histórias do feed que citam o ator/pessoa (para "notícias recentes"); para nas 5 primeiras. */
 fun Actor.related(clusters: List<Cluster>, translated: (String) -> String, exclude: String? = null): List<Cluster> =
-    clusters.filter { it.id != exclude && key in it.actors(translated).map { a -> a.key } }.take(5)
+    clusters.asSequence().filter { it.id != exclude && mentionedIn(it.normText(translated)) }.take(5).toList()
 
 fun isPerson(actor: Actor) = PEOPLE.any { it.key == actor.key }
