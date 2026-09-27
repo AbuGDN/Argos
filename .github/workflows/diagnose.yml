@@ -1,7 +1,7 @@
 name: Diagnóstico de fontes
 
 # Testa, a partir dos servidores do GitHub (que alguns sites bloqueiam), as URLs de
-# .github/diagnose/urls.txt: mostra o código HTTP e o começo da resposta. Não publica nada.
+# .github/diagnose/urls.txt (url<TAB>regex): código HTTP, começo da resposta e trechos. Não publica nada.
 on:
   workflow_dispatch:
   push:
@@ -15,13 +15,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Testar URLs
-        run: |
-          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
-          while read -r url; do
-            [ -z "$url" ] && continue
-            echo "=================== $url"
-            code=$(curl -sL -m 25 -A "$UA" -o body.txt -w '%{http_code}' "$url" || echo ERR)
-            echo "HTTP $code · $(wc -c < body.txt) bytes"
-            head -c 600 body.txt | tr '\n' ' ' | cut -c1-600
-            echo
-          done < .github/diagnose/urls.txt
+        run: python3 .github/diagnose/probe.py .github/diagnose/urls.txt
