@@ -69,6 +69,7 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
         LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
                 Column(Modifier.padding(16.dp, 12.dp, 16.dp, 0.dp)) {
+                    RegionFlags(tag, Modifier.padding(bottom = 10.dp), height = 32.dp)
                     ConflictCounter(tag, Modifier.padding(bottom = 12.dp))
                     stat?.let { TensionGauge(it) }
                     Text(

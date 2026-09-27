@@ -293,10 +293,21 @@ private fun ContextChips(cluster: Cluster, onOpen: (String) -> Unit, onRegion: (
 
     FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         actors.forEach { a ->
-            AssistChip(onClick = { openActor = a }, label = { Text(actorIcon(a) + a.name) })
+            val person = com.abugdn.wid.data.isPerson(a)
+            AssistChip(
+                onClick = { openActor = a },
+                label = { Text(if (person) a.name else actorIcon(a) + a.name) },
+                leadingIcon = if (person) {
+                    { WikiImage(com.abugdn.wid.data.WIKI_TITLES[a.key], person = true, size = 22.dp) }
+                } else null,
+            )
         }
         regions.forEach { tag ->
-            AssistChip(onClick = { onRegion(tag) }, label = { Text("🌍 ${TAG_LABELS[tag] ?: tag}") })
+            AssistChip(
+                onClick = { onRegion(tag) },
+                label = { Text(TAG_LABELS[tag] ?: tag) },
+                leadingIcon = { RegionFlags(tag, height = 14.dp) },
+            )
         }
     }
     openActor?.let { a -> ActorContextDialog(a, onOpen, exclude = cluster.id) { openActor = null } }
