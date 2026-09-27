@@ -8,6 +8,7 @@ Estado que o app não precisa (linhas de base) fica em stats/radar_state.json.
 
 import base64
 import csv
+import gzip
 import io
 import json
 import logging
@@ -792,6 +793,59 @@ def crisiswatch_trends(html: str, countries: dict[str, str]) -> dict:
 
 
 MONTHS_EN = list(MONTHS_PT)
+WAYBACK_API = "https://archive.org/wayback/available"
+_CW_ENTRY = re.compile(
+    r'<div title="(\w+ \d{4})" class="o-state-entry[^"]*">\s*<a href="[^"#]*#([a-z0-9-]+)">((?:\s*<span class="state-[a-z-]+"></span>)+)'
+)
+_CW_STATE = re.compile(r'state-([a-z-]+)')
+_CW_BUCKET = {"deteriorated": "deteriorated", "improved": "improved", "risk-alert": "risk", "resolution-opportunity": "resolution"}
+
+
+def _month_key(label: str) -> tuple[int, int]:
+    name, year = label.split()
+    return int(year), MONTHS_EN.index(name) + 1 if name in MONTHS_EN else 0
+
+
+def crisiswatch_entries(html: str, countries: dict[str, str]) -> dict:
+    """Página do CrisisWatch com as entradas por país (div.o-state-entry, uma por mês).
+
+    Usa só o mês mais recente da página; o país vem da âncora do link (#yemen, #israel-palestine).
+    """
+    entries = [(month, slug, _CW_STATE.findall(spans)) for month, slug, spans in _CW_ENTRY.findall(html)]
+    entries = [e for e in entries if e[0].split()[0] in MONTHS_EN]
+    if not entries:
+        raise ValueError("entradas do CrisisWatch não encontradas")
+    latest = max((e[0] for e in entries), key=_month_key)
+    result: dict = {k: [] for k in CW_HEADINGS}
+    seen: set[tuple[str, str]] = set()
+    for month, slug, states in entries:
+        if month != latest:
+            continue
+        for name, tag in countries.items():
+            if name.lower().replace(" ", "-") not in slug:
+                continue
+            for state in states:
+                bucket = _CW_BUCKET.get(state)
+                if bucket and (bucket, tag) not in seen:
+                    seen.add((bucket, tag))
+                    result[bucket].append({"name": name, "tag": tag})
+    name, year = latest.split()
+    result["month"] = f"{MONTHS_PT[name]} de {year}"
+    return result
+
+
+def _wayback_html(client: httpx.Client, url: str) -> str:
+    """Cópia mais recente da página no Internet Archive (o site bloqueia o GitHub)."""
+    info = _get_json(client, WAYBACK_API, params={"url": url.split("://", 1)[-1]})
+    snap = ((info.get("archived_snapshots") or {}).get("closest") or {})
+    if not snap.get("available") or not snap.get("timestamp"):
+        raise ValueError("sem cópia no Internet Archive")
+    resp = client.get(f"https://web.archive.org/web/{snap['timestamp']}id_/{url}", timeout=60)
+    resp.raise_for_status()
+    raw = resp.content
+    if raw[:2] == b"\x1f\x8b":
+        raw = gzip.decompress(raw)
+    return raw.decode("utf-8", "replace")
 
 
 def _month_pages(now: datetime) -> list[str]:
@@ -814,6 +868,14 @@ def collect_crisiswatch(ctx: Ctx) -> dict:
             return data
         except Exception as exc:
             last = exc
+    # Cópia do Internet Archive da página principal (tem as entradas por país).
+    try:
+        data = crisiswatch_entries(_wayback_html(ctx.client, urls[0]), ctx.conf["countries"])
+        data["url"] = urls[0]
+        return data
+    except Exception as exc:
+        log.info("CrisisWatch pelo Internet Archive: %s", exc)
+        last = exc
     # A página bloqueia robôs às vezes: procura a edição do mês no RSS do Crisis Group.
     for source in ctx.conf.get("feeds", []):
         arts, _ = fetch_source(ctx.client, source, ctx.now)

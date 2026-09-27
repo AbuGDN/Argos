@@ -293,3 +293,23 @@ def test_parse_eia_weekly_rows():
     assert rows[-1] == ("2026-09-22", 114.89)
     s = radar.series_summary(rows)
     assert s["price"] == 114.89 and s["change_pct"] == round((114.89 - 116.15) / 116.15 * 100, 2)
+
+
+def test_crisiswatch_entries_from_country_blocks():
+    def entry(month, slug, *states):
+        spans = " ".join(f'<span class="state-{s}"></span>' for s in states)
+        return f'<div title="{month}" class="o-state-entry u-df u-pr"> <a href="/crisiswatch/x#{slug}"> {spans} <aside>'
+    html = "".join([
+        entry("July 2026", "lebanon", "deteriorated"),
+        entry("August 2026", "lebanon", "unchanged"),
+        entry("August 2026", "yemen", "unchanged", "risk-alert"),
+        entry("August 2026", "israel-palestine", "deteriorated"),
+        entry("August 2026", "sudan", "improved"),
+        entry("August 2026", "benin", "deteriorated"),
+    ])
+    countries = {"Lebanon": "libano", "Yemen": "iemen", "Israel": "israel", "Palestine": "gaza", "Sudan": "sudao"}
+    t = radar.crisiswatch_entries(html, countries)
+    assert t["month"] == "agosto de 2026"
+    assert {c["tag"] for c in t["deteriorated"]} == {"israel", "gaza"}
+    assert [c["tag"] for c in t["risk"]] == ["iemen"]
+    assert [c["tag"] for c in t["improved"]] == ["sudao"]

@@ -104,8 +104,9 @@ web/                     página de download (index.html, icon.svg); build.py co
   viram a forma por extenso; pós: pt-PT→pt-BR, termos militares, nomes em inglês, concordância com
   "Estados Unidos"). Testes em `android/app/src/test/` (rodam no CI). Ao mudar regras, aumente
   `VERSION` — o app descarta e refaz as traduções guardadas.
-- **Radar**: Yahoo Finance responde 429 aos IPs do GitHub e o crisisgroup.org/crisiswatch dá 403 (há
-  alternativas na config). Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita
+- **Radar**: do GitHub, Yahoo dá 429, Stooq pede JavaScript, FRED não responde (Brent vem da tabela do
+  EIA) e crisisgroup.org dá 403 (CrisisWatch vem da cópia do Internet Archive). Para testar uma fonte
+  nova a partir dos servidores do GitHub: `.github/diagnose/urls.txt` + workflow "Diagnóstico de fontes". Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita
   `OPENSKY_CLIENT_ID/SECRET` opcionais. A cobertura do OpenSky no Oriente Médio é pequena (poucos aviões
   visíveis); por isso o status só sai depois de 3 dias de linha de base.
 - **Regex em loop trava o app**: nunca compile `Regex(...)` dentro de funções chamadas por notícia
