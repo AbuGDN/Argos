@@ -16,6 +16,7 @@ class WidApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         repository = Repository(this)
         Notifier.createChannels(this)
         SyncWorker.schedule(this)
