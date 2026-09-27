@@ -60,17 +60,19 @@ straits:
     - {id: hormuz, name: Estreito de Ormuz, match: Hormuz, tag: ira}
     - {id: bosporus, name: Bósforo, match: Bosporus, tag: ucrania_russia}
 
-# Cotações: tenta Stooq (stooq), depois Yahoo (symbol) e por fim só o preço atual
-# (fx = câmbio aberto open.er-api.com; json = {url, path}). O Yahoo bloqueia IPs do GitHub (429).
+# Cotações: tenta Stooq (stooq), FRED (fred, CSV público do Fed de St. Louis, com alguns dias de
+# atraso), Yahoo (symbol) e por fim só o preço atual (fx = câmbio aberto open.er-api.com;
+# json = {url, path}), com a variação calculada pelo histórico que o Argos guarda.
+# O Yahoo bloqueia IPs do GitHub (429) e o Stooq passou a recusar downloads sem chave.
 markets:
   interval: 60
   items:
-    - {id: brent, name: Petróleo Brent, stooq: cb.f, symbol: "BZ=F", unit: "US$", digits: 2}
-    - {id: ouro, name: Ouro, stooq: xauusd, symbol: "GC=F", json: {url: "https://api.gold-api.com/price/XAU", path: price}, unit: "US$/oz", digits: 0}
-    - {id: shekel, name: Dólar em shekels, stooq: usdils, symbol: "ILS=X", fx: ILS, unit: "₪", digits: 3}
-    - {id: rublo, name: Dólar em rublos, stooq: usdrub, symbol: "RUB=X", fx: RUB, unit: "₽", digits: 2}
-    - {id: hryvnia, name: Dólar em hryvnias, stooq: usduah, symbol: "UAH=X", fx: UAH, unit: "₴", digits: 2}
-    - {id: real, name: Dólar em reais, stooq: usdbrl, symbol: "BRL=X", fx: BRL, unit: "R$", digits: 3}
+    - {id: brent, name: Petróleo Brent, fred: DCOILBRENTEU, symbol: "BZ=F", unit: "US$", digits: 2}
+    - {id: ouro, name: Ouro, symbol: "GC=F", json: {url: "https://api.gold-api.com/price/XAU", path: price}, unit: "US$/oz", digits: 0}
+    - {id: shekel, name: Dólar em shekels, symbol: "ILS=X", fx: ILS, unit: "₪", digits: 3}
+    - {id: rublo, name: Dólar em rublos, symbol: "RUB=X", fx: RUB, unit: "₽", digits: 2}
+    - {id: hryvnia, name: Dólar em hryvnias, symbol: "UAH=X", fx: UAH, unit: "₴", digits: 2}
+    - {id: real, name: Dólar em reais, symbol: "BRL=X", fx: BRL, unit: "R$", digits: 3}
 
 # --- Números -------------------------------------------------------------------------
 
