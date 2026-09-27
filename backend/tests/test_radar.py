@@ -241,3 +241,19 @@ def test_keep_filters_by_section():
     assert radar._keep("official", src, k.match("CENTCOM forces strike Houthi missile sites in Yemen", ""), "")
     assert not radar._keep("factcheck", src, k.match("14 rumors about US-China relations", ""), "")
     assert radar._keep("sanctions", {"match": "sanction"}, k.match("Treasury sanctions oil network", ""), "Treasury sanctions oil network")
+
+
+def test_fires_collects_as_soon_as_key_is_added(tmp_path, monkeypatch):
+    monkeypatch.delenv("FIRMS_MAP_KEY", raising=False)
+    config = {"fires": {"interval": 180, "zones": [{"id": "gaza", "name": "Gaza", "tag": "gaza", "box": [34.2, 31.2, 34.6, 31.6]}]}}
+    client, _ = mock_client({})
+    first = radar.collect(tmp_path, NOW, kw(), config, client)
+    (tmp_path / "radar.json").write_text(json.dumps(first))
+    monkeypatch.setenv("FIRMS_MAP_KEY", "abc")
+
+    def handler(request):
+        return httpx.Response(200, text="latitude,longitude,frp\n31.5,34.45,10\n")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    later = radar.collect(tmp_path, NOW + timedelta(minutes=30), kw(), config, client)
+    assert later["fires"]["zones"][0]["count"] == 1
