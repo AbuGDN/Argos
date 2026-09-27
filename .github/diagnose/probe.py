@@ -6,7 +6,9 @@ import urllib.request
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
 for line in open(sys.argv[1], encoding="utf-8"):
-    url, _, pattern = line.rstrip("\n").partition("\t")
+    url, _, rest = line.rstrip("\n").partition("\t")
+    pattern, _, after = rest.partition("\t")
+    after = int(after or 450)
     if not url:
         continue
     print("=" * 20, url)
@@ -26,4 +28,4 @@ for line in open(sys.argv[1], encoding="utf-8"):
         hits = list(re.finditer(pattern, body))
         print(f"{len(hits)} ocorrências de {pattern!r}")
         for m in hits[:2] + hits[-3:]:
-            print("  …", body[max(0, m.start() - 150):m.end() + 450].replace("\n", " "))
+            print("  …", re.sub(r"\s+", " ", body[max(0, m.start() - 150):m.end() + after]))

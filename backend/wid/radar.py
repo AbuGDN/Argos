@@ -368,6 +368,7 @@ YAHOO_URLS = (
 )
 STOOQ_URL = "https://stooq.com/q/d/l/"
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+EIA_URL = "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx"
 FX_URL = "https://open.er-api.com/v6/latest/USD"
 MARKET_KEEP_DAYS = 40
 
@@ -425,6 +426,29 @@ def parse_stooq(text: str) -> list[tuple[str, float]]:
     return out
 
 
+_EIA_ROW = re.compile(r"<td class='B6'>(?:&nbsp;)*\s*(\d{4}) (\w{3})-\s*(\d{1,2}) to [^<]*</td>((?:\s*<td class='B3'>[^<]*</td>){1,5})")
+_EIA_CELL = re.compile(r"<td class='B3'>([^<]*)</td>")
+
+
+def parse_eia(html: str) -> list[tuple[str, float]]:
+    """Tabela diária do EIA (uma linha por semana, seg a sex) -> [(aaaa-mm-dd, valor)]."""
+    out = []
+    for m in _EIA_ROW.finditer(html):
+        year, mon, day, cells = m.groups()
+        try:
+            monday = datetime.strptime(f"{year} {mon} {day}", "%Y %b %d")
+        except ValueError:
+            continue
+        for i, cell in enumerate(_EIA_CELL.findall(cells)):
+            try:
+                out.append(((monday + timedelta(days=i)).date().isoformat(), float(cell.strip())))
+            except ValueError:
+                continue
+    if not out:
+        raise ValueError("tabela do EIA não encontrada")
+    return out[-60:]
+
+
 def parse_fred(text: str) -> list[tuple[str, float]]:
     """CSV do FRED (data, valor; "." = sem dado) -> [(aaaa-mm-dd, valor)]."""
     rows = list(csv.reader(io.StringIO(text)))
@@ -442,7 +466,7 @@ def parse_fred(text: str) -> list[tuple[str, float]]:
 
 
 def _quote(ctx: Ctx, m: dict, fx: dict) -> dict:
-    """Tenta Stooq, FRED, Yahoo e por fim uma fonte só de preço (câmbio aberto ou JSON)."""
+    """Tenta Stooq, EIA, FRED, Yahoo e por fim uma fonte só de preço (câmbio aberto ou JSON)."""
     errors = []
     if m.get("stooq"):
         try:
@@ -452,6 +476,13 @@ def _quote(ctx: Ctx, m: dict, fx: dict) -> dict:
             return series_summary(parse_stooq(resp.text))
         except Exception as exc:
             errors.append(f"stooq: {exc}")
+    if m.get("eia"):
+        try:
+            resp = ctx.client.get(EIA_URL, params={"n": "PET", "s": m["eia"], "f": "D"}, timeout=40)
+            resp.raise_for_status()
+            return series_summary(parse_eia(resp.text))
+        except Exception as exc:
+            errors.append(f"eia: {exc}")
     if m.get("fred"):
         try:
             cosd = (ctx.now - timedelta(days=60)).date().isoformat()

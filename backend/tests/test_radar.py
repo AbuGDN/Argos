@@ -268,3 +268,28 @@ def test_crisiswatch_month_pages():
     pages = radar._month_pages(datetime(2026, 9, 27, tzinfo=timezone.utc))
     assert pages == ["https://www.crisisgroup.org/crisiswatch/september-2026",
                      "https://www.crisisgroup.org/crisiswatch/august-2026"]
+
+
+def test_parse_eia_weekly_rows():
+    html = """<tr>
+ <td class='B6'>&nbsp;&nbsp;2026 Sep-14 to Sep-18</td>
+ <td class='B3'>110.00</td>
+ <td class='B3'>111.50</td>
+ <td class='B3'></td>
+ <td class='B3'>112.00</td>
+ <td class='B3'>113.25</td>
+ </tr>
+ <tr>
+ <td class='B6'>&nbsp;&nbsp;2026 Sep-21 to Sep-25</td>
+ <td class='B3'>116.15</td>
+ <td class='B3'>114.89</td>
+ <td class='B3'></td>
+ <td class='B3'></td>
+ <td class='B3'></td>
+ </tr>"""
+    rows = radar.parse_eia(html)
+    assert rows[0] == ("2026-09-14", 110.0)
+    assert ("2026-09-17", 112.0) in rows
+    assert rows[-1] == ("2026-09-22", 114.89)
+    s = radar.series_summary(rows)
+    assert s["price"] == 114.89 and s["change_pct"] == round((114.89 - 116.15) / 116.15 * 100, 2)
