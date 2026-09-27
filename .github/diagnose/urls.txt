@@ -1,3 +1,1 @@
-https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RBRTE&f=D	B6|B3
-http://web.archive.org/web/20260927085943id_/https://www.crisisgroup.org/crisiswatch	Deteriorated|Improved|Conflict Risk|Resolution Opp
-https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU	
+http://web.archive.org/web/20260927085943id_/https://www.crisisgroup.org/crisiswatch	Deteriorated|Improved|Conflict Risk|Resolution Opp|September 2026

@@ -1,4 +1,5 @@
 """Baixa cada URL (url<TAB>regex) e mostra código, tamanho e trechos em volta do regex."""
+import gzip
 import re
 import sys
 import urllib.request
@@ -12,7 +13,10 @@ for line in open(sys.argv[1], encoding="utf-8"):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": UA})
         with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8", "replace")
+            raw = resp.read()
+            if raw[:2] == b"\x1f\x8b":
+                raw = gzip.decompress(raw)
+            body = raw.decode("utf-8", "replace")
             print("HTTP", resp.status, len(body), "bytes")
     except Exception as exc:
         print("ERRO", type(exc).__name__, exc)
