@@ -27,8 +27,11 @@ val DATA_URLS = listOf(
     "https://raw.githubusercontent.com/AbuGDN/WID/gh-pages",
 )
 
-/** A Wikimedia pede um user-agent que identifique o app. */
-const val WIKI_USER_AGENT = "Argos/1.0 (https://github.com/AbuGDN/Argos; app pessoal de notícias)"
+/**
+ * A Wikimedia pede um user-agent que identifique o app. Só ASCII: o OkHttp recusa acentos em
+ * cabeçalhos com uma exceção que derrubava o app (o "í" de "notícias" já fez isso).
+ */
+const val WIKI_USER_AGENT = "Argos/1.0 (https://github.com/AbuGDN/Argos; personal news app)"
 
 private const val USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36"
@@ -400,12 +403,12 @@ class Repository(context: Context) {
             wikiImages[title] = it
             return@withContext it.ifEmpty { null }
         }
-        val encoded = java.net.URLEncoder.encode(title, "UTF-8").replace("+", "_")
-        val request = Request.Builder()
-            .url("https://en.wikipedia.org/api/rest_v1/page/summary/$encoded")
-            .header("User-Agent", WIKI_USER_AGENT)
-            .build()
         val url = runCatching {
+            val encoded = java.net.URLEncoder.encode(title, "UTF-8").replace("+", "_")
+            val request = Request.Builder()
+                .url("https://en.wikipedia.org/api/rest_v1/page/summary/$encoded")
+                .header("User-Agent", WIKI_USER_AGENT)
+                .build()
             http.newCall(request).execute().use { resp ->
                 when {
                     resp.code == 404 -> ""

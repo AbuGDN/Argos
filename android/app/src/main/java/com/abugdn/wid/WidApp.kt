@@ -31,6 +31,8 @@ class WidApp : Application(), ImageLoaderFactory {
                     val request = chain.request()
                     val host = request.url.host
                     if (host.endsWith("wikimedia.org") || host.endsWith("wikipedia.org")) {
+                        // Um erro aqui roda numa thread do OkHttp e derruba o app inteiro: nada que
+                        // possa lançar exceção fora do chain.proceed.
                         chain.proceed(request.newBuilder().header("User-Agent", WIKI_USER_AGENT).build())
                     } else {
                         chain.proceed(request)

@@ -20,9 +20,12 @@ tap "Radar" 5; shot 05-radar
 for t in Mercados "Números" Vozes "Análise" Contexto; do tap "$t" 4; shot "06-radar-$t"; done
 adb shell input swipe 500 1800 500 500 400; sleep 2
 adb shell input swipe 500 1800 500 500 400; sleep 2
-tap "Israel" 3; shot 07-quem-manda
-tap "Benjamin Netanyahu" 6; shot 08-cartao-pessoa
+adb shell input swipe 500 1800 500 400 400; sleep 2
+adb shell input swipe 500 1800 500 400 400; sleep 2
+tap "Israel" 6; shot 07-quem-manda
+tap "Benjamin Netanyahu" 8; shot 08-cartao-pessoa
 adb shell input keyevent KEYCODE_BACK; sleep 2
+tap "Irã" 6; shot 07b-quem-manda-ira
 tap "Arquivo" 4; shot 09-arquivo
 tap "Salvos" 3
 tap "Hoje" 4
@@ -36,4 +39,6 @@ adb logcat -d -b crash | tee crash.txt
 echo "=== ERROS DO APP ==="
 adb logcat -d -v time | grep -E "AndroidRuntime|FATAL|ANR in|$PKG" | grep -iE "exception|error|fatal|anr" | tail -80
 adb logcat -d -v time > logcat.txt
+# Falha o teste se o app caiu (o erro aparece acima, em CRASHES).
+if [ -s crash.txt ] && grep -q "FATAL EXCEPTION" crash.txt; then exit 1; fi
 exit 0
