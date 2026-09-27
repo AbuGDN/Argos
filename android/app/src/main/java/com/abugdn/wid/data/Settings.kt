@@ -36,6 +36,8 @@ data class Settings(
     val readerWide: Boolean = false,
     /** Borra fotos de notícias com mortos/feridos até tocar. */
     val blurSensitive: Boolean = true,
+    /** Aviso do Radar: apagão de internet ou espaço aéreo fechado. */
+    val notifyRadar: Boolean = true,
 ) {
     fun matchesRegion(tags: List<String>) = regions.isEmpty() || tags.any { it in regions }
 
@@ -72,6 +74,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("s_reader_serif", next.readerSerif)
             .putBoolean("s_reader_wide", next.readerWide)
             .putBoolean("s_blur", next.blurSensitive)
+            .putBoolean("s_notify_radar", next.notifyRadar)
             .apply()
         _state.value = next
         onChange?.invoke(next)
@@ -99,6 +102,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         readerSerif = prefs.getBoolean("s_reader_serif", false),
         readerWide = prefs.getBoolean("s_reader_wide", false),
         blurSensitive = prefs.getBoolean("s_blur", true),
+        notifyRadar = prefs.getBoolean("s_notify_radar", true),
     )
 }
 

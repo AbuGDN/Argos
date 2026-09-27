@@ -84,10 +84,10 @@ class Repository(context: Context) {
     val vigil: StateFlow<List<VigilEvent>> = _vigil.asStateFlow()
 
     @Synchronized
-    private fun recordVigil(feed: Feed) {
+    private fun recordVigil(feed: Feed, radar: RadarData?) {
         val now = System.currentTimeMillis()
         val day = java.time.LocalDate.now().toString()
-        val next = Vigil.merge(_vigil.value, Vigil.detect(feed, now, day))
+        val next = Vigil.merge(_vigil.value, Vigil.detect(feed, now, day) + Vigil.detectRadar(radar, now, day))
         if (next !== _vigil.value) {
             storage.saveVigil(next)
             _vigil.value = next
@@ -107,6 +107,20 @@ class Repository(context: Context) {
             _quotes.value = next
         }
     }
+
+    private val _radar = MutableStateFlow(storage.loadRadar())
+    /** Radar (radar.json): sensores, cotações, números, vozes oficiais, análises e previsões. */
+    val radar: StateFlow<RadarData?> = _radar.asStateFlow()
+
+    /** Baixa o radar.json. Falhar aqui nunca impede o feed de atualizar. */
+    private fun fetchRadar(): RadarData? = runCatching {
+        val raw = getData("radar.json?t=${System.currentTimeMillis() / 60_000}")
+        json.decodeFromString<RadarData>(raw).also { storage.saveRadar(raw) }
+    }.getOrNull()
+
+    /** Checagens (Radar) ligadas a uma história do feed. */
+    fun factchecksFor(clusterId: String): List<RadarItem> =
+        _radar.value?.factcheck?.items.orEmpty().filter { clusterId in it.clusters }
 
     /** Círculo de alcance que o Mapa deve mostrar ao abrir (ficha de armamento → "ver no mapa"). */
     val mapFocus = MutableStateFlow<String?>(null)
@@ -168,11 +182,13 @@ class Repository(context: Context) {
         runCatching {
             val raw = getData("feed.json?t=${System.currentTimeMillis() / 60_000}")
             val feed = json.decodeFromString<Feed>(raw)
-            recordVigil(feed)
+            val radar = fetchRadar() ?: _radar.value
+            recordVigil(feed, radar)
             val texts = feedTexts(feed) + textsOf(_saved.value) + textsOf(_archive.value.orEmpty().map { it.top }) +
-                _vigil.value.filter { it.lang != "pt" }.map { it.title }
+                _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty()
             translator.translateAll(texts)
             storage.saveTranslations(keep = texts)
+            _radar.value = radar
             recordQuotes(feed)
             storage.saveFeed(raw)
             this@Repository.raw = feed

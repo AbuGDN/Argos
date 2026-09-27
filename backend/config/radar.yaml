@@ -1,0 +1,226 @@
+# Radar: dados de fora da imprensa, publicados em radar.json (aba Radar do app).
+#
+# Cada seção tem um intervalo mínimo entre coletas (minutos): as APIs grátis têm limite
+# diário, e a coleta roda a cada 30 min. Uma seção que falhar mantém o último dado bom
+# (com a data dele) e tenta de novo em até 1 h. O status de cada uma fica em
+# radar.json -> "status".
+#
+# tag: região do app (mesmas chaves de keywords.yaml -> tags), para ligar o dado à região.
+
+# --- Sensores -------------------------------------------------------------------------
+
+# IODA (Georgia Tech): sinais de conectividade por país. Sem chave.
+internet:
+  interval: 30
+  countries:
+    - {code: PS, name: Palestina (Gaza e Cisjordânia), tag: gaza}
+    - {code: IL, name: Israel, tag: israel}
+    - {code: LB, name: Líbano, tag: libano}
+    - {code: IR, name: Irã, tag: ira}
+    - {code: YE, name: Iêmen, tag: iemen}
+    - {code: SY, name: Síria, tag: siria}
+    - {code: IQ, name: Iraque, tag: iraque}
+    - {code: UA, name: Ucrânia, tag: ucrania_russia}
+    - {code: RU, name: Rússia, tag: ucrania_russia}
+    - {code: SD, name: Sudão, tag: sudao}
+
+# OpenSky Network: aviões no ar dentro de cada caixa (sul, oeste, norte, leste).
+# Anônimo: 400 créditos/dia; caixas até 25 graus² custam 1, até 100 custam 2, até 400 custam 3.
+# Com OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET (conta grátis) o limite sobe para 4000.
+airspace:
+  interval: 60
+  zones:
+    - {id: israel, name: Israel, tag: israel, box: [29.4, 34.2, 33.4, 35.95]}
+    - {id: libano, name: Líbano, tag: libano, box: [33.0, 35.05, 34.7, 36.65]}
+    - {id: siria, name: Síria, tag: siria, box: [32.3, 35.7, 37.3, 42.4]}
+    - {id: jordania, name: Jordânia, tag: israel, box: [29.2, 35.0, 33.4, 39.3]}
+    - {id: iraque, name: Iraque, tag: iraque, box: [29.0, 38.8, 37.4, 48.6]}
+    - {id: ira, name: Irã, tag: ira, box: [25.0, 44.0, 39.8, 63.3]}
+
+# NASA FIRMS: focos de calor por satélite (VIIRS) nas últimas 24 h. Precisa da chave grátis
+# FIRMS_MAP_KEY (https://firms.modaps.eosdis.nasa.gov/api/map_key/) nos Secrets do repositório.
+# box: [oeste, sul, leste, norte]
+fires:
+  interval: 180
+  max_points: 250
+  zones:
+    - {id: gaza, name: Faixa de Gaza, tag: gaza, box: [34.2, 31.2, 34.6, 31.6]}
+    - {id: libano_sul, name: Sul do Líbano e norte de Israel, tag: libano, box: [35.1, 32.95, 35.9, 33.6]}
+    - {id: cisjordania, name: Cisjordânia, tag: cisjordania, box: [34.9, 31.3, 35.6, 32.6]}
+    - {id: ucrania, name: Frente na Ucrânia, tag: ucrania_russia, box: [32.0, 46.3, 40.2, 51.0]}
+    - {id: sudao, name: Cartum e Darfur (Sudão), tag: sudao, box: [22.0, 11.0, 34.0, 16.5]}
+    - {id: iemen, name: Oeste do Iêmen, tag: iemen, box: [42.5, 12.5, 45.5, 17.5]}
+
+# IMF PortWatch: navios por dia nos estreitos (dados abertos, atualizados toda semana).
+straits:
+  interval: 720
+  items:
+    - {id: bab, name: Bab el-Mandeb, match: Mandeb, tag: iemen}
+    - {id: suez, name: Canal de Suez, match: Suez, tag: iemen}
+    - {id: hormuz, name: Estreito de Ormuz, match: Hormuz, tag: ira}
+    - {id: bosporus, name: Bósforo, match: Bosporus, tag: ucrania_russia}
+
+# Cotações: tenta Stooq (stooq), depois Yahoo (symbol) e por fim só o preço atual
+# (fx = câmbio aberto open.er-api.com; json = {url, path}). O Yahoo bloqueia IPs do GitHub (429).
+markets:
+  interval: 60
+  items:
+    - {id: brent, name: Petróleo Brent, stooq: cb.f, symbol: "BZ=F", unit: "US$", digits: 2}
+    - {id: ouro, name: Ouro, stooq: xauusd, symbol: "GC=F", json: {url: "https://api.gold-api.com/price/XAU", path: price}, unit: "US$/oz", digits: 0}
+    - {id: shekel, name: Dólar em shekels, stooq: usdils, symbol: "ILS=X", fx: ILS, unit: "₪", digits: 3}
+    - {id: rublo, name: Dólar em rublos, stooq: usdrub, symbol: "RUB=X", fx: RUB, unit: "₽", digits: 2}
+    - {id: hryvnia, name: Dólar em hryvnias, stooq: usduah, symbol: "UAH=X", fx: UAH, unit: "₴", digits: 2}
+    - {id: real, name: Dólar em reais, stooq: usdbrl, symbol: "BRL=X", fx: BRL, unit: "R$", digits: 3}
+
+# --- Números -------------------------------------------------------------------------
+
+humanitarian:
+  interval: 720
+  # Deslocados internos (HDX HAPI, da ONU). location = código ISO3.
+  idps:
+    - {location: SDN, name: Sudão, tag: sudao}
+    - {location: UKR, name: Ucrânia, tag: ucrania_russia}
+    - {location: SYR, name: Síria, tag: siria}
+    - {location: YEM, name: Iêmen, tag: iemen}
+    - {location: PSE, name: Palestina, tag: gaza}
+    - {location: LBN, name: Líbano, tag: libano}
+    - {location: IRQ, name: Iraque, tag: iraque}
+
+losses:
+  interval: 180
+
+# --- Vozes (RSS; mesmo formato de sources.yaml) --------------------------------------
+# all: true = entra tudo daquela fonte; match: regex que também aceita o item;
+# sem isso, só o que passa no filtro de guerra (e cita uma região).
+
+official:
+  interval: 30
+  sources:
+    - name: CENTCOM
+      url:
+        - "https://www.centcom.mil/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=808&max=20"
+        - "https://news.google.com/rss/search?q=site:centcom.mil+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Pentágono
+      url:
+        - "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=9&Site=945&max=20"
+        - "https://news.google.com/rss/search?q=site:defense.gov+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Departamento de Estado (EUA)
+      url:
+        - "https://www.state.gov/rss-feed/press-releases/feed/"
+        - "https://news.google.com/rss/search?q=site:state.gov+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Forças de Defesa de Israel
+      url: "https://news.google.com/rss/search?q=site:idf.il+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Conselho de Segurança da ONU
+      url: "https://press.un.org/en/rss.xml"
+      lang: en
+    - name: ONU News (Oriente Médio)
+      url: "https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml"
+      lang: en
+    - name: Kremlin
+      url:
+        - "http://en.kremlin.ru/events/president/news/feed"
+        - "https://news.google.com/rss/search?q=site:en.kremlin.ru+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Presidência da Ucrânia
+      url: "https://news.google.com/rss/search?q=site:president.gov.ua/en+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Chancelaria do Irã
+      url: "https://news.google.com/rss/search?q=site:en.mfa.ir+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+
+sanctions:
+  interval: 120
+  sources:
+    - name: Tesouro dos EUA (OFAC)
+      url: "https://news.google.com/rss/search?q=site:home.treasury.gov+sanctions+when:14d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+      match: "sanction|designat"
+    - name: União Europeia
+      url: "https://news.google.com/rss/search?q=site:consilium.europa.eu+sanctions+when:14d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+      match: "sanction|restrictive measures|listing|lists "
+
+analysis:
+  interval: 60
+  sources:
+    - name: ISW
+      url:
+        - "https://understandingwar.org/feed/"
+        - "https://www.understandingwar.org/rss.xml"
+        - "https://news.google.com/rss/search?q=site:understandingwar.org+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+      all: true
+    - name: Critical Threats
+      url:
+        - "https://www.criticalthreats.org/feed"
+        - "https://news.google.com/rss/search?q=site:criticalthreats.org+when:7d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+      all: true
+    - name: Crisis Group
+      url:
+        - "https://www.crisisgroup.org/rss.xml"
+        - "https://news.google.com/rss/search?q=site:crisisgroup.org+when:14d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: War on the Rocks
+      url: "https://warontherocks.com/feed/"
+      lang: en
+
+# CrisisWatch (Crisis Group): todo mês, quais conflitos pioraram ou melhoraram.
+crisiswatch:
+  interval: 720
+  url:
+    - "https://www.crisisgroup.org/crisiswatch"
+  # Se a página bloquear (403), procura a edição do mês nestes feeds.
+  feeds:
+    - {name: Crisis Group, url: "https://www.crisisgroup.org/rss.xml", lang: en}
+    - {name: Crisis Group, url: "https://news.google.com/rss/search?q=CrisisWatch+site:crisisgroup.org&hl=en-US&gl=US&ceid=US:en", lang: en}
+  countries:
+    Israel: israel
+    Palestine: gaza
+    Gaza: gaza
+    West Bank: cisjordania
+    Lebanon: libano
+    Iran: ira
+    Yemen: iemen
+    Syria: siria
+    Iraq: iraque
+    Ukraine: ucrania_russia
+    Russia: ucrania_russia
+    Sudan: sudao
+    Red Sea: iemen
+
+factcheck:
+  interval: 60
+  sources:
+    - name: Aos Fatos
+      url: "https://www.aosfatos.org/noticias/feed/"
+      lang: pt
+    - name: Lupa
+      url:
+        - "https://lupa.uol.com.br/feed"
+        - "https://news.google.com/rss/search?q=site:lupa.uol.com.br+when:14d&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+      lang: pt
+    - name: AFP Checamos
+      url: "https://news.google.com/rss/search?q=site:checamos.afp.com+when:14d&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+      lang: pt
+    - name: AFP Fact Check
+      url: "https://news.google.com/rss/search?q=site:factcheck.afp.com+when:14d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Misbar
+      url: "https://news.google.com/rss/search?q=site:misbar.com+when:14d&hl=en-US&gl=US&ceid=US:en"
+      lang: en
+    - name: Snopes
+      url: "https://www.snopes.com/feed/"
+      lang: en
+    - name: Full Fact
+      url: "https://fullfact.org/feed/"
+      lang: en
+
+# Polymarket: probabilidades dos mercados de previsão sobre as guerras.
+predictions:
+  interval: 60
+  max_events: 12

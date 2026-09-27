@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 data class VigilEvent(
     val key: String,
     val time: Long,
-    /** "urgent", "spike", "figures", "tension", "truce" ou "clock". */
+    /** "urgent", "spike", "figures", "tension", "truce", "clock", "internet" ou "airspace". */
     val kind: String,
     val title: String,
     val lang: String = "pt",
@@ -26,6 +26,8 @@ val VIGIL_KINDS = linkedMapOf(
     "tension" to "🔥 Tensão crítica",
     "truce" to "🕊 Violação de trégua",
     "clock" to "👁 Relógio do Argos",
+    "internet" to "🌐 Queda de internet",
+    "airspace" to "✈ Espaço aéreo fechado",
 )
 
 const val VIGIL_MAX = 500
@@ -79,6 +81,31 @@ object Vigil {
                     )
                 )
             }
+        }
+    }
+
+    /** Sinais do Radar: apagão/queda de internet e espaço aéreo fechado (um registro por episódio). */
+    fun detectRadar(radar: RadarData?, now: Long, day: String): List<VigilEvent> = buildList {
+        if (radar == null) return@buildList
+        fun start(since: String) = runCatching { Instant.parse(since).toEpochMilli() }.getOrDefault(now)
+        radar.internet?.countries.orEmpty().filter { it.status == "apagao" || it.status == "queda" }.forEach { c ->
+            val label = if (c.status == "apagao") "Apagão de internet" else "Queda de internet"
+            add(
+                VigilEvent(
+                    "internet:${c.code}:${c.since.ifBlank { day }}", start(c.since), "internet", "$label: ${c.name}",
+                    detail = "conectividade em ${(c.ratio * 100).toInt()}% do normal (IODA)",
+                    region = c.tag.ifBlank { null }, value = c.ratio,
+                )
+            )
+        }
+        radar.airspace?.zones.orEmpty().filter { it.status == "fechado" }.forEach { z ->
+            add(
+                VigilEvent(
+                    "airspace:${z.id}:${z.since.ifBlank { day }}", start(z.since), "airspace", "Espaço aéreo fechado: ${z.name}",
+                    detail = "${z.flights} aviões no ar; o normal nesse horário é ${z.baseline?.toInt() ?: "?"} (OpenSky)",
+                    region = z.tag.ifBlank { null }, value = z.flights.toDouble(),
+                )
+            )
         }
     }
 

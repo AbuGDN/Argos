@@ -56,6 +56,11 @@ jobs:
       - name: Coletar e publicar
         env:
           PUSH_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          # Radar: chaves opcionais (Settings → Secrets and variables → Actions). Sem elas, a
+          # seção de focos de calor avisa que falta a chave e o OpenSky roda no limite anônimo.
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
+          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
         run: |
           for round in $(seq 1 "$ROUNDS"); do
             echo "::group::Rodada $round/$ROUNDS"

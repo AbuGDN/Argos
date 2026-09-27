@@ -193,6 +193,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                     )
                 }
                 ContextChips(cluster, onOpen, onRegion)
+                FactcheckCard(cluster)
                 SidesCard(cluster)
                 EditsCard(cluster)
                 FiguresCard(cluster)

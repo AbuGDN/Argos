@@ -31,6 +31,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         Notifier.followed(applicationContext, repo.followUpdates(feed))
         Notifier.spikes(applicationContext, feed)
         Notifier.clock(applicationContext, feed)
+        Notifier.radar(applicationContext, repo.radar.value)
         TopWidget().updateAll(applicationContext)
         CompactWidget().updateAll(applicationContext)
         RegionWidget().updateAll(applicationContext)

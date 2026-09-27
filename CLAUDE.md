@@ -45,6 +45,12 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
   wid/cluster.py         agrupamento guloso por sobreposição de tokens (janela 18 h), scores, lead()
   wid/analysis.py        figuras (mortos/feridos), enquadramento, lados ("opostos"/"um_lado"),
                          violação de trégua, tensão/anomalia, sagas, first.json
+  config/radar.yaml      Radar: países/zonas/fontes de cada seção e intervalo mínimo entre coletas
+  wid/radar.py           Radar (radar.json): IODA, OpenSky, NASA FIRMS, PortWatch, cotações (Stooq →
+                         Yahoo → câmbio aberto), Tech for Palestine + HDX HAPI, perdas (russianwarship.rip),
+                         RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket. Cada seção é
+                         independente e guarda o último dado bom; baselines em stats/radar_state.json.
+                         apply_signals() soma apagão/espaço aéreo fechado na tensão; link_factchecks()
   wid/build.py           orquestra; escreve feed.json (com "global" = Relógio do Argos), top.json,
                          history/, stats/daily.json (com pico de tensão do dia), sagas.json;
                          merge() guarda manchetes trocadas em article.edits
@@ -63,6 +69,9 @@ android/app/src/main/java/com/abugdn/wid/
   data/Ranges.kt         alcance de mísseis/defesas desenhado no mapa; Weapons.kt: fichas das armas
   data/Cities.kt         cidades para o mapa "por cidade"; Truces.kt: contador de tréguas
   data/Quotes.kt         "quem disse o quê" (aspas + verbo de fala + uma pessoa-chave, quotes.json)
+  data/Radar.kt          espelho do radar.json; Agenda.kt (agenda, "neste dia", relógios das capitais,
+                         nascer/pôr do sol); Power.kt (quem manda em cada lado, linha do tempo dos reféns)
+  ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto
   sync/                  SyncWorker (30 min), DigestWorker, Notifier, NotificationActionReceiver
   ui/                    Compose; MainActivity faz a navegação por estado (sem navigation-compose)
   widget/                Glance: TopWidget, CompactWidget, RegionWidget (+ configuração), ClockWidget
@@ -95,6 +104,10 @@ web/                     página de download (index.html, icon.svg); build.py co
   viram a forma por extenso; pós: pt-PT→pt-BR, termos militares, nomes em inglês, concordância com
   "Estados Unidos"). Testes em `android/app/src/test/` (rodam no CI). Ao mudar regras, aumente
   `VERSION` — o app descarta e refaz as traduções guardadas.
+- **Radar**: Yahoo Finance responde 429 aos IPs do GitHub e o crisisgroup.org/crisiswatch dá 403 (há
+  alternativas na config). Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita
+  `OPENSKY_CLIENT_ID/SECRET` opcionais. A cobertura do OpenSky no Oriente Médio é pequena (poucos aviões
+  visíveis); por isso o status só sai depois de 3 dias de linha de base.
 - Extração de números: idades ("14-year-old"), anos e porcentagens não são vítimas (há teste).
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.

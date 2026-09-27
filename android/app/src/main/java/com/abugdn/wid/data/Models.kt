@@ -24,6 +24,8 @@ data class RegionStat(
     val baseline: Double = 0.0,
     val spike: Boolean = false,
     @SerialName("spike_ratio") val spikeRatio: Double = 0.0,
+    /** Sinais do Radar (apagão de internet, espaço aéreo fechado) que somaram na tensão. */
+    val signals: List<RegionSignal> = emptyList(),
 )
 
 /** Números de mortos/feridos citados por veículo. */

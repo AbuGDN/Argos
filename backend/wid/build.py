@@ -1,4 +1,4 @@
-"""Gera os JSONs publicados: feed.json, top.json, history/ e sources_status.json.
+"""Gera os JSONs publicados: feed.json, top.json, history/, sources_status.json e radar.json.
 
 Uso: python -m wid.build --out ../site
 """
@@ -26,6 +26,7 @@ from .analysis import (
 from .cluster import build_clusters, cluster_json, is_urgent
 from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
+from . import radar as radar_mod
 
 log = logging.getLogger("wid")
 
@@ -153,7 +154,10 @@ def copy_web(out: Path, web: Path = WEB_DIR) -> None:
             (out / f.name).write_bytes(f.read_bytes())
 
 
-def build(out: Path, now: datetime, sources: list[dict], kw: Keywords, fetched: list[Article], status: dict) -> dict:
+def build(
+    out: Path, now: datetime, sources: list[dict], kw: Keywords, fetched: list[Article], status: dict,
+    radar: dict | None = None,
+) -> dict:
     weights = {s["name"]: float(s.get("weight", 1.0)) for s in sources}
     origins = {s["name"]: s["origin"] for s in sources if "origin" in s}
     articles = merge(load_previous(out, weights, origins), fetched, now)
@@ -186,6 +190,11 @@ def build(out: Path, now: datetime, sources: list[dict], kw: Keywords, fetched: 
     started_today = [c for c in items if parse_iso(c["published"]).astimezone(LOCAL_TZ).date() == today]
     stats_days = write_stats(out, today, started_today)
     regions = region_tension(items, stats_days, today.isoformat(), now)
+    if radar is not None:
+        # Radar (radar.json): sensores sobem a tensão; checagens se ligam às histórias.
+        radar_mod.apply_signals(regions, radar, now)
+        radar_mod.link_factchecks(radar, items)
+        write_json(out / "radar.json", radar)
     clock = global_index(regions)
     record_tension(out, stats_days, regions, clock)
     update_first(out, items, now)
@@ -237,7 +246,12 @@ def main() -> None:
         raise SystemExit("nenhuma fonte respondeu; mantendo o feed anterior")
 
     args.out.mkdir(parents=True, exist_ok=True)
-    feed = build(args.out, now, sources, kw, fetched, status)
+    try:
+        radar = radar_mod.collect(args.out, now, kw)
+    except Exception as exc:  # o Radar nunca derruba a coleta de notícias
+        log.warning("radar falhou: %s", exc)
+        radar = None
+    feed = build(args.out, now, sources, kw, fetched, status, radar)
     top = feed["top_of_day"]
     log.info("%d histórias; principal: %s", len(feed["clusters"]), top["title"] if top else "—")
 
