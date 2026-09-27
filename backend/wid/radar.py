@@ -367,6 +367,7 @@ YAHOO_URLS = (
     "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}",
 )
 STOOQ_URL = "https://stooq.com/q/d/l/"
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 FX_URL = "https://open.er-api.com/v6/latest/USD"
 MARKET_KEEP_DAYS = 40
 
@@ -424,8 +425,24 @@ def parse_stooq(text: str) -> list[tuple[str, float]]:
     return out
 
 
+def parse_fred(text: str) -> list[tuple[str, float]]:
+    """CSV do FRED (data, valor; "." = sem dado) -> [(aaaa-mm-dd, valor)]."""
+    rows = list(csv.reader(io.StringIO(text)))
+    if not rows or len(rows[0]) < 2:
+        raise ValueError(text[:80].strip() or "resposta vazia")
+    out = []
+    for row in rows[1:]:
+        try:
+            out.append((row[0][:10], float(row[1])))
+        except (IndexError, ValueError):
+            continue
+    if not out:
+        raise ValueError("sem linhas")
+    return out
+
+
 def _quote(ctx: Ctx, m: dict, fx: dict) -> dict:
-    """Tenta Stooq, Yahoo e por fim uma fonte só de preço (câmbio aberto ou JSON)."""
+    """Tenta Stooq, FRED, Yahoo e por fim uma fonte só de preço (câmbio aberto ou JSON)."""
     errors = []
     if m.get("stooq"):
         try:
@@ -435,6 +452,14 @@ def _quote(ctx: Ctx, m: dict, fx: dict) -> dict:
             return series_summary(parse_stooq(resp.text))
         except Exception as exc:
             errors.append(f"stooq: {exc}")
+    if m.get("fred"):
+        try:
+            cosd = (ctx.now - timedelta(days=60)).date().isoformat()
+            resp = ctx.client.get(FRED_URL, params={"id": m["fred"], "cosd": cosd})
+            resp.raise_for_status()
+            return series_summary(parse_fred(resp.text))
+        except Exception as exc:
+            errors.append(f"fred: {exc}")
     if m.get("symbol"):
         for url in YAHOO_URLS:
             try:
@@ -735,8 +760,19 @@ def crisiswatch_trends(html: str, countries: dict[str, str]) -> dict:
     return result
 
 
+MONTHS_EN = list(MONTHS_PT)
+
+
+def _month_pages(now: datetime) -> list[str]:
+    """Páginas da edição deste mês e do anterior (ex.: /crisiswatch/september-2026)."""
+    first = now.replace(day=1)
+    prev = (first - timedelta(days=1)).replace(day=1)
+    return [f"https://www.crisisgroup.org/crisiswatch/{MONTHS_EN[d.month - 1].lower()}-{d.year}" for d in (first, prev)]
+
+
 def collect_crisiswatch(ctx: Ctx) -> dict:
     urls = ctx.conf["url"] if isinstance(ctx.conf["url"], list) else [ctx.conf["url"]]
+    urls = urls + _month_pages(ctx.now)
     last: Exception = RuntimeError("sem URL")
     for url in urls:
         try:
@@ -751,7 +787,8 @@ def collect_crisiswatch(ctx: Ctx) -> dict:
     for source in ctx.conf.get("feeds", []):
         arts, _ = fetch_source(ctx.client, source, ctx.now)
         for a in sorted(arts, key=lambda a: a.published, reverse=True):
-            if "crisiswatch" not in a.title.lower():
+            # Só a edição do mês ("CrisisWatch September 2026"), não páginas genéricas.
+            if "crisiswatch" not in a.title.lower() or not _MONTH_RE.search(a.title):
                 continue
             try:
                 data = crisiswatch_trends(f"{a.title} {a.summary}", ctx.conf["countries"])
@@ -881,7 +918,9 @@ def collect(out: Path, now: datetime, kw: Keywords, config: dict | None = None, 
         checked = st.get("checked")
         # A chave (secret) acabou de ser configurada: não espera o intervalo.
         key_added = (prev.get(name) or {}).get("missing_key") and os.environ.get(MISSING_KEY_ENV.get(name, ""), "").strip()
-        if checked and now - parse_iso(checked) < wait and not key_added:
+        # CrisisWatch salvo sem a edição do mês (versão anterior pegava páginas genéricas): refaz.
+        bad_cw = name == "crisiswatch" and name in prev and not (prev[name] or {}).get("month")
+        if checked and now - parse_iso(checked) < wait and not key_added and not bad_cw:
             if name in prev:
                 radar[name] = prev[name]
             status[name] = st
@@ -907,7 +946,7 @@ def collect(out: Path, now: datetime, kw: Keywords, config: dict | None = None, 
                     status[name] = {"ok": True, "checked": iso(now)}
                 else:
                     log.warning("radar/%s: %s", name, exc)
-                    if name in prev:
+                    if name in prev and not (name == "crisiswatch" and not (prev[name] or {}).get("month")):
                         radar[name] = prev[name]
                     status[name] = {"ok": False, "checked": iso(now), "error": f"{type(exc).__name__}: {exc}"[:300]}
     finally:

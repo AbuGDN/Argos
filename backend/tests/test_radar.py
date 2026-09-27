@@ -257,3 +257,14 @@ def test_fires_collects_as_soon_as_key_is_added(tmp_path, monkeypatch):
     client = httpx.Client(transport=httpx.MockTransport(handler))
     later = radar.collect(tmp_path, NOW + timedelta(minutes=30), kw(), config, client)
     assert later["fires"]["zones"][0]["count"] == 1
+
+
+def test_parse_fred_skips_missing():
+    rows = radar.parse_fred("observation_date,DCOILBRENTEU\n2026-09-18,70.1\n2026-09-19,.\n2026-09-22,71.5\n")
+    assert rows == [("2026-09-18", 70.1), ("2026-09-22", 71.5)]
+
+
+def test_crisiswatch_month_pages():
+    pages = radar._month_pages(datetime(2026, 9, 27, tzinfo=timezone.utc))
+    assert pages == ["https://www.crisisgroup.org/crisiswatch/september-2026",
+                     "https://www.crisisgroup.org/crisiswatch/august-2026"]
