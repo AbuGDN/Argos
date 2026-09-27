@@ -112,7 +112,11 @@ web/                     página de download (index.html, icon.svg); build.py co
   (cartão de pessoa travava assim). Use `wordRegex()` (Settings.kt, com cache) e tire buscas no feed
   inteiro da thread principal (`produceState` + `Dispatchers.Default`).
 - **Fotos**: `WIKI_TITLES`/`REGION_FLAGS` em `data/Images.kt`; Wikimedia exige o user-agent do Coil
-  configurado em `WidApp.newImageLoader()`.
+  configurado em `WidApp.newImageLoader()`. **Cabeçalhos HTTP só em ASCII**: um acento no User-Agent
+  fez o OkHttp derrubar o app a cada foto (há teste).
+- **Teste de fumaça** (`.github/workflows/smoke.yml` + `.github/smoke/`): emulador no Actions que navega
+  pelo app e falha se houver crash. Rode (Actions → Teste de fumaça → Run workflow) antes de publicar
+  mudanças grandes de UI. Crashes no celular aparecem na próxima abertura (`CrashLog`).
 - Extração de números: idades ("14-year-old"), anos e porcentagens não são vítimas (há teste).
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
