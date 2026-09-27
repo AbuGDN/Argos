@@ -1,0 +1,18 @@
+name: Diagnóstico de fontes
+
+# Testa, a partir dos servidores do GitHub (que alguns sites bloqueiam), as URLs de
+# .github/diagnose/urls.txt (url<TAB>regex): código HTTP, começo da resposta e trechos. Não publica nada.
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [gh-pages]
+    paths: [".github/workflows/diagnose.yml", ".github/diagnose/**"]
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testar URLs
+        run: python3 .github/diagnose/probe.py .github/diagnose/urls.txt
