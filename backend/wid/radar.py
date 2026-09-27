@@ -841,6 +841,9 @@ def collect_predictions(ctx: Ctx) -> dict:
 # Orquestração
 # ---------------------------------------------------------------------------
 
+# Seções que dependem de um secret: se ele aparecer, a seção coleta na hora.
+MISSING_KEY_ENV = {"fires": "FIRMS_MAP_KEY"}
+
 COLLECTORS = {
     "internet": collect_internet,
     "airspace": collect_airspace,
@@ -876,7 +879,9 @@ def collect(out: Path, now: datetime, kw: Keywords, config: dict | None = None, 
         interval = timedelta(minutes=float(conf.get("interval", 60)))
         wait = interval if st.get("ok") else min(interval, RETRY_FAILED)
         checked = st.get("checked")
-        if checked and now - parse_iso(checked) < wait:
+        # A chave (secret) acabou de ser configurada: não espera o intervalo.
+        key_added = (prev.get(name) or {}).get("missing_key") and os.environ.get(MISSING_KEY_ENV.get(name, ""), "").strip()
+        if checked and now - parse_iso(checked) < wait and not key_added:
             if name in prev:
                 radar[name] = prev[name]
             status[name] = st
