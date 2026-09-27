@@ -33,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,7 +44,7 @@ import kotlinx.coroutines.launch
 
 const val EXTRA_CLUSTER_ID = "cluster_id"
 
-/** Atalhos do ícone do app (res/xml/shortcuts.xml) e de notificações: "story", "search", "saved", "bulletin", "vigil". */
+/** Atalhos do ícone do app (res/xml/shortcuts.xml) e de notificações: "story", "search", "saved", "bulletin", "vigil", "clock", "radar". */
 const val EXTRA_SHORTCUT = "shortcut"
 
 /** Abre direto a página de uma região (notificação de alta incomum). */
@@ -52,9 +53,27 @@ const val EXTRA_REGION = "region"
 /** As telas internas não aplicam insets do sistema: a barra de baixo é do Scaffold externo. */
 val NoInsets = WindowInsets(0, 0, 0, 0)
 
+/** Ícone da aba Radar: arcos concêntricos com um ponteiro (não existe no material-icons-core). */
+private val RadarIcon: ImageVector = ImageVector.Builder("Radar", 24.dp, 24.dp, 24f, 24f).apply {
+    val stroke = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Black)
+    path(stroke = stroke, strokeLineWidth = 2f) {
+        moveTo(12f, 3f); arcTo(9f, 9f, 0f, true, true, 11.99f, 3f)
+    }
+    path(stroke = stroke, strokeLineWidth = 2f) {
+        moveTo(12f, 7.5f); arcTo(4.5f, 4.5f, 0f, true, true, 11.99f, 7.5f)
+    }
+    path(stroke = stroke, strokeLineWidth = 2f) {
+        moveTo(12f, 12f); lineTo(18.4f, 5.6f)
+    }
+    path(fill = stroke) {
+        moveTo(12f, 10.5f); arcTo(1.5f, 1.5f, 0f, true, true, 11.99f, 10.5f); close()
+    }
+}.build()
+
 enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Hoje", Icons.Filled.Home),
     MAP("Mapa", Icons.Filled.Place),
+    RADAR("Radar", RadarIcon),
     ARCHIVE("Arquivo", Icons.Filled.DateRange),
     SAVED("Salvos", Icons.Filled.Star),
 }
@@ -150,6 +169,7 @@ private fun App(
             "bulletin" -> { settingsOpen = false; bulletinOpen = true }
             "vigil" -> { settingsOpen = false; vigilOpen = true }
             "clock" -> { settingsOpen = false; clockOpen = true }
+            "radar" -> { settingsOpen = false; tab = Tab.RADAR }
             else -> return@LaunchedEffect
         }
         onShortcutHandled()
@@ -250,6 +270,7 @@ private fun App(
                             onClock = { clockOpen = true },
                         )
                         Tab.MAP -> MapScreen(onRegion = { regionOpen = it }, onOpen = { onOpenCluster(it) })
+                        Tab.RADAR -> RadarScreen(onOpen = { onOpenCluster(it) }, onRegion = { regionOpen = it })
                         Tab.ARCHIVE -> ArchiveScreen(
                             onOpen = { onOpenCluster(it) },
                             onVigil = { vigilOpen = true },

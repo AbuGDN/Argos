@@ -17,6 +17,7 @@ import com.abugdn.wid.data.AppUpdate
 import com.abugdn.wid.data.Cluster
 import com.abugdn.wid.data.Feed
 import com.abugdn.wid.data.HistoryDay
+import com.abugdn.wid.data.RadarData
 import com.abugdn.wid.data.weekTop
 import com.abugdn.wid.data.matchWatchWord
 import com.abugdn.wid.repository
@@ -181,6 +182,48 @@ object Notifier {
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(CLOCK_ID, notification)
+    }
+
+    private const val RADAR_ID = 8_005
+
+    /**
+     * Radar: apagão de internet ou espaço aéreo fechado. Um aviso por episódio (a chave inclui
+     * desde quando), respeitando as regiões escolhidas e o não perturbe.
+     */
+    @SuppressLint("MissingPermission") // checado em canNotify
+    fun radar(context: Context, radar: RadarData?) {
+        if (radar == null || !canNotify(context)) return
+        val repo = context.repository
+        val settings = repo.settings.value
+        if (!settings.notifyRadar || settings.isQuiet()) return
+        val prefs = repo.storage.prefs
+        val seen = prefs.getStringSet("radar_notified", emptySet())!!
+        val alerts = buildList {
+            radar.internet?.countries.orEmpty()
+                .filter { it.status == "apagao" && settings.matchesRegion(listOf(it.tag)) }
+                .forEach { add("internet:${it.code}:${it.since}" to "🌐 Apagão de internet: ${it.name} (${(it.ratio * 100).toInt()}% do normal)") }
+            radar.airspace?.zones.orEmpty()
+                .filter { it.status == "fechado" && settings.matchesRegion(listOf(it.tag)) }
+                .forEach { add("airspace:${it.id}:${it.since}" to "✈ Espaço aéreo fechado: ${it.name} (${it.flights} aviões no ar)") }
+        }
+        // A primeira leitura só registra o que já estava acontecendo, sem avisar.
+        val first = !prefs.getBoolean("radar_initialized", false)
+        val fresh = alerts.filter { it.first !in seen }
+        prefs.edit()
+            .putStringSet("radar_notified", (seen + alerts.map { it.first }).toList().takeLast(200).toSet())
+            .putBoolean("radar_initialized", true)
+            .apply()
+        if (first || fresh.isEmpty()) return
+        val text = fresh.joinToString("\n") { it.second }
+        val notification = NotificationCompat.Builder(context, CHANNEL_SPIKE)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(if (fresh.size == 1) "📡 Radar: sinal de alerta" else "📡 Radar: ${fresh.size} sinais de alerta")
+            .setContentText(fresh.first().second)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(shortcutIntent(context, "radar"))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(RADAR_ID, notification)
     }
 
     /** História seguida ganhou veículos. Toca mesmo fora das regiões escolhidas (o usuário pediu). */

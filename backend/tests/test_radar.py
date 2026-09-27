@@ -210,3 +210,34 @@ def test_build_writes_radar(tmp_path):
     data = {"version": 1, "generated_at": "2026-09-24T10:00:00Z", "status": {}}
     build(tmp_path, NOW, [], kw(), [], {}, data)
     assert json.loads((tmp_path / "radar.json").read_text())["version"] == 1
+
+
+def test_stooq_and_price_only_fallback(tmp_path):
+    text = "Date,Open,High,Low,Close,Volume\n" + "\n".join(f"2026-09-{d:02d},1,1,1,{60 + d},0" for d in range(10, 22))
+    s = radar.series_summary(radar.parse_stooq(text))
+    assert s["price"] == 81 and s["change_pct"] == round(1 / 80 * 100, 2)
+    try:
+        radar.parse_stooq("Exceeded the daily hits limit")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("deveria falhar")
+    # Stooq e Yahoo fora: usa o câmbio aberto e guarda o histórico para a variação.
+    config = {"markets": {"interval": 60, "items": [{"id": "shekel", "name": "Shekel", "stooq": "usdils", "symbol": "ILS=X", "fx": "ILS"}]}}
+    client, _ = mock_client({"stooq": 403, "yahoo": 429, "er-api": {"rates": {"ILS": 3.7}}})
+    first = radar.collect(tmp_path, NOW, kw(), config, client)
+    assert first["markets"]["items"][0]["price"] == 3.7
+    (tmp_path / "radar.json").write_text(json.dumps(first))
+    client, _ = mock_client({"stooq": 403, "yahoo": 429, "er-api": {"rates": {"ILS": 3.8}}})
+    second = radar.collect(tmp_path, NOW + timedelta(days=1), kw(), config, client)
+    q = second["markets"]["items"][0]
+    assert q["price"] == 3.8 and q["change_pct"] == round(0.1 / 3.7 * 100, 2)
+
+
+def test_keep_filters_by_section():
+    k = kw()
+    src = {}
+    assert not radar._keep("official", src, k.match("Iranian FM meets UN General Assembly President", ""), "")
+    assert radar._keep("official", src, k.match("CENTCOM forces strike Houthi missile sites in Yemen", ""), "")
+    assert not radar._keep("factcheck", src, k.match("14 rumors about US-China relations", ""), "")
+    assert radar._keep("sanctions", {"match": "sanction"}, k.match("Treasury sanctions oil network", ""), "Treasury sanctions oil network")

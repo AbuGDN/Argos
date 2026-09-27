@@ -91,6 +91,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             Toggle("Urgentes", "Muitos veículos cobrindo a mesma história em pouco tempo", s.notifyUrgent) {
                 update { st -> st.copy(notifyUrgent = it) }
             }
+            Toggle("Radar", "Apagão de internet ou espaço aéreo fechado numa região", s.notifyRadar) {
+                update { st -> st.copy(notifyRadar = it) }
+            }
             Toggle("Principal do dia", "Quando a principal muda (no máximo a cada 4 h)", s.notifyTop) {
                 update { st -> st.copy(notifyTop = it) }
             }

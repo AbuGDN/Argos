@@ -60,17 +60,17 @@ straits:
     - {id: hormuz, name: Estreito de Ormuz, match: Hormuz, tag: ira}
     - {id: bosporus, name: Bósforo, match: Bosporus, tag: ucrania_russia}
 
-# Cotações (Yahoo Finance, sem chave).
+# Cotações: tenta Stooq (stooq), depois Yahoo (symbol) e por fim só o preço atual
+# (fx = câmbio aberto open.er-api.com; json = {url, path}). O Yahoo bloqueia IPs do GitHub (429).
 markets:
   interval: 60
   items:
-    - {id: brent, name: Petróleo Brent, symbol: "BZ=F", unit: "US$", digits: 2}
-    - {id: gas, name: Gás natural europeu (TTF), symbol: "TTF=F", unit: "€/MWh", digits: 2}
-    - {id: ouro, name: Ouro, symbol: "GC=F", unit: "US$/oz", digits: 0}
-    - {id: shekel, name: Dólar em shekels, symbol: "ILS=X", unit: "₪", digits: 3}
-    - {id: rublo, name: Dólar em rublos, symbol: "RUB=X", unit: "₽", digits: 2}
-    - {id: real, name: Dólar em reais, symbol: "BRL=X", unit: "R$", digits: 3}
-    - {id: vix, name: Índice do medo (VIX), symbol: "^VIX", unit: "", digits: 1}
+    - {id: brent, name: Petróleo Brent, stooq: cb.f, symbol: "BZ=F", unit: "US$", digits: 2}
+    - {id: ouro, name: Ouro, stooq: xauusd, symbol: "GC=F", json: {url: "https://api.gold-api.com/price/XAU", path: price}, unit: "US$/oz", digits: 0}
+    - {id: shekel, name: Dólar em shekels, stooq: usdils, symbol: "ILS=X", fx: ILS, unit: "₪", digits: 3}
+    - {id: rublo, name: Dólar em rublos, stooq: usdrub, symbol: "RUB=X", fx: RUB, unit: "₽", digits: 2}
+    - {id: hryvnia, name: Dólar em hryvnias, stooq: usduah, symbol: "UAH=X", fx: UAH, unit: "₴", digits: 2}
+    - {id: real, name: Dólar em reais, stooq: usdbrl, symbol: "BRL=X", fx: BRL, unit: "R$", digits: 3}
 
 # --- Números -------------------------------------------------------------------------
 
@@ -90,7 +90,8 @@ losses:
   interval: 180
 
 # --- Vozes (RSS; mesmo formato de sources.yaml) --------------------------------------
-# all: true = entra tudo daquela fonte; sem isso, só o que passa no filtro de guerra.
+# all: true = entra tudo daquela fonte; match: regex que também aceita o item;
+# sem isso, só o que passa no filtro de guerra (e cita uma região).
 
 official:
   interval: 30
@@ -100,7 +101,6 @@ official:
         - "https://www.centcom.mil/DesktopModules/ArticleCS/RSS.ashx?ContentType=1&Site=808&max=20"
         - "https://news.google.com/rss/search?q=site:centcom.mil+when:7d&hl=en-US&gl=US&ceid=US:en"
       lang: en
-      all: true
     - name: Pentágono
       url:
         - "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?ContentType=9&Site=945&max=20"
@@ -114,14 +114,12 @@ official:
     - name: Forças de Defesa de Israel
       url: "https://news.google.com/rss/search?q=site:idf.il+when:7d&hl=en-US&gl=US&ceid=US:en"
       lang: en
-      all: true
     - name: Conselho de Segurança da ONU
       url: "https://press.un.org/en/rss.xml"
       lang: en
     - name: ONU News (Oriente Médio)
       url: "https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml"
       lang: en
-      all: true
     - name: Kremlin
       url:
         - "http://en.kremlin.ru/events/president/news/feed"
@@ -133,21 +131,18 @@ official:
     - name: Chancelaria do Irã
       url: "https://news.google.com/rss/search?q=site:en.mfa.ir+when:7d&hl=en-US&gl=US&ceid=US:en"
       lang: en
-      all: true
 
 sanctions:
   interval: 120
   sources:
     - name: Tesouro dos EUA (OFAC)
-      url:
-        - "https://ofac.treasury.gov/recent-actions/rss.xml"
-        - "https://news.google.com/rss/search?q=site:home.treasury.gov+sanctions+when:7d&hl=en-US&gl=US&ceid=US:en"
+      url: "https://news.google.com/rss/search?q=site:home.treasury.gov+sanctions+when:14d&hl=en-US&gl=US&ceid=US:en"
       lang: en
-      all: true
+      match: "sanction|designat"
     - name: União Europeia
-      url: "https://news.google.com/rss/search?q=site:consilium.europa.eu+sanctions+when:7d&hl=en-US&gl=US&ceid=US:en"
+      url: "https://news.google.com/rss/search?q=site:consilium.europa.eu+sanctions+when:14d&hl=en-US&gl=US&ceid=US:en"
       lang: en
-      all: true
+      match: "sanction|restrictive measures|listing|lists "
 
 analysis:
   interval: 60
@@ -179,6 +174,10 @@ crisiswatch:
   interval: 720
   url:
     - "https://www.crisisgroup.org/crisiswatch"
+  # Se a página bloquear (403), procura a edição do mês nestes feeds.
+  feeds:
+    - {name: Crisis Group, url: "https://www.crisisgroup.org/rss.xml", lang: en}
+    - {name: Crisis Group, url: "https://news.google.com/rss/search?q=CrisisWatch+site:crisisgroup.org&hl=en-US&gl=US&ceid=US:en", lang: en}
   countries:
     Israel: israel
     Palestine: gaza

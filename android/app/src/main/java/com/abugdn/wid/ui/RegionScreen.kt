@@ -88,6 +88,7 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
                         )
                     }
                     TruceCards(tag)
+                    RegionRadarCard(tag)
                 }
             }
             REGION_CONTEXT[tag]?.let { text ->

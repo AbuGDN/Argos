@@ -11,6 +11,22 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        19,
+        listOf(
+            "📡 Aba nova: Radar. Dados de fora da imprensa em 6 categorias: Sensores, Mercados, Números, Vozes, Análise e Contexto.",
+            "🌐 Apagão de internet em Gaza, Irã, Líbano, Iêmen, Ucrânia e outros (IODA), com gráfico das últimas 24 h.",
+            "✈ Espaço aéreo: aviões no ar sobre Israel, Líbano, Síria, Jordânia, Iraque e Irã comparados com o normal. Fechou? O Argos avisa.",
+            "🔥 Focos de calor por satélite (NASA) em Gaza, Líbano, Ucrânia, Sudão e Iêmen, também no Mapa (botão 🔥 Focos).",
+            "🚢 Navios em Bab el-Mandeb, Suez, Ormuz e Bósforo; 🛢 petróleo, ouro, shekel, rublo, hryvnia e dólar.",
+            "🩸 Números de Gaza e da Cisjordânia, deslocados por país, 🎗 linha do tempo dos reféns e 🇺🇦 perdas russas segundo a Ucrânia.",
+            "🏛 Fontes oficiais (CENTCOM, Pentágono, FDI, ONU, Kremlin, Irã...) e ⛔ sanções dos EUA e da UE.",
+            "🧠 Análises do ISW e Crisis Group, 📉 CrisisWatch do mês e ✅ checagens: quando um boato ligado a uma notícia foi desmentido, aparece um aviso nela.",
+            "🎲 O que os apostadores acham: probabilidades do Polymarket sobre cessar-fogo e ataques.",
+            "📅 Agenda de datas sensíveis, 🕰 hora e dia/noite nas capitais e 🧭 quem manda em cada lado.",
+            "🌡 Apagão de internet e espaço aéreo fechado agora somam no índice de tensão e ficam no registro de vigília. Aviso desligável em Ajustes.",
+        ),
+    ),
+    ChangelogEntry(
         18,
         listOf(
             "👁 Relógio do Argos: tensão global de 0 a 100 no topo da tela Hoje, com tela própria, widget novo e aviso quando sobe para alta ou crítica.",

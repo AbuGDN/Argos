@@ -118,7 +118,7 @@ private fun VigilRow(e: VigilEvent, onOpen: (String) -> Unit, onRegion: (String)
         e.region != null -> { { onRegion(e.region) } }
         else -> null
     }
-    val alert = e.kind == "urgent" || e.kind == "figures" || e.kind == "tension" || e.kind == "truce"
+    val alert = e.kind == "urgent" || e.kind == "figures" || e.kind == "tension" || e.kind == "truce" || e.kind == "internet" || e.kind == "airspace"
     Column(
         Modifier.fillMaxWidth()
             .let { if (target != null) it.clickable(onClick = target) else it }

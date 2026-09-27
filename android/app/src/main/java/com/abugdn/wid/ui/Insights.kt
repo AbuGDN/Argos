@@ -31,6 +31,7 @@ import com.abugdn.wid.data.Cluster
 import com.abugdn.wid.data.FirstStats
 import com.abugdn.wid.data.ORIGIN_LABELS
 import com.abugdn.wid.data.RegionStat
+import com.abugdn.wid.data.describe
 import com.abugdn.wid.repository
 import java.text.NumberFormat
 import java.util.Locale
@@ -91,8 +92,18 @@ fun TensionGauge(stat: RegionStat, modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
+        stat.signals.forEach { signal ->
+            Text(
+                "📡 " + signal.describe(),
+                style = MaterialTheme.typography.labelMedium,
+                color = Alert,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
         Text(
-            "Combina volume, palavras de escalada (míssil, invasão, nuclear), urgência e cobertura, comparado com a média da própria região.",
+            "Combina volume, palavras de escalada (míssil, invasão, nuclear), urgência e cobertura, comparado com a média da própria região. " +
+                "Apagão de internet e espaço aéreo fechado (Radar) somam pontos.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -446,5 +457,81 @@ fun TruceCard(
             modifier = Modifier.padding(top = 4.dp),
         )
         TextButton(onClick = { onEnded(true) }) { Text("Trégua encerrada") }
+    }
+}
+
+/** Checagens do Radar que falam desta história (Aos Fatos, Lupa, AFP...). */
+@Composable
+fun FactcheckCard(cluster: Cluster) {
+    val context = LocalContext.current
+    val repo = context.repository
+    val radar by repo.radar.collectAsStateWithLifecycle()
+    val checks = remember(radar, cluster.id) { repo.factchecksFor(cluster.id) }
+    if (checks.isEmpty()) return
+    InsightCard {
+        CardTitle("⚠ CHECAGEM SOBRE ESTE ASSUNTO", Alert)
+        checks.take(3).forEach { fc ->
+            Column(Modifier.fillMaxWidth().clickable { openUrl(context, fc.url) }.padding(top = 8.dp)) {
+                Text("${fc.source} · ${relativeTime(fc.published)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(repo.translator.display(fc.title, fc.lang), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Text(
+            "Uma agência de checagem publicou algo sobre um assunto parecido. Pode ser um boato desmentido ligado a esta história; toque para ler.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+/** O que o Radar diz desta região: internet, espaço aéreo, focos de calor, estreitos e CrisisWatch. */
+@Composable
+fun RegionRadarCard(tag: String) {
+    val repo = LocalContext.current.repository
+    val radar by repo.radar.collectAsStateWithLifecycle()
+    val r = radar ?: return
+    val lines = buildList {
+        r.internet?.countries.orEmpty().filter { it.tag == tag && it.status != "sem_dados" }.forEach { c ->
+            val label = com.abugdn.wid.data.INTERNET_STATUS[c.status] ?: c.status
+            add("🌐 Internet (${c.name}): $label · ${(c.ratio * 100).toInt()}% do normal" to (c.status != "normal"))
+        }
+        r.airspace?.zones.orEmpty().filter { it.tag == tag && it.status != "sem_dados" }.forEach { z ->
+            val label = com.abugdn.wid.data.AIRSPACE_STATUS[z.status] ?: z.status
+            add("✈ Espaço aéreo (${z.name}): $label · ${z.flights} aviões no ar" to (z.status == "fechado" || z.status == "reduzido"))
+        }
+        r.fires?.zones.orEmpty().filter { it.tag == tag && !it.error }.forEach { z ->
+            val high = z.baseline != null && z.baseline >= 3 && z.count >= 2 * z.baseline
+            add("🔥 Focos de calor (${z.name}): ${z.count} em 24 h" + (z.baseline?.let { " · média ${it.toInt()}" } ?: "") to high)
+        }
+        r.straits?.items.orEmpty().filter { it.tag == tag && it.avg7 != null }.forEach { s ->
+            val low = s.avg90 != null && s.avg90 > 5 && s.avg7!! < s.avg90 * 0.6
+            add("🚢 ${s.name}: ${s.avg7!!.toInt()} navios por dia" + (s.avg90?.let { " · antes ${it.toInt()}" } ?: "") to low)
+        }
+        r.crisiswatch?.let { cw ->
+            val month = cw.month.ifBlank { "este mês" }
+            if (cw.deteriorated.any { it.tag == tag }) add("📉 CrisisWatch: piorou em $month" to true)
+            if (cw.improved.any { it.tag == tag }) add("📈 CrisisWatch: melhorou em $month" to false)
+            if (cw.risk.any { it.tag == tag }) add("⚠ CrisisWatch: alerta de risco de conflito ($month)" to true)
+        }
+    }
+    if (lines.isEmpty()) return
+    InsightCard {
+        CardTitle("📡 RADAR")
+        lines.forEach { (text, alert) ->
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (alert) Alert else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (alert) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        Text(
+            "Sensores e fontes fora da imprensa. Mais detalhes na aba Radar.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }

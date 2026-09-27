@@ -63,6 +63,10 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
+import org.osmdroid.views.overlay.simplefastpoint.LabelledGeoPoint
+import org.osmdroid.views.overlay.simplefastpoint.SimpleFastPointOverlay
+import org.osmdroid.views.overlay.simplefastpoint.SimpleFastPointOverlayOptions
+import org.osmdroid.views.overlay.simplefastpoint.SimplePointTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -142,7 +146,10 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var showRanges by rememberSaveable { mutableStateOf(false) }
     var byCity by rememberSaveable { mutableStateOf(false) }
     var highlight by rememberSaveable { mutableStateOf<String?>(null) }
+    var showFires by rememberSaveable { mutableStateOf(false) }
     val repo = context.repository
+    val radar by repo.radar.collectAsStateWithLifecycle()
+    val fireZones = radar?.fires?.zones.orEmpty().filter { it.points.isNotEmpty() }
     // Cidade -> histórias que a citam (mais recentes primeiro).
     val cityStories = remember(feed) {
         val out = linkedMapOf<com.abugdn.wid.data.City, MutableList<com.abugdn.wid.data.Cluster>>()
@@ -156,6 +163,13 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     LaunchedEffect(focus) {
         val id = focus ?: return@LaunchedEffect
         tab = 0
+        // Vindo do Radar: liga os focos de calor e vai até a zona pedida.
+        if (id.startsWith("fires:")) {
+            showFires = true
+            repo.radar.value?.fires?.zones?.firstOrNull { it.id == id.removePrefix("fires:") }?.let { z -> fireCenter(z)?.let { mapView.controller.animateTo(it, 7.0, 600L) } }
+            repo.mapFocus.value = null
+            return@LaunchedEffect
+        }
         showRanges = true
         highlight = id
         RANGES.firstOrNull { it.id == id }?.let { mapView.controller.animateTo(GeoPoint(it.lat, it.lon), rangeZoom(it.km), 600L) }
@@ -190,6 +204,13 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     },
                     label = { Text("🎯 Alcances") },
                 )
+                if (fireZones.isNotEmpty()) {
+                    FilterChip(
+                        selected = showFires,
+                        onClick = { showFires = !showFires },
+                        label = { Text("🔥 Focos") },
+                    )
+                }
             }
             // O MapView desenha fora dos próprios limites ao arrastar/dar zoom; a moldura com
             // clipChildren e o clipToBounds impedem que ele pinte por cima do resto da tela.
@@ -205,9 +226,10 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().weight(0.6f).clipToBounds(),
                 update = { _ ->
                     val map = mapView
-                    map.overlays.removeAll { it is Marker || it is Polygon }
+                    map.overlays.removeAll { it is Marker || it is Polygon || it is SimpleFastPointOverlay }
                     // Círculos antes dos marcadores, para os marcadores ficarem por cima e receberem o toque.
                     if (showRanges) RANGES.forEach { map.overlays.add(rangePolygon(map, it, it.id == highlight)) }
+                    if (showFires) firesOverlay(fireZones)?.let { map.overlays.add(it) }
                     if (byCity) cityStories.forEach { (city, stories) ->
                         map.overlays.add(Marker(map).apply {
                             position = GeoPoint(city.lat, city.lon)
@@ -270,6 +292,29 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
+                if (showFires) {
+                    items(fireZones, key = { "fire-" + it.id }) { z ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { fireCenter(z)?.let { mapView.controller.animateTo(it, 7.0, 600L) } }
+                                .padding(16.dp, 10.dp),
+                        ) {
+                            Text("🔥 ${z.name}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            Text("${z.count} focos", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    item {
+                        Text(
+                            "Focos de calor das últimas 24 h (NASA FIRMS): explosões e incêndios, mas também queimadas e indústrias. " +
+                                "Mostra os mais intensos de cada zona.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        HorizontalDivider()
+                    }
+                }
                 if (showRanges) {
                     items(RANGES, key = { it.label }) { arc ->
                         RangeLegendRow(arc) { mapView.controller.animateTo(GeoPoint(arc.lat, arc.lon), rangeZoom(arc.km), 600L) }
@@ -317,6 +362,30 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             }
         }
     }
+}
+
+/** Centro aproximado de uma zona de focos (média dos pontos). */
+private fun fireCenter(z: com.abugdn.wid.data.FireZone): GeoPoint? {
+    val pts = z.points.filter { it.size >= 2 }
+    if (pts.isEmpty()) return null
+    return GeoPoint(pts.sumOf { it[0] } / pts.size, pts.sumOf { it[1] } / pts.size)
+}
+
+/** Pontos vermelho-alaranjados, desenhados rápido (podem ser mais de mil). */
+private fun firesOverlay(zones: List<com.abugdn.wid.data.FireZone>): SimpleFastPointOverlay? {
+    val points = zones.flatMap { z -> z.points.filter { it.size >= 2 }.map { LabelledGeoPoint(it[0], it[1], z.name) } }
+    if (points.isEmpty()) return null
+    val paint = android.graphics.Paint().apply {
+        color = 0xFFE0521B.toInt()
+        style = android.graphics.Paint.Style.FILL
+        isAntiAlias = true
+    }
+    val options = SimpleFastPointOverlayOptions.getDefaultStyle()
+        .setAlgorithm(SimpleFastPointOverlayOptions.RenderingAlgorithm.MAXIMUM_OPTIMIZATION)
+        .setRadius(4f)
+        .setIsClickable(false)
+        .setPointStyle(paint)
+    return SimpleFastPointOverlay(SimplePointTheme(points, false), options)
 }
 
 private val RANGE_RED = 0xFFB3122E.toInt()

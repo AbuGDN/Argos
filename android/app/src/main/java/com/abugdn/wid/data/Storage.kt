@@ -19,6 +19,7 @@ class Storage(context: Context) {
     private val readLogFile = File(dir, "read_log.json")
     private val vigilFile = File(dir, "vigil.json")
     private val quotesFile = File(dir, "quotes.json")
+    private val radarFile = File(dir, "radar.json")
     private val articlesDir = File(dir, "articles").apply { mkdirs() }
     val prefs = context.getSharedPreferences("wid", Context.MODE_PRIVATE)
 
@@ -30,6 +31,12 @@ class Storage(context: Context) {
     }.getOrNull()
 
     fun saveFeed(raw: String) = writeAtomic(feedFile, raw)
+
+    fun loadRadar(): RadarData? = runCatching {
+        json.decodeFromString<RadarData>(radarFile.readText())
+    }.getOrNull()
+
+    fun saveRadar(raw: String) = writeAtomic(radarFile, raw)
 
     private fun loadTranslations(): Map<String, String> = runCatching {
         json.decodeFromString(MapSerializer(String.serializer(), String.serializer()), translationsFile.readText())

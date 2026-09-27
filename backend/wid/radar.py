@@ -366,6 +366,9 @@ YAHOO_URLS = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
     "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}",
 )
+STOOQ_URL = "https://stooq.com/q/d/l/"
+FX_URL = "https://open.er-api.com/v6/latest/USD"
+MARKET_KEEP_DAYS = 40
 
 
 def quote_summary(payload: dict) -> dict:
@@ -391,22 +394,87 @@ def quote_summary(payload: dict) -> dict:
     }
 
 
-def collect_markets(ctx: Ctx) -> dict:
-    items, errors = [], 0
-    for m in ctx.conf["items"]:
-        entry = {"id": m["id"], "name": m["name"], "unit": m.get("unit", ""), "digits": int(m.get("digits", 2))}
-        last_exc: Exception | None = None
+def series_summary(series: list[tuple[str, float]]) -> dict:
+    """[(aaaa-mm-dd, fechamento)] em ordem -> preço, variação do dia e da semana."""
+    if not series:
+        raise ValueError("sem cotações")
+    price = series[-1][1]
+    prev = series[-2][1] if len(series) >= 2 else None
+    week = series[-6][1] if len(series) >= 6 else None
+    return {
+        "price": price,
+        "change_pct": round((price - prev) / prev * 100, 2) if prev else None,
+        "change_week_pct": round((price - week) / week * 100, 2) if week else None,
+        "time": series[-1][0] + "T00:00:00Z",
+        "spark": [round(v, 4) for _, v in series[-22:]],
+    }
+
+
+def parse_stooq(text: str) -> list[tuple[str, float]]:
+    if not text.lstrip().lower().startswith("date"):
+        raise ValueError(text[:80].strip() or "resposta vazia")
+    out = []
+    for row in csv.DictReader(io.StringIO(text)):
+        try:
+            out.append((row["Date"][:10], float(row["Close"])))
+        except (KeyError, ValueError, TypeError):
+            continue
+    if not out:
+        raise ValueError("sem linhas")
+    return out
+
+
+def _quote(ctx: Ctx, m: dict, fx: dict) -> dict:
+    """Tenta Stooq, Yahoo e por fim uma fonte só de preço (câmbio aberto ou JSON)."""
+    errors = []
+    if m.get("stooq"):
+        try:
+            d1 = (ctx.now - timedelta(days=45)).strftime("%Y%m%d")
+            resp = ctx.client.get(STOOQ_URL, params={"s": m["stooq"], "i": "d", "d1": d1, "d2": ctx.now.strftime("%Y%m%d")})
+            resp.raise_for_status()
+            return series_summary(parse_stooq(resp.text))
+        except Exception as exc:
+            errors.append(f"stooq: {exc}")
+    if m.get("symbol"):
         for url in YAHOO_URLS:
             try:
                 payload = _get_json(ctx.client, url.format(symbol=m["symbol"]), params={"range": "1mo", "interval": "1d"})
-                entry.update(quote_summary(payload))
-                last_exc = None
-                break
+                return quote_summary(payload)
             except Exception as exc:
-                last_exc = exc
-        if last_exc is not None:
+                errors.append(f"yahoo: {type(exc).__name__}")
+    price = None
+    if m.get("fx") and fx.get(m["fx"]):
+        price = float(fx[m["fx"]])
+    elif m.get("json"):
+        try:
+            price = float(_path(_get_json(ctx.client, m["json"]["url"]), m["json"]["path"]))
+        except Exception as exc:
+            errors.append(f"json: {exc}")
+    if price is None:
+        raise RuntimeError("; ".join(errors)[:200])
+    # Só o preço de agora: a variação sai do histórico que o próprio Argos guarda.
+    days = ctx.state.setdefault("history", {}).setdefault(m["id"], {})
+    days[ctx.now.date().isoformat()] = price
+    for d in sorted(days)[:-MARKET_KEEP_DAYS]:
+        del days[d]
+    return series_summary(sorted(days.items()))
+
+
+def collect_markets(ctx: Ctx) -> dict:
+    fx: dict = {}
+    if any(m.get("fx") for m in ctx.conf["items"]):
+        try:
+            fx = _get_json(ctx.client, FX_URL).get("rates") or {}
+        except Exception as exc:
+            log.info("câmbio: %s", exc)
+    items, errors = [], 0
+    for m in ctx.conf["items"]:
+        entry = {"id": m["id"], "name": m["name"], "unit": m.get("unit", ""), "digits": int(m.get("digits", 2))}
+        try:
+            entry.update(_quote(ctx, m, fx))
+        except Exception as exc:
             errors += 1
-            log.info("Yahoo %s: %s", m["symbol"], last_exc)
+            log.info("cotação %s: %s", m["id"], exc)
             entry["error"] = True
         items.append(entry)
     if errors == len(items):
@@ -553,6 +621,22 @@ def collect_losses(ctx: Ctx) -> dict:
 # Vozes: fontes oficiais, sanções, análises e checagens (RSS)
 # ---------------------------------------------------------------------------
 
+# Tags amplas demais para, sozinhas, pôr uma checagem ou comunicado no Radar (Trump, OTAN...).
+BROAD_TAGS = {"eua", "otan", "asia", "africa"}
+
+
+def _keep(section: str, source: dict, m, text: str) -> bool:
+    """Filtro por seção: `all` aceita tudo; `match` (regex) aceita o que citar o termo."""
+    if source.get("all"):
+        return True
+    if source.get("match") and re.search(source["match"], text, re.I):
+        return True
+    specific = bool(m.tags - BROAD_TAGS)
+    if section == "official":
+        return m.relevant and (specific or len(m.war_terms) >= 2)
+    return m.relevant or specific
+
+
 RSS_WINDOW = {"official": 7, "sanctions": 14, "analysis": 10, "factcheck": 21}
 RSS_MAX = 40
 
@@ -572,8 +656,7 @@ def rss_items(ctx: Ctx, section: str) -> dict:
             if ctx.now - a.published > window:
                 continue
             m = ctx.kw.match(a.title, a.summary)
-            keep = source.get("all") or m.relevant or (section != "official" and bool(m.tags))
-            if not keep:
+            if not _keep(section, source, m, f"{a.title} {a.summary}"):
                 continue
             old = by_id.get(a.id)
             by_id[a.id] = {
@@ -664,6 +747,20 @@ def collect_crisiswatch(ctx: Ctx) -> dict:
             return data
         except Exception as exc:
             last = exc
+    # A página bloqueia robôs às vezes: procura a edição do mês no RSS do Crisis Group.
+    for source in ctx.conf.get("feeds", []):
+        arts, _ = fetch_source(ctx.client, source, ctx.now)
+        for a in sorted(arts, key=lambda a: a.published, reverse=True):
+            if "crisiswatch" not in a.title.lower():
+                continue
+            try:
+                data = crisiswatch_trends(f"{a.title} {a.summary}", ctx.conf["countries"])
+            except ValueError:
+                data = {k: [] for k in CW_HEADINGS}
+                month = _MONTH_RE.search(a.title)
+                data["month"] = f"{MONTHS_PT[month.group(1)]} de {month.group(2)}" if month else ""
+            data.update({"url": a.url, "title": a.title, "summary": truncate(a.summary, 600)})
+            return data
     raise last
 
 
@@ -711,7 +808,9 @@ def prediction_events(events: list[dict], kw: Keywords, limit: int) -> list[dict
             })
         if not markets:
             continue
-        markets.sort(key=lambda x: x["volume"], reverse=True)
+        # Os 4 de maior volume, na ordem original (costuma ser a cronológica).
+        top = {id(mk) for mk in sorted(markets, key=lambda x: x["volume"], reverse=True)[:4]}
+        markets = [mk for mk in markets if id(mk) in top]
         out.append({
             "id": str(ev.get("id") or ev.get("slug")),
             "title": title,
@@ -720,7 +819,7 @@ def prediction_events(events: list[dict], kw: Keywords, limit: int) -> list[dict
             "volume24": float(ev.get("volume24hr") or 0),
             "end": str(ev.get("endDate") or "")[:10],
             "tags": sorted(m.tags),
-            "markets": [{k: v for k, v in mk.items() if k != "volume"} for mk in markets[:4]],
+            "markets": [{k: v for k, v in mk.items() if k != "volume"} for mk in markets],
         })
     out.sort(key=lambda e: (e["volume24"], e["volume"]), reverse=True)
     return out[:limit]

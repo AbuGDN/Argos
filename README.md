@@ -125,6 +125,7 @@ App Android (Kotlin + Jetpack Compose)                       build-android.yml �
 | `stats/first.json` | Ranking de quem publicou primeiro |
 | `sagas.json` | Estado das sagas (histórias ligadas entre dias) |
 | `sources_status.json` | Quais feeds funcionaram na última coleta |
+| `radar.json` | Aba Radar: internet, espaço aéreo, focos de calor, estreitos, cotações, números humanitários, perdas, fontes oficiais, sanções, análises, CrisisWatch, checagens e previsões (status de cada seção em `status`) |
 
 A `gh-pages` é **gerada**: nunca edite à mão (é recriada com force-push a cada coleta).
 
@@ -137,6 +138,8 @@ A `gh-pages` é **gerada**: nunca edite à mão (é recriada com force-push a ca
 | Adicionar/remover um veículo | `backend/config/sources.yaml` (+ perfil em `SOURCE_PROFILES`, `data/Context.kt`) |
 | Ajustar o que conta como notícia de guerra ou uma região | `backend/config/keywords.yaml` (+ `TAG_LABELS` em `Models.kt`, ponto em `MapScreen.kt`) |
 | Mudar textos de contexto, pessoas, glossário | `android/.../data/Context.kt`, `Milestones.kt`, `Conflicts.kt` |
+| Mudar países, zonas e fontes do Radar | `backend/config/radar.yaml` |
+| Ligar os focos de calor (NASA) | Crie a chave grátis em firms.modaps.eosdis.nasa.gov/api/map_key e salve como secret `FIRMS_MAP_KEY` (Settings → Secrets and variables → Actions) |
 | Forçar uma coleta agora | Actions → "Atualizar feed" → **Run workflow** |
 | Ver se os feeds estão ok | `sources_status.json` na `gh-pages` |
 
