@@ -25,9 +25,12 @@ jobs:
       - name: Compilar APK (com x86_64 para o emulador)
         working-directory: android
         env:
-          WID_EXTRA_ABI: x86_64
           WID_VERSION_CODE: "9999"
-        run: ./gradlew assembleRelease --no-daemon
+        run: |
+          # O APK publicado só tem ARM; o emulador precisa de x86_64 (ML Kit tem código nativo).
+          sed -i 's/abiFilters += listOf("arm64-v8a", "armeabi-v7a")/abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")/' app/build.gradle.kts
+          grep -n abiFilters app/build.gradle.kts
+          ./gradlew assembleRelease --no-daemon
 
       - name: Liberar KVM
         run: |
