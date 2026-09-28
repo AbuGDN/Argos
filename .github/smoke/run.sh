@@ -17,6 +17,7 @@ shot 02-hoje
 tap "Mapa" 6; shot 03-mapa
 tap "Focos" 4; shot 04-focos
 tap "Satélite" 5; shot 04b-satelite
+python3 .github/smoke/tap.py "Focos" swipe; sleep 2
 tap "Militares" 4; shot 04c-militares
 tap "Porta-aviões" 4; shot 04d-porta-avioes
 tap "Frente" 8; shot 04e-frente
