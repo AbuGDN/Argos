@@ -235,3 +235,26 @@ def test_download_page_is_copied_to_site(tmp_path):
     copy_web(tmp_path)
     assert (tmp_path / "index.html").read_text(encoding="utf-8") == (WEB_DIR / "index.html").read_text(encoding="utf-8")
     assert (tmp_path / "icon.svg").exists()
+    # O painel vai numa subpasta, com os dados fixos do app em geo.json.
+    assert (tmp_path / "painel" / "index.html").exists()
+    assert (tmp_path / "painel" / "vendor" / "maplibre-gl.js").exists()
+    geo = json.loads((tmp_path / "painel" / "geo.json").read_text(encoding="utf-8"))
+    assert geo["labels"]["israel"] == "Israel"
+    assert geo["points"]["gaza"] == [33.8, 30.7]
+
+
+def test_webgeo_reads_app_data():
+    from wid import webgeo
+
+    g = webgeo.geo()
+    assert len(g["cities"]) >= 50 and all(c["terms"] for c in g["cities"])
+    tel_aviv = next(c for c in g["cities"] if c["name"] == "Tel Aviv")
+    assert tel_aviv["tag"] == "israel" and abs(tel_aviv["lat"] - 32.08) < 0.01
+    assert {"iran", "hezbollah"} <= {r["id"] for r in g["ranges"]}
+    assert all(r["km"] > 0 for r in g["ranges"])
+    assert g["context"]["gaza"].startswith("Faixa costeira")
+    assert g["conflicts"]["gaza"]["start"] == "2023-10-07"
+    assert g["milestones"]["israel"][0]["date"] == "1948"
+    assert g["origins"]["arabe"] == "Imprensa árabe"
+    # Todas as regiões com nome têm ponto no mapa.
+    assert set(g["labels"]) == set(g["points"])

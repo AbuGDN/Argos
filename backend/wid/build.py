@@ -27,6 +27,7 @@ from .cluster import build_clusters, cluster_json, is_urgent
 from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
 from . import radar as radar_mod
+from . import webgeo
 
 log = logging.getLogger("wid")
 
@@ -146,12 +147,21 @@ def record_tension(out: Path, stats_days: list[dict], regions: dict, clock: dict
 
 
 def copy_web(out: Path, web: Path = WEB_DIR) -> None:
-    """Copia a página de download para a raiz do site (sem subpastas)."""
+    """Copia a página de download e o painel (web/painel → painel/) para o site.
+
+    O painel ganha painel/geo.json com os dados fixos do app (regiões, cidades, alcances...).
+    """
     if not web.is_dir():
         return
-    for f in web.iterdir():
+    for f in web.rglob("*"):
         if f.is_file():
-            (out / f.name).write_bytes(f.read_bytes())
+            dest = out / f.relative_to(web)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(f.read_bytes())
+    if (web / "painel").is_dir():
+        data = webgeo.geo()
+        if data is not None:
+            write_json(out / "painel" / "geo.json", data)
 
 
 def build(

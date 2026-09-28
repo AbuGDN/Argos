@@ -66,8 +66,9 @@ jobs:
             echo "::group::Rodada $round/$ROUNDS"
             # O ciclo dura horas: a cada rodada pega a versão mais nova do backend,
             # para uma mudança publicada no meio do ciclo não ser desfeita por código antigo.
+            # (os arquivos de dados do app alimentam o painel/geo.json do site)
             if [ "$round" -gt 1 ] && git fetch -q --depth=1 origin "$GITHUB_REF_NAME"; then
-              git checkout -q FETCH_HEAD -- backend web
+              git checkout -q FETCH_HEAD -- backend web android/app/src/main/java/com/abugdn/wid/data android/app/src/main/java/com/abugdn/wid/ui/MapScreen.kt
               pip install -q -r backend/requirements.txt
             fi
             if (cd backend && python -m wid.build --out ../site); then

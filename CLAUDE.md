@@ -27,7 +27,7 @@ que publica JSON na branch `gh-pages`; app Kotlin/Compose que lê esse JSON.
 - Ciclo típico: pede ideias → escolhe quais ("todas menos X") → tudo entra numa atualização. Para cada
   atualização do app: implementar, acrescentar entrada no `CHANGELOG` (`data/WhatsNew.kt`), push,
   conferir o build no Actions, responder com um resumo curto do que entrou.
-- Descartou até agora: ler em voz alta (TTS), grupo/bot no Telegram, página web/PWA, tradução com LLM,
+- Descartou até agora: ler em voz alta (TTS), grupo/bot no Telegram, PWA/app web, tradução com LLM,
   mapa colorido por tendência, "baixar tudo offline", backup/exportação, mapa em time-lapse, modo
   "sala de situação". Não re-sugerir.
 - Restrições firmes: custo zero, só Android, repo público.
@@ -88,6 +88,12 @@ android/app/src/main/java/com/abugdn/wid/
   widget/                Glance: TopWidget, CompactWidget, RegionWidget (+ configuração), ClockWidget
 web/                     página de download (index.html, icon.svg); build.py copia para a gh-pages →
                          GitHub Pages em abugdn.github.io/Argos/. Busca o APK mais novo pela API
+  painel/                painel para PC (abugdn.github.io/Argos/painel/): globo 3D (MapLibre 5, em
+                         vendor/, sem CDN) com regiões/tensão, cidades, focos, aviões, porta-aviões,
+                         frente e alcances; lê os mesmos JSON do app. Tradução pela API Translator do
+                         Chrome (no computador). geo.json é gerado por backend/wid/webgeo.py a partir dos
+                         arquivos Kotlin do app (Models, Cities, Ranges, Context, Milestones, Conflicts,
+                         Images, MapScreen.REGION_POINTS): mudou esses dados no app, o site acompanha
 .github/workflows/
   update-feed.yml        coleta; ciclos de ~5 h (11 rodadas × 30 min); cada rodada pega o backend novo
   build-android.yml      compila e publica release v1.0.<run_number> a cada push em android/
@@ -136,6 +142,9 @@ web/                     página de download (index.html, icon.svg); build.py co
 - **Tela Hoje configurável**: blocos em `HOME_BLOCKS`/`PANEL_ITEMS` (Settings.kt), ordem e ocultos salvos
   em `s_home_order`/`s_home_hidden`/`s_panel_*`. Bloco novo: acrescente no mapa (entra no fim da ordem de
   quem já tinha configurado) e trate o id em `HomeScreen`/`HomePanel`.
+- **Painel web**: teste local servindo uma cópia da gh-pages + `copy_web()` com `python -m http.server`
+  e Playwright (Chromium com `--use-angle=swiftshader` para o WebGL). Os blocos de mapa (CARTO/Esri)
+  não carregam na sessão em nuvem; o fundo vetorial (countries.geojson) aparece mesmo assim.
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
 
