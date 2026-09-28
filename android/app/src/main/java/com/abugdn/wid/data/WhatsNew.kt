@@ -23,6 +23,7 @@ val CHANGELOG = listOf(
             "🌍 Página da região virou a central: atalhos para o mapa e o Radar, quem manda, reféns, agenda, apostas e vozes oficiais.",
             "⚙ Ajustes em categorias, com busca. Novo: Aparência → Reduzir animações.",
             "ⓘ Cartões padronizados: mesmo cabeçalho com fonte e hora, e a explicação no ⓘ.",
+            "📜 Todas as notas de versão ficam em Ajustes → Sobre e atualização, em cartões.",
         ),
     ),
     ChangelogEntry(

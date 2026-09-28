@@ -80,7 +80,10 @@ private val SETTINGS_PAGES = listOf(
     ),
     SettingsPage("data", "📶", "Dados", "Economia de dados", listOf("Economia de dados", "Imagens", "Wi-Fi")),
     SettingsPage("widgets", "🧩", "Widgets", "Principal do dia, compacto e por região", listOf("Widget", "Compacto", "Por região")),
-    SettingsPage("about", "ℹ", "Sobre e atualização", "Versão instalada e procurar atualização", listOf("Versão", "Procurar atualização")),
+    SettingsPage(
+        "about", "ℹ", "Sobre e atualização", "Versão instalada, procurar atualização e o que mudou em cada versão",
+        listOf("Versão", "Procurar atualização", "Novidades", "Histórico de versões", "Changelog"),
+    ),
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -367,6 +370,27 @@ fun SettingsScreen(onBack: () -> Unit) {
                     ) { Text("Procurar atualização") }
                     checkMsg?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp)) }
                     UpdateBanner(Modifier.padding(16.dp, 8.dp))
+                    ChangelogHistory(updater.installedCode)
+                }
+            }
+        }
+    }
+}
+
+/** Todas as notas de versão guardadas no app, da mais nova para a mais antiga. */
+@Composable
+private fun ChangelogHistory(installed: Long) {
+    Section("O que mudou em cada versão")
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        com.abugdn.wid.data.CHANGELOG.forEachIndexed { i, entry ->
+            val current = entry.versionCode == installed
+            ArgosCard(
+                "VERSÃO 1.0.${entry.versionCode}" + if (current) " · INSTALADA" else "",
+                collapsedSummary = entry.items.firstOrNull()?.let { if (it.length > 70) it.take(70) + "…" else it } ?: "",
+                startExpanded = i == 0,
+            ) {
+                entry.items.forEach { item ->
+                    Text(item, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
