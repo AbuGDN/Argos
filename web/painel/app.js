@@ -219,7 +219,9 @@ function regionRadarLines(tag) {
 // Globo
 // ---------------------------------------------------------------------------
 const TILE = {
-  dark: ['a', 'b', 'c', 'd'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`),
+  // Mapas da Esri de uso livre, sem chave (o CARTO passou a exigir chave em 2026).
+  dark: ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'],
+  labels: ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
   sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
 };
 
@@ -236,7 +238,9 @@ const map = new maplibregl.Map({
     sky: { 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0] },
     sources: {
       countries: { type: 'geojson', data: 'countries.geojson', attribution: 'Natural Earth' },
-      dark: { type: 'raster', tiles: TILE.dark, tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap © CARTO' },
+      borders: { type: 'geojson', data: 'borders.geojson' },
+      dark: { type: 'raster', tiles: TILE.dark, tileSize: 256, maxzoom: 16, attribution: 'Mapa © Esri, HERE, Garmin, © OpenStreetMap' },
+      labels: { type: 'raster', tiles: TILE.labels, tileSize: 256, maxzoom: 16 },
       sat: { type: 'raster', tiles: TILE.sat, tileSize: 256, maxzoom: 18, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics' },
     },
     layers: [
@@ -244,7 +248,8 @@ const map = new maplibregl.Map({
       { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': '#12110d' } },
       { id: 'dark', type: 'raster', source: 'dark', paint: { 'raster-opacity': 0.92 }, layout: { visibility: 'none' } },
       { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-saturation': -0.35, 'raster-brightness-max': 0.8 }, layout: { visibility: 'none' } },
-      { id: 'borders', type: 'line', source: 'countries', paint: { 'line-color': '#C9A227', 'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.45, 6, 0.25], 'line-width': 0.7 } },
+      { id: 'labels', type: 'raster', source: 'labels', minzoom: 4, paint: { 'raster-opacity': 0.85 }, layout: { visibility: 'none' } },
+      { id: 'borders', type: 'line', source: 'borders', paint: { 'line-color': '#C9A227', 'line-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.45, 6, 0.25], 'line-width': 0.7 } },
     ],
   },
 });
@@ -256,6 +261,7 @@ function setBase(base) {
   if (!map.isStyleLoaded()) return;
   map.setLayoutProperty('dark', 'visibility', base === 'dark' ? 'visible' : 'none');
   map.setLayoutProperty('sat', 'visibility', base === 'sat' ? 'visible' : 'none');
+  map.setLayoutProperty('labels', 'visibility', base === 'none' ? 'none' : 'visible');
 }
 
 /** Círculo geodésico (alcance de míssil) como polígono. */
