@@ -84,8 +84,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Hoje", Icons.Filled.Home),
     MAP("Mapa", Icons.Filled.Place),
     RADAR("Radar", RadarIcon),
-    ARCHIVE("Arquivo", Icons.Filled.DateRange),
-    SAVED("Salvos", Icons.Filled.Star),
+    LIBRARY("Biblioteca", Icons.Filled.Star),
 }
 
 class MainActivity : ComponentActivity() {
@@ -106,7 +105,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by repository.settings.state.collectAsStateWithLifecycle()
             WidTheme(settings.theme, settings.textScale) {
-                val reduceMotion = remember { animationsOff() }
+                val systemOff = remember { animationsOff() }
+                val reduceMotion = systemOff || settings.reduceMotion
                 CompositionLocalProvider(LocalDataSaver provides settings.dataSaver, LocalReduceMotion provides reduceMotion) {
                     App(
                         openCluster = openCluster,
@@ -162,30 +162,54 @@ private fun App(
     var vigilOpen by rememberSaveable { mutableStateOf(false) }
     var bulletinOpen by rememberSaveable { mutableStateOf(false) }
     var clockOpen by rememberSaveable { mutableStateOf(false) }
-    var savedSub by rememberSaveable { mutableIntStateOf(0) }
-    LaunchedEffect(shortcut) {
-        val request = shortcut ?: return@LaunchedEffect
-        if (!request.startsWith("region:")) return@LaunchedEffect
-        regionOpen = request.removePrefix("region:")
-        onShortcutHandled()
-    }
+    var toolsOpen by rememberSaveable { mutableStateOf(false) }
+    var librarySub by rememberSaveable { mutableIntStateOf(0) }
+    var radarTab by rememberSaveable { mutableIntStateOf(0) }
     // Mais de 24 h sem abrir: mostra o que a pessoa perdeu (uma vez por abertura).
     val missedSince = remember { repo.previousVisit }
     var missedOpen by rememberSaveable {
         mutableStateOf(missedSince > 0 && System.currentTimeMillis() - missedSince > 24 * 3600 * 1000L)
     }
-    LaunchedEffect(shortcut) {
-        when (shortcut) {
-            "story" -> storyOpen = true
-            "search" -> { settingsOpen = false; tab = Tab.HOME; searchRequest++ }
-            "saved" -> { settingsOpen = false; tab = Tab.SAVED }
-            "bulletin" -> { settingsOpen = false; bulletinOpen = true }
-            "vigil" -> { settingsOpen = false; vigilOpen = true }
-            "clock" -> { settingsOpen = false; clockOpen = true }
-            "radar" -> { settingsOpen = false; tab = Tab.RADAR }
-            "predictions" -> { settingsOpen = false; savedSub = 2; tab = Tab.SAVED }
-            else -> return@LaunchedEffect
+
+    fun closeAll() {
+        onOpenCluster(null)
+        settingsOpen = false; storyOpen = false; regionOpen = null; missedOpen = false
+        vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false
+    }
+
+    /**
+     * Um endereço para cada lugar do app, usado pelas Ferramentas, pela busca, pelo painel da
+     * tela Hoje e pelos atalhos do ícone/notificações (ver [Tool]).
+     */
+    fun go(route: String) {
+        val arg = route.substringAfter(':', "")
+        when (route.substringBefore(':')) {
+            "story" -> { closeAll(); storyOpen = true }
+            "search" -> { closeAll(); tab = Tab.HOME; searchRequest++ }
+            "saved" -> { closeAll(); librarySub = 0; tab = Tab.LIBRARY }
+            "predictions" -> { closeAll(); librarySub = 2; tab = Tab.LIBRARY }
+            "library" -> { closeAll(); librarySub = arg.toIntOrNull() ?: 0; tab = Tab.LIBRARY }
+            "bulletin" -> { closeAll(); bulletinOpen = true }
+            "vigil" -> { closeAll(); vigilOpen = true }
+            "clock" -> { closeAll(); clockOpen = true }
+            "tools" -> { closeAll(); toolsOpen = true }
+            "settings" -> { closeAll(); settingsOpen = true }
+            "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
+            "region" -> { closeAll(); regionOpen = arg }
+            "map" -> {
+                closeAll()
+                repo.mapFocus.value = when (arg) {
+                    "" -> null
+                    "military" -> "military:all"
+                    else -> arg
+                }
+                tab = Tab.MAP
+            }
         }
+    }
+    LaunchedEffect(shortcut) {
+        val request = shortcut ?: return@LaunchedEffect
+        go(request)
         onShortcutHandled()
     }
     // O app fechou sozinho da última vez: mostra o erro para a pessoa poder mandar.
@@ -214,7 +238,7 @@ private fun App(
     Box {
     Scaffold(
         bottomBar = {
-            val overlay = settingsOpen || storyOpen || regionOpen != null || missedOpen || vigilOpen || bulletinOpen || clockOpen
+            val overlay = settingsOpen || storyOpen || regionOpen != null || missedOpen || vigilOpen || bulletinOpen || clockOpen || toolsOpen
             if (openCluster == null && !overlay) {
                 NavigationBar {
                     Tab.entries.forEach { t ->
@@ -234,7 +258,7 @@ private fun App(
             repo.mapFocus.value = id
             onOpenCluster(null)
             settingsOpen = false; storyOpen = false; regionOpen = null; missedOpen = false
-            vigilOpen = false; bulletinOpen = false; clockOpen = false
+            vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false
             tab = Tab.MAP
         }
         // O "dia em 1 minuto" ocupa a tela inteira, inclusive atrás da barra de navegação.
@@ -272,7 +296,7 @@ private fun App(
                 }
                 regionOpen != null -> {
                     BackHandler { regionOpen = null }
-                    RegionScreen(tag = regionOpen!!, onBack = { regionOpen = null }, onOpen = { onOpenCluster(it) })
+                    RegionScreen(tag = regionOpen!!, onBack = { regionOpen = null }, onOpen = { onOpenCluster(it) }, onRoute = { go(it) })
                 }
                 vigilOpen -> {
                     BackHandler { vigilOpen = false }
@@ -289,6 +313,10 @@ private fun App(
                 storyOpen -> {
                     BackHandler { storyOpen = false }
                     StoryScreen(onClose = { storyOpen = false }, onOpen = { storyOpen = false; onOpenCluster(it) })
+                }
+                toolsOpen -> {
+                    BackHandler { toolsOpen = false }
+                    ToolsScreen(onBack = { toolsOpen = false }, onRoute = { go(it) })
                 }
                 settingsOpen -> {
                     BackHandler { settingsOpen = false }
@@ -320,15 +348,16 @@ private fun App(
                             searchRequest = searchRequest,
                             onRegion = { regionOpen = it },
                             onClock = { clockOpen = true },
+                            onRoute = { go(it) },
                         )
                         Tab.MAP -> MapScreen(onRegion = { regionOpen = it }, onOpen = { onOpenCluster(it) })
-                        Tab.RADAR -> RadarScreen(onOpen = { onOpenCluster(it) }, onRegion = { regionOpen = it })
-                        Tab.ARCHIVE -> ArchiveScreen(
+                        Tab.RADAR -> RadarScreen(
                             onOpen = { onOpenCluster(it) },
-                            onVigil = { vigilOpen = true },
-                            onBulletin = { bulletinOpen = true },
+                            onRegion = { regionOpen = it },
+                            tab = radarTab,
+                            onTab = { radarTab = it },
                         )
-                        Tab.SAVED -> SavedScreen(onOpen = { onOpenCluster(it) }, initialSub = savedSub)
+                        Tab.LIBRARY -> LibraryScreen(onOpen = { onOpenCluster(it) }, sub = librarySub, onSub = { librarySub = it })
                     }
                     }
                 }

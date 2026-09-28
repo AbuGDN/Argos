@@ -74,7 +74,15 @@ android/app/src/main/java/com/abugdn/wid/
   ui/PersonalScreens.kt  sub-abas Dossiês e Previsões da aba Salvos; ui/Watch.kt: olho animado e ticker
   data/Radar.kt          espelho do radar.json (+ military, carriers, frontline; polígonos em frontline.json); Agenda.kt (agenda, "neste dia", relógios das capitais,
                          nascer/pôr do sol); Power.kt (quem manda em cada lado, linha do tempo dos reféns)
-  ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto
+  data/RadarChanges.kt   "o que mudou desde a última visita" no Radar (retrato salvo ao sair da aba)
+  ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto; em Sensores os
+                         cartões em alerta sobem e os calmos vêm recolhidos
+  ui/Cards.kt            ArgosCard: cartão padrão (título, "fonte · atualizado há X", ⓘ com a explicação,
+                         recolhível). Cartão novo usa ele; texto longo de fonte vai no `info`, não no corpo
+  ui/Tools.kt            Ferramentas (TOOL_GROUPS) e painel da tela Hoje. Navegação por rotas em
+                         MainActivity.go(): "clock", "radar:N", "map:trend", "library:N", "region:TAG"...
+                         (mesmos nomes dos atalhos do ícone/notificações)
+  ui/SavedScreen.kt      aba Biblioteca: Salvos, Dossiês, Previsões, Arquivo (ArchiveScreen.kt), Lidas
   sync/                  SyncWorker (30 min), DigestWorker, Notifier, NotificationActionReceiver
   ui/                    Compose; MainActivity faz a navegação por estado (sem navigation-compose)
   widget/                Glance: TopWidget, CompactWidget, RegionWidget (+ configuração), ClockWidget
@@ -125,6 +133,9 @@ web/                     página de download (index.html, icon.svg); build.py co
   pelo app e falha se houver crash. Rode (Actions → Teste de fumaça → Run workflow) antes de publicar
   mudanças grandes de UI. Crashes no celular aparecem na próxima abertura (`CrashLog`).
 - Extração de números: idades ("14-year-old"), anos e porcentagens não são vítimas (há teste).
+- **Tela Hoje configurável**: blocos em `HOME_BLOCKS`/`PANEL_ITEMS` (Settings.kt), ordem e ocultos salvos
+  em `s_home_order`/`s_home_hidden`/`s_panel_*`. Bloco novo: acrescente no mapa (entra no fim da ordem de
+  quem já tinha configurado) e trate o id em `HomeScreen`/`HomePanel`.
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
 

@@ -34,14 +34,27 @@ tap "Israel" 6; shot 07-quem-manda
 tap "Benjamin Netanyahu" 8; shot 08-cartao-pessoa
 adb shell input keyevent KEYCODE_BACK; sleep 2
 tap "Irã" 6; shot 07b-quem-manda-ira
-tap "Arquivo" 4; shot 09-arquivo
-tap "Salvos" 3
+tap "Biblioteca" 4; shot 09-biblioteca
 tap "Dossiês" 3; shot 09b-dossies
 tap "Novo dossiê" 2; adb shell input text "Ira"; tap "Cancelar" 2
 tap "Previsões" 3; shot 09c-previsoes
-tap "Hoje" 4
-adb shell input tap 540 900; sleep 6; shot 10-noticia   # abre uma notícia da lista
-adb shell input swipe 500 1600 500 700 300; sleep 2; shot 11-noticia-rolada
+tap "Arquivo" 4; shot 09d-arquivo
+python3 .github/smoke/tap.py "Previsões" swipe; sleep 2
+tap "Lidas" 3; shot 09e-lidas
+tap "Hoje" 4; shot 10-hoje-painel
+tap "Ferramentas" 3; shot 11-ferramentas
+tap "Linha de frente" 8; shot 12-ferramenta-frente
+tap "Hoje" 3
+tap "Ajustes" 3; shot 13-ajustes
+tap "Tela Hoje" 3; shot 14-ajustes-tela-hoje
+adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell input keyevent KEYCODE_BACK; sleep 2
+tap "PRINCIPAL DO DIA" 6; shot 15-noticia   # abre a principal do dia
+tap "Cobertura" 3; shot 16-noticia-cobertura
+tap "Contexto" 3; shot 17-noticia-contexto
+adb shell input swipe 500 1600 500 700 300; sleep 2; shot 18-noticia-rolada
+adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell input tap 540 1700; sleep 6; shot 19-noticia-lista   # uma notícia da lista
 sleep 20
 echo "=== processo vivo? ==="
 adb shell pidof $PKG || echo "APP NÃO ESTÁ RODANDO"

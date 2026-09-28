@@ -38,15 +38,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abugdn.wid.repository
 import kotlinx.coroutines.launch
 
-/** A principal de cada dia, do mais recente para o mais antigo. */
+/** Sub-aba Arquivo da Biblioteca: a principal de cada dia, do mais recente para o mais antigo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ArchiveScreen(onOpen: (String) -> Unit, onVigil: () -> Unit, onBulletin: () -> Unit) {
+fun ArchiveTab(onOpen: (String) -> Unit) {
     val repo = LocalContext.current.repository
     val archive by repo.archive.collectAsStateWithLifecycle()
     val translator = repo.translator
     val first by repo.first.collectAsStateWithLifecycle()
-    val vigil by repo.vigil.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { if (repo.first.value == null) repo.loadFirst() }
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(false) }
@@ -59,38 +58,24 @@ fun ArchiveScreen(onOpen: (String) -> Unit, onVigil: () -> Unit, onBulletin: () 
     }
     LaunchedEffect(Unit) { if (archive == null) load() }
 
-    Scaffold(
-        contentWindowInsets = NoInsets,
-        topBar = { TopAppBar(title = { Text("Arquivo · principal de cada dia", fontWeight = FontWeight.Bold) }) },
-    ) { padding ->
-        PullToRefreshBox(isRefreshing = loading, onRefresh = { load() }, modifier = Modifier.padding(padding).fillMaxSize()) {
+    run {
+        PullToRefreshBox(isRefreshing = loading, onRefresh = { load() }, modifier = Modifier.fillMaxSize()) {
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (error) item { Text("Sem conexão.", color = Accent, modifier = Modifier.padding(16.dp)) }
                 if (archive.isNullOrEmpty() && !loading) {
                     item { Text("Nada no arquivo ainda. O servidor guarda um dia por vez a partir de 24/09/2026.", modifier = Modifier.padding(24.dp)) }
                 }
-                item {
-                    Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilledTonalButton(onClick = onBulletin, modifier = Modifier.weight(1f)) { Text("🗞 Boletim semanal") }
-                        OutlinedButton(onClick = onVigil, modifier = Modifier.weight(1f)) {
-                            Text(if (vigil.isEmpty()) "📜 Vigília" else "📜 Vigília (${vigil.size})")
-                        }
-                    }
-                }
                 item { YourWeekCard(onOpen) }
-                item { first?.let { FirstRankingCard(it, Modifier.padding(16.dp, 8.dp)) } }
+                item { first?.let { FirstRankingCard(it, Modifier.padding(horizontal = 16.dp)) } }
                 val week = weekTop(archive.orEmpty())
                 if (week.size >= 2) {
                     item {
-                        Card(
-                            modifier = Modifier.padding(16.dp, 8.dp).fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        ArgosCard(
+                            "🗓 RESUMO DA SEMANA",
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            info = "A principal de cada um dos últimos 7 dias, escolhida pelo servidor (mais veículos e mais peso).",
                         ) {
-                            Column(Modifier.padding(16.dp)) {
-                                Text("RESUMO DA SEMANA", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+                            run {
                                 week.forEachIndexed { i, day ->
                                     Column(Modifier.fillMaxWidth().clickable { onOpen(day.top.id) }.padding(vertical = 8.dp)) {
                                         Text(
@@ -141,12 +126,12 @@ private fun YourWeekCard(onOpen: (String) -> Unit) {
         .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3)
     val activeFollowed = feed?.clusters.orEmpty().filter { it.id in followed }
 
-    Card(
-        modifier = Modifier.padding(16.dp, 8.dp).fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ArgosCard(
+        "👤 SUA SEMANA",
+        modifier = Modifier.padding(horizontal = 16.dp),
+        info = "Contado só no seu celular, com as notícias que você abriu nos últimos 7 dias.",
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("SUA SEMANA", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+        run {
             Text(
                 when (stories) {
                     0 -> "Você ainda não leu nenhuma notícia nos últimos 7 dias."

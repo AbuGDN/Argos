@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Tab
@@ -79,6 +80,7 @@ fun HomeScreen(
     searchRequest: Int = 0,
     onRegion: (String) -> Unit = {},
     onClock: () -> Unit = {},
+    onRoute: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val repo = context.repository
@@ -130,7 +132,7 @@ fun HomeScreen(
                         TextField(
                             value = query,
                             onValueChange = { query = it },
-                            placeholder = { Text("Buscar nas últimas 48 h e nos salvos") },
+                            placeholder = { Text("Buscar notícias e ferramentas") },
                             singleLine = true,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -143,6 +145,7 @@ fun HomeScreen(
             } else {
                 TopAppBar(actions = {
                     IconButton(onClick = { searchOpen = true }) { Icon(Icons.Filled.Search, contentDescription = "Buscar") }
+                    IconButton(onClick = { onRoute("tools") }) { Icon(Icons.Filled.Build, contentDescription = "Ferramentas") }
                     IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Ajustes") }
                 }, title = {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -184,15 +187,11 @@ fun HomeScreen(
                 else -> unreadList
             }
             val tagsPresent = if (searching) emptyList() else TAG_LABELS.keys.filter { key -> data?.clusters.orEmpty().any { key in it.tags } }
-            val top = data?.topOfDay?.takeIf { tag == null && !searching && !showRead && it.id !in readIds }
+            val top = data?.topOfDay?.takeIf {
+                tag == null && !searching && !showRead && it.id !in readIds && "top" !in settings.homeHidden
+            }
 
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                if (settings.showTicker && !searching) {
-                    val headlines = tickerHeadlines(data?.clusters.orEmpty())
-                    if (headlines.isNotEmpty()) {
-                        item { HeadlineTicker(headlines, { repo.translator.display(it.title, it.lang) }, onOpen) }
-                    }
-                }
                 error?.let { item { Text(it, color = Accent, modifier = Modifier.padding(16.dp, 8.dp)) } }
                 item { UpdateBanner(Modifier.padding(16.dp, 8.dp)) }
                 if (data == null) {
@@ -203,89 +202,106 @@ fun HomeScreen(
                         )
                     }
                 }
-                if (tagsPresent.isNotEmpty()) {
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            item {
-                                FilterChip(selected = tag == null, onClick = { onTag(null) }, label = { Text("Tudo") })
-                            }
-                            items(tagsPresent) { key ->
-                                FilterChip(
-                                    selected = tag == key,
-                                    onClick = { onTag(if (tag == key) null else key) },
-                                    label = { Text(TAG_LABELS.getValue(key)) },
-                                )
-                            }
-                        }
-                    }
-                }
-                if (tag != null && !searching) {
-                    item {
-                        androidx.compose.material3.TextButton(
-                            onClick = { onRegion(tag) },
-                            modifier = Modifier.padding(start = 8.dp),
-                        ) { Text("🌍 Página de ${TAG_LABELS[tag] ?: tag}: contexto, tendência e 30 dias") }
-                    }
-                }
-                if (!searching && data != null) {
-                    item {
-                        TabRow(selectedTabIndex = if (showRead) 1 else 0, modifier = Modifier.padding(top = 8.dp)) {
-                            Tab(selected = !showRead, onClick = { showRead = false }, text = { Text("Não lidas (${unreadList.size})") })
-                            Tab(selected = showRead, onClick = { showRead = true }, text = { Text("Lidas (${readList.size})") })
-                        }
-                    }
-                    if (clusters.isEmpty()) {
+                if (searching) {
+                    // A busca também acha telas do app ("mapa", "petróleo", "reféns"...).
+                    val tools = toolsMatching(query)
+                    if (tools.isNotEmpty()) {
                         item {
                             Text(
-                                if (showRead) "Nenhuma notícia lida aqui ainda." else "Você leu tudo por aqui. As abertas estão na aba Lidas.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(24.dp),
+                                "FERRAMENTAS",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Accent,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(16.dp, 8.dp, 16.dp, 0.dp),
                             )
                         }
+                        items(tools, key = { "tool-" + it.route }) { ToolRow(it, onRoute) }
                     }
-                }
-                if (searching) {
                     item {
                         Text(
-                            if (clusters.isEmpty()) "Nada encontrado para “$query”." else "${clusters.size} resultado(s)",
+                            if (clusters.isEmpty()) "Nenhuma notícia encontrada para “$query”." else "${clusters.size} notícia(s)",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp, 8.dp),
                         )
                     }
-                }
-                if (showWidgetHint && !searching) {
-                    item {
-                        WidgetHint(onAdd = {
-                            scope.launch {
-                                // Pede ao launcher para fixar o widget; funciona mesmo quando
-                                // o widget não aparece na lista de widgets do launcher.
-                                val ok = runCatching {
-                                    widgets.requestPinGlanceAppWidget(TopWidgetReceiver::class.java)
-                                }.getOrDefault(false)
-                                if (ok) showWidgetHint = false
-                                else error = "Seu launcher não aceita adicionar widget pelo app. Use a lista de widgets da tela inicial."
+                } else {
+                    // Blocos na ordem escolhida em Ajustes → Tela Hoje.
+                    settings.homeOrder.filter { it !in settings.homeHidden }.forEach { block ->
+                        when (block) {
+                            "ticker" -> {
+                                val headlines = tickerHeadlines(data?.clusters.orEmpty())
+                                if (headlines.isNotEmpty()) {
+                                    item(key = "ticker") { HeadlineTicker(headlines, { repo.translator.display(it.title, it.lang) }, onOpen) }
+                                }
                             }
-                        }, onDismiss = { showWidgetHint = false })
+                            "panel" -> if (tag == null && data != null) {
+                                item(key = "panel") { HomePanel(settings.panelOrder, settings.panelHidden, onRoute) }
+                            }
+                            "filters" -> if (tagsPresent.isNotEmpty()) {
+                                item(key = "filters") {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    ) {
+                                        item {
+                                            FilterChip(selected = tag == null, onClick = { onTag(null) }, label = { Text("Tudo") })
+                                        }
+                                        items(tagsPresent) { key ->
+                                            FilterChip(
+                                                selected = tag == key,
+                                                onClick = { onTag(if (tag == key) null else key) },
+                                                label = { Text(TAG_LABELS.getValue(key)) },
+                                            )
+                                        }
+                                    }
+                                }
+                                if (tag != null) {
+                                    item(key = "region-link") {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = { onRegion(tag) },
+                                            modifier = Modifier.padding(start = 8.dp),
+                                        ) { Text("🌍 Tudo sobre ${TAG_LABELS[tag] ?: tag}: tensão, Radar, mapa e 30 dias") }
+                                    }
+                                }
+                            }
+                            "top" -> top?.let { item(key = "top") { TopCard(it, onOpen) } }
+                        }
                     }
-                }
-                val clock = feed?.global
-                if (clock != null && !searching && tag == null) {
-                    item { ArgosClock(clock, Modifier.padding(16.dp, 8.dp, 16.dp, 0.dp), onClick = onClock) }
-                }
-                if (top != null) {
-                    item {
-                        FilledTonalButton(onClick = onStory, modifier = Modifier.padding(start = 16.dp, top = 8.dp)) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("O dia em 1 minuto")
+                    if (showWidgetHint) {
+                        item {
+                            WidgetHint(onAdd = {
+                                scope.launch {
+                                    // Pede ao launcher para fixar o widget; funciona mesmo quando
+                                    // o widget não aparece na lista de widgets do launcher.
+                                    val ok = runCatching {
+                                        widgets.requestPinGlanceAppWidget(TopWidgetReceiver::class.java)
+                                    }.getOrDefault(false)
+                                    if (ok) showWidgetHint = false
+                                    else error = "Seu launcher não aceita adicionar widget pelo app. Use a lista de widgets da tela inicial."
+                                }
+                            }, onDismiss = { showWidgetHint = false })
+                        }
+                    }
+                    if (data != null) {
+                        item {
+                            TabRow(selectedTabIndex = if (showRead) 1 else 0, modifier = Modifier.padding(top = 8.dp)) {
+                                Tab(selected = !showRead, onClick = { showRead = false }, text = { Text("Não lidas (${unreadList.size})") })
+                                Tab(selected = showRead, onClick = { showRead = true }, text = { Text("Lidas (${readList.size})") })
+                            }
+                        }
+                        if (clusters.isEmpty()) {
+                            item {
+                                Text(
+                                    if (showRead) "Nenhuma notícia lida aqui ainda." else "Você leu tudo por aqui. As abertas estão na aba Lidas.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(24.dp),
+                                )
+                            }
                         }
                     }
                 }
-                top?.let { item { TopCard(it, onOpen) } }
                 items(clusters.filter { it.id != top?.id }, key = { it.id }) { c ->
                     // Histórias que chegaram nesta sincronização entram deslizando, com brilho dourado.
                     Column(Modifier.animateItem().freshGlow(c.id in fresh)) {

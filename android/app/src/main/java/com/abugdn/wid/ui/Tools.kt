@@ -1,0 +1,286 @@
+package com.abugdn.wid.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.abugdn.wid.data.TAG_LABELS
+import com.abugdn.wid.data.TRUCES
+import com.abugdn.wid.data.normalize
+import com.abugdn.wid.data.upcomingAgenda
+import com.abugdn.wid.repository
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+
+/**
+ * Tudo o que o Argos faz, num lugar só. [route] é o mesmo endereço usado pelos atalhos do ícone:
+ * "clock", "story", "vigil", "bulletin", "tools", "settings", "radar:N", "map", "map:trend",
+ * "map:frontline", "map:carriers", "map:military", "map:ranges", "library:N" e "region:TAG".
+ */
+data class Tool(val route: String, val icon: String, val name: String, val desc: String, val keywords: String = "")
+
+val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
+    "Agora" to listOf(
+        Tool("clock", "👁", "Relógio do Argos", "Tensão global e a região que mais puxa", "tensao indice global"),
+        Tool("radar:0", "📡", "Sensores do Radar", "Internet, espaço aéreo, focos de calor, navios e aviões militares", "apagao internet aviao navio fogo"),
+        Tool("vigil", "📜", "Vigília", "Registro dos alertas com data e hora", "alertas registro historico"),
+    ),
+    "Resumos" to listOf(
+        Tool("story", "▶", "O dia em 1 minuto", "As 5 principais em tela cheia", "resumo stories"),
+        Tool("bulletin", "🗞", "Boletim semanal", "As principais da semana em imagem para compartilhar", "semana imagem"),
+        Tool("library:3", "📅", "Arquivo e Sua semana", "A principal de cada dia, suas leituras e quem noticia primeiro", "historico dias ranking primeiro"),
+    ),
+    "Mapas" to listOf(
+        Tool("map", "🗺", "Mapa", "Histórias das últimas 48 h por região e por cidade", "cidades regioes"),
+        Tool("map:trend", "📊", "Tendência", "Histórias por dia em cada região, 14 dias", "grafico evolucao"),
+        Tool("map:frontline", "🇺🇦", "Linha de frente", "Área ocupada na Ucrânia, desenhada no mapa", "ucrania russia frente deepstate"),
+        Tool("map:carriers", "⚓", "Porta-aviões", "Onde está cada porta-aviões americano", "frota marinha eua navios"),
+        Tool("map:military", "✈", "Aviões militares", "Reabastecedores, aviões-radar e drones no ar", "militar avioes adsb"),
+        Tool("map:ranges", "🎯", "Alcance de mísseis", "Até onde chegam mísseis e defesas", "misseis defesa alcance armas"),
+    ),
+    "Radar" to listOf(
+        Tool("radar:1", "🛢", "Mercados", "Petróleo, ouro, moedas e apostas sobre as guerras", "cotacao petroleo brent ouro polymarket"),
+        Tool("radar:2", "🩸", "Números", "Gaza, deslocados, reféns e perdas russas", "mortos refens humanitario perdas"),
+        Tool("radar:3", "🏛", "Vozes", "O que governos dizem nos próprios canais e sanções", "oficial governo sancoes"),
+        Tool("radar:4", "🧠", "Análise", "CrisisWatch, checagens e institutos de análise", "crisiswatch checagem isw fatos"),
+        Tool("radar:5", "📅", "Contexto", "Agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres"),
+    ),
+    "Seus" to listOf(
+        Tool("library:0", "★", "Salvos", "Notícias guardadas, com pasta e nota", "favoritos estrela"),
+        Tool("library:1", "🗂", "Dossiês", "Linha do tempo automática de um assunto", "acompanhar assunto"),
+        Tool("library:2", "🎯", "Minhas previsões", "Seus palpites e o placar", "palpite aposta"),
+        Tool("library:4", "👁", "Lidas", "O que você leu nos últimos 30 dias", "historico leituras"),
+        Tool("settings", "⚙", "Ajustes", "Notificações, tela Hoje, leitura, aparência", "configuracoes preferencias"),
+    ),
+)
+
+/** Ferramentas cujo nome, descrição ou palavras-chave contêm todos os termos da busca. */
+fun toolsMatching(query: String): List<Tool> {
+    val terms = normalize(query).split(Regex("\\s+")).filter { it.length >= 3 }
+    if (terms.isEmpty()) return emptyList()
+    return TOOL_GROUPS.flatMap { it.second }.filter { t ->
+        val text = normalize("${t.name} ${t.desc} ${t.keywords}")
+        terms.all { it in text }
+    }
+}
+
+@Composable
+fun ToolRow(tool: Tool, onRoute: (String) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onRoute(tool.route) }.padding(16.dp, 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(tool.icon, style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(40.dp))
+        Column(Modifier.weight(1f)) {
+            Text(tool.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(tool.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun ToolsScreen(onBack: () -> Unit, onRoute: (String) -> Unit) {
+    Scaffold(
+        contentWindowInsets = NoInsets,
+        topBar = {
+            TopAppBar(
+                title = { Text("Ferramentas", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar") }
+                },
+            )
+        },
+    ) { padding ->
+        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            TOOL_GROUPS.forEach { (group, tools) ->
+                item { GroupHeader(group) }
+                items(tools, key = { it.route }) { ToolRow(it, onRoute) }
+            }
+            item { GroupHeader("Regiões") }
+            item {
+                FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TAG_LABELS.forEach { (tag, label) ->
+                        AssistChip(
+                            onClick = { onRoute("region:$tag") },
+                            label = { Text(label) },
+                            leadingIcon = { RegionFlags(tag, height = 14.dp) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupHeader(text: String) {
+    Column {
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+        Text(
+            text.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = Accent,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 2.dp),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Painel da tela Hoje: mini-cartões que rolam de lado
+// ---------------------------------------------------------------------------
+
+@Composable
+fun HomePanel(order: List<String>, hidden: Set<String>, onRoute: (String) -> Unit, modifier: Modifier = Modifier) {
+    val repo = LocalContext.current.repository
+    val feed by repo.feed.collectAsStateWithLifecycle()
+    val radar by repo.radar.collectAsStateWithLifecycle()
+    val vigil by repo.vigil.collectAsStateWithLifecycle()
+    val ended by repo.endedTruces.collectAsStateWithLifecycle()
+    val today = LocalDate.now()
+    val nextDate = remember(today) { upcomingAgenda(today, days = 60).firstOrNull() }
+    val ids = order.filter { it !in hidden }
+    if (ids.isEmpty()) return
+    LazyRow(
+        modifier.padding(top = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(ids, key = { it }) { id ->
+            when (id) {
+                "clock" -> feed?.global?.let { clock ->
+                    MiniCard(
+                        "👁 RELÓGIO",
+                        sub = "${clock.level} · ${TAG_LABELS[clock.leader] ?: clock.leader}",
+                        alert = clock.level == "crítica",
+                        onClick = { onRoute("clock") },
+                    ) {
+                        CountUpText(clock.index.toLong(), MaterialTheme.typography.headlineSmall, color = tensionColor(clock.level), fontWeight = FontWeight.Black)
+                    }
+                }
+                "radar" -> {
+                    val alerts = radar?.let(::radarAlerts).orEmpty()
+                    MiniCard(
+                        "📡 RADAR",
+                        value = if (alerts.isEmpty()) "Calmo" else "${alerts.size} alerta" + if (alerts.size > 1) "s" else "",
+                        sub = alerts.firstOrNull() ?: "sensores no normal",
+                        alert = alerts.isNotEmpty(),
+                        valueColor = if (alerts.isEmpty()) null else Alert,
+                        onClick = { onRoute("radar:0") },
+                    )
+                }
+                "story" -> MiniCard("▶ O DIA EM 1 MIN", value = "5 principais", sub = "em tela cheia", onClick = { onRoute("story") })
+                "truce" -> TRUCES.firstOrNull { it.key !in ended }?.let { truce ->
+                    val days = ChronoUnit.DAYS.between(truce.start, today) + 1
+                    val recent = vigil.count { it.kind == "truce" && it.region in truce.tags && it.time >= System.currentTimeMillis() - 7 * 86_400_000L }
+                    MiniCard(
+                        "🕊 TRÉGUA",
+                        value = "Dia $days",
+                        sub = truce.label + if (recent > 0) " · $recent violação(ões) em 7 dias" else "",
+                        alert = recent > 0,
+                        onClick = { onRoute("region:${truce.tags.first()}") },
+                    )
+                }
+                "agenda" -> nextDate?.let { e ->
+                    val days = ChronoUnit.DAYS.between(today, e.date)
+                    MiniCard(
+                        "📅 AGENDA",
+                        value = when (days) {
+                            0L -> "Hoje"
+                            1L -> "Amanhã"
+                            else -> "Em $days dias"
+                        },
+                        sub = e.text,
+                        valueColor = if (days <= 2) Alert else null,
+                        onClick = { onRoute("radar:5") },
+                    )
+                }
+                "vigil" -> {
+                    val last = vigil.maxByOrNull { it.time }
+                    MiniCard(
+                        "📜 VIGÍLIA",
+                        value = last?.let { relativeTime(java.time.Instant.ofEpochMilli(it.time).toString()) } ?: "—",
+                        sub = last?.title ?: "nenhum alerta registrado ainda",
+                        onClick = { onRoute("vigil") },
+                    )
+                }
+                "tools" -> MiniCard("🧰 FERRAMENTAS", value = "Tudo do Argos", sub = "mapas, radar, resumos e regiões", onClick = { onRoute("tools") })
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniCard(
+    label: String,
+    value: String? = null,
+    sub: String,
+    alert: Boolean = false,
+    valueColor: Color? = null,
+    onClick: () -> Unit,
+    valueContent: (@Composable () -> Unit)? = null,
+) {
+    Card(
+        modifier = Modifier.width(150.dp).height(104.dp).breathingBorder(alert).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = if (alert) Alert else Accent, fontWeight = FontWeight.Bold, maxLines = 1)
+            if (valueContent != null) {
+                valueContent()
+            } else if (value != null) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = valueColor ?: MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                sub,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}

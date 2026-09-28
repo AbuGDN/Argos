@@ -1,6 +1,9 @@
 package com.abugdn.wid.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,10 +36,13 @@ import com.abugdn.wid.data.TAG_LABELS
 import com.abugdn.wid.repository
 import java.time.LocalDate
 
-/** Página de uma região: contexto, tendência, notícias atuais, principais de 30 dias e marcos. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Página de uma região: o lugar central de tudo sobre ela. Tensão, trégua, Radar, mapa, quem
+ * manda, reféns, agenda, apostas, vozes oficiais, contexto, notícias atuais, 30 dias e marcos.
+ */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit, onRoute: (String) -> Unit = {}) {
     val repo = LocalContext.current.repository
     val feed by repo.feed.collectAsStateWithLifecycle()
     val archive by repo.archive.collectAsStateWithLifecycle()
@@ -55,6 +61,8 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
     val peaks = vigil.filter { it.region == tag && (it.kind == "tension" || it.kind == "spike") }.take(5)
 
     val stat = feed?.regions?.get(tag)
+    val radar by repo.radar.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = {
@@ -88,8 +96,59 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
+                    // Atalhos para as outras telas, já no lugar desta região.
+                    androidx.compose.foundation.layout.FlowRow(
+                        Modifier.padding(top = 12.dp),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                    ) {
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:at:$tag") }, label = { Text("🗺 Ver no mapa") })
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("radar:0") }, label = { Text("📡 Radar") })
+                        if (tag == "ucrania_russia") {
+                            androidx.compose.material3.AssistChip(onClick = { onRoute("map:frontline") }, label = { Text("🇺🇦 Linha de frente") })
+                        }
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:trend") }, label = { Text("📊 Tendência") })
+                    }
                     TruceCards(tag)
                     RegionRadarCard(tag)
+                    if (com.abugdn.wid.data.POWER.any { it.tag == tag }) PowerCards(only = tag)
+                    if (tag == "israel" || tag == "gaza") HostagesCard(onOpen)
+                    val agenda = remember { com.abugdn.wid.data.upcomingAgenda().filter { it.tag == tag }.take(3) }
+                    if (agenda.isNotEmpty()) {
+                        ArgosCard("📅 NA AGENDA", info = "Datas que costumam mexer com esta região. A agenda completa fica em Radar → Contexto.") {
+                            agenda.forEach { e ->
+                                Text(
+                                    "${e.date.dayOfMonth}/${e.date.monthValue} · ${e.text}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    val bets = radar?.predictions?.events.orEmpty().filter { tag in it.tags }.take(3)
+                    if (bets.isNotEmpty()) {
+                        ArgosCard("🎲 O QUE OS APOSTADORES ACHAM", source = "Polymarket", info = "Apostas com dinheiro real; não são previsões oficiais e podem ser manipuladas.") {
+                            bets.forEach { e ->
+                                val m = e.markets.firstOrNull()
+                                Text(
+                                    repo.translator.cached(e.title) + (m?.let { " · ${(it.prob * 100).toInt()}%" } ?: ""),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.clickable { openUrl(context, e.url) }.padding(top = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                    val voices = listOfNotNull(radar?.official, radar?.analysis, radar?.factcheck)
+                        .flatMap { it.items }.filter { tag in it.tags }.sortedByDescending { it.published }.take(4)
+                    if (voices.isNotEmpty()) {
+                        ArgosCard("🏛 VOZES E ANÁLISES", info = "Publicações de governos, institutos de análise e agências de checagem que citam esta região. Mais na aba Radar.") {
+                            voices.forEach { v ->
+                                Column(Modifier.fillMaxWidth().clickable { openUrl(context, v.url) }.padding(top = 6.dp)) {
+                                    Text("${v.source} · ${relativeTime(v.published)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(repo.translator.display(v.title, v.lang), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
                 }
             }
             REGION_CONTEXT[tag]?.let { text ->

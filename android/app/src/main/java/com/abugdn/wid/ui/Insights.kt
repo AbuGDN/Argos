@@ -47,16 +47,6 @@ fun tensionColor(level: String): Color = when (level) {
 }
 
 @Composable
-private fun InsightCard(alert: Boolean = false, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).breathingBorder(alert),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(Modifier.padding(12.dp)) { content() }
-    }
-}
-
-@Composable
 private fun CardTitle(text: String, color: Color = Accent) {
     Text(text, style = MaterialTheme.typography.labelMedium, color = color, fontWeight = FontWeight.Bold)
 }
@@ -134,8 +124,12 @@ fun ConflictCounter(tag: String, modifier: Modifier = Modifier) {
 fun FiguresCard(cluster: Cluster) {
     if (cluster.figures.isEmpty()) return
     val divergent = cluster.figures.values.any { it.divergent }
-    InsightCard {
-        CardTitle(if (divergent) "⚠ NÚMEROS DIVERGENTES" else "NÚMEROS CITADOS", if (divergent) Alert else Accent)
+    ArgosCard(
+        if (divergent) "⚠ NÚMEROS DIVERGENTES" else "🔢 NÚMEROS CITADOS",
+        alert = divergent,
+        info = "Mortos e feridos citados em cada veículo, lidos automaticamente dos títulos e resumos. " +
+            "Balanços costumam subir com o tempo; confira a hora de cada um.",
+    ) {
         cluster.figures.forEach { (kind, info) ->
             Text(
                 FIGURE_LABELS[kind] ?: kind,
@@ -149,7 +143,7 @@ fun FiguresCard(cluster: Cluster) {
         }
         if (divergent) {
             Text(
-                "Os veículos citam números diferentes. Balanços costumam subir com o tempo; confira a hora de cada um.",
+                "Os veículos citam números diferentes.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp),
@@ -170,14 +164,14 @@ fun sidesBadge(c: Cluster): String? = when (c.sides) {
 fun SidesCard(cluster: Cluster) {
     val side = cluster.sides ?: return
     val byOrigin = cluster.articles.groupBy { it.origin }.mapValues { (_, arts) -> arts.map { it.source }.distinct() }
-    InsightCard {
+    ArgosCard(
+        if (side == "opostos") "🤝 CONFIRMADO POR LADOS OPOSTOS" else "⚠ SÓ UM LADO NOTICIOU",
+        alert = side != "opostos",
+        info = "Compara a origem dos veículos (imprensa israelense, americana, árabe, internacional). " +
+            "Fatos que lados rivais relatam costumam ser mais sólidos; a interpretação ainda pode mudar. " +
+            "Quando só uma origem publicou, vale esperar confirmação.",
+    ) {
         if (side == "opostos") {
-            CardTitle("🤝 CONFIRMADO POR LADOS OPOSTOS")
-            Text(
-                "Veículos de lados rivais contam esta história. Fatos que os dois lados relatam costumam ser mais sólidos; a interpretação ainda pode mudar.",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
-            )
             listOf("israel", "eua", "arabe").forEach { origin ->
                 val sources = byOrigin[origin] ?: return@forEach
                 Text(
@@ -188,7 +182,6 @@ fun SidesCard(cluster: Cluster) {
             }
         } else {
             val origin = byOrigin.keys.firstOrNull()
-            CardTitle("⚠ SÓ UM LADO NOTICIOU", Alert)
             Text(
                 "Até agora só a ${(ORIGIN_LABELS[origin] ?: "mesma origem").lowercase()} publicou esta história " +
                     "(${byOrigin[origin].orEmpty().joinToString(", ")}). Vale esperar confirmação de outras fontes.",
@@ -203,8 +196,11 @@ fun SidesCard(cluster: Cluster) {
 @Composable
 fun FramingCard(cluster: Cluster) {
     if (cluster.framing.isEmpty()) return
-    InsightCard {
-        CardTitle("PALAVRAS DE CADA LADO")
+    ArgosCard(
+        "🗣 PALAVRAS DE CADA LADO",
+        info = "Termos diferentes que cada origem usou para a mesma coisa (\"terroristas\", \"militantes\", \"combatentes\"...). " +
+            "A escolha da palavra mostra o enquadramento de cada lado.",
+    ) {
         cluster.framing.forEach { g ->
             Text(g.group, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
             g.byOrigin.forEach { (origin, terms) ->
@@ -224,8 +220,10 @@ fun SagaCard(cluster: Cluster, onOpen: (String) -> Unit) {
     val context = LocalContext.current
     val repo = context.repository
     var expanded by remember(cluster.id) { mutableStateOf(false) }
-    InsightCard {
-        CardTitle("📚 CAPÍTULO ${saga.chapter} DE ${maxOf(saga.total, saga.chapters.size)} DESTA SAGA")
+    ArgosCard(
+        "📚 CAPÍTULO ${saga.chapter} DE ${maxOf(saga.total, saga.chapters.size)} DESTA SAGA",
+        info = "Histórias sobre o mesmo assunto ao longo dos dias, ligadas automaticamente pelo servidor.",
+    ) {
         Text(
             repo.translator.display(saga.title, saga.lang),
             style = MaterialTheme.typography.bodyMedium,
@@ -265,17 +263,13 @@ fun SagaCard(cluster: Cluster, onOpen: (String) -> Unit) {
 @Composable
 fun FirstRankingCard(stats: FirstStats, modifier: Modifier = Modifier) {
     if (stats.ranking.isEmpty()) return
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ArgosCard(
+        "⏱ QUEM NOTICIA PRIMEIRO · 30 DIAS",
+        modifier = modifier,
+        source = "${stats.bigStories} histórias grandes (3+ veículos)",
+        info = "Nas histórias com 3 ou mais veículos, quem publicou primeiro e com quantos minutos de vantagem, em média.",
     ) {
-        Column(Modifier.padding(16.dp)) {
-            CardTitle("QUEM NOTICIA PRIMEIRO · 30 DIAS")
-            Text(
-                "Em ${stats.bigStories} histórias grandes (3+ veículos)",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        run {
             stats.ranking.filter { it.firsts > 0 }.take(6).forEachIndexed { i, r ->
                 Text(
                     "${i + 1}. ${r.source} — primeiro em ${r.firsts} de ${r.stories}" +
@@ -294,14 +288,10 @@ fun EditsCard(cluster: Cluster) {
     val edited = cluster.articles.filter { it.edits.isNotEmpty() }
     if (edited.isEmpty()) return
     val translator = LocalContext.current.repository.translator
-    InsightCard {
-        CardTitle("✏ MANCHETE ALTERADA")
-        Text(
-            "O veículo mudou o título depois de publicar. Mudanças de palavra (\"ataque\" → \"suposto ataque\") dizem muito.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp),
-        )
+    ArgosCard(
+        "✏ MANCHETE ALTERADA",
+        info = "O veículo mudou o título depois de publicar. Mudanças de palavra (\"ataque\" → \"suposto ataque\") dizem muito.",
+    ) {
         edited.forEach { a ->
             Text(a.source, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
             a.edits.forEach { e ->
@@ -430,18 +420,21 @@ fun TruceCard(
     val violations = vigil.filter { it.kind == "truce" && it.region in truce.tags && it.time >= startMs }
     val weekAgo = System.currentTimeMillis() - 7 * 86_400_000L
     val recent = violations.count { it.time >= weekAgo }
-    InsightCard {
-        if (ended) {
+    if (ended) {
+        ArgosCard("🕊 ${truce.label.uppercase()}", titleColor = MaterialTheme.colorScheme.onSurfaceVariant) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🕊 ${truce.label}: marcada como encerrada", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                Text("Marcada como encerrada", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                 TextButton(onClick = { onEnded(false) }) { Text("Reativar") }
             }
-            return@InsightCard
         }
-        val days = java.time.temporal.ChronoUnit.DAYS.between(truce.start, java.time.LocalDate.now(zone)) + 1
-        val day = NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(days)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            CardTitle("🕊 ${truce.label.uppercase()} · DIA ")
+        return
+    }
+    val days = java.time.temporal.ChronoUnit.DAYS.between(truce.start, java.time.LocalDate.now(zone)) + 1
+    ArgosCard(
+        "🕊 ${truce.label.uppercase()} · DIA ",
+        source = "desde ${truce.start.dayOfMonth}/${truce.start.monthValue}/${truce.start.year}",
+        info = com.abugdn.wid.data.TRUCE_DISCLAIMER,
+        titleExtra = {
             CountUpText(
                 days,
                 MaterialTheme.typography.labelMedium,
@@ -449,12 +442,8 @@ fun TruceCard(
                 fontWeight = FontWeight.Bold,
                 format = { NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(it) },
             )
-        }
-        Text(
-            "desde ${truce.start.dayOfMonth}/${truce.start.monthValue}/${truce.start.year}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        },
+    ) {
         val last = violations.maxByOrNull { it.time }
         Text(
             if (last == null) "Nenhuma violação relatada desde que o Argos começou a vigiar."
@@ -464,12 +453,6 @@ fun TruceCard(
             color = if (recent > 0) Alert else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (recent > 0) FontWeight.Bold else FontWeight.Normal,
             modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            com.abugdn.wid.data.TRUCE_DISCLAIMER,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
         )
         TextButton(onClick = { onEnded(true) }) { Text("Trégua encerrada") }
     }
@@ -483,20 +466,18 @@ fun FactcheckCard(cluster: Cluster) {
     val radar by repo.radar.collectAsStateWithLifecycle()
     val checks = remember(radar, cluster.id) { repo.factchecksFor(cluster.id) }
     if (checks.isEmpty()) return
-    InsightCard(alert = true) {
-        CardTitle("⚠ CHECAGEM SOBRE ESTE ASSUNTO", Alert)
+    ArgosCard(
+        "⚠ CHECAGEM SOBRE ESTE ASSUNTO",
+        alert = true,
+        info = "Uma agência de checagem (Aos Fatos, Lupa, AFP, Misbar...) publicou algo sobre um assunto parecido. " +
+            "Pode ser um boato desmentido ligado a esta história; toque para ler.",
+    ) {
         checks.take(3).forEach { fc ->
             Column(Modifier.fillMaxWidth().clickable { openUrl(context, fc.url) }.padding(top = 8.dp)) {
                 Text("${fc.source} · ${relativeTime(fc.published)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(repo.translator.display(fc.title, fc.lang), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             }
         }
-        Text(
-            "Uma agência de checagem publicou algo sobre um assunto parecido. Pode ser um boato desmentido ligado a esta história; toque para ler.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }
 
@@ -531,8 +512,13 @@ fun RegionRadarCard(tag: String) {
         }
     }
     if (lines.isEmpty()) return
-    InsightCard(alert = lines.any { it.second }) {
-        CardTitle("📡 RADAR")
+    ArgosCard(
+        "📡 RADAR",
+        alert = lines.any { it.second },
+        updated = r.generatedAt,
+        info = "Sensores e fontes fora da imprensa: internet (IODA), espaço aéreo (OpenSky), focos de calor (NASA), " +
+            "navios nos estreitos (FMI) e a avaliação mensal do CrisisWatch. Mais detalhes na aba Radar.",
+    ) {
         lines.forEach { (text, alert) ->
             Text(
                 text,
@@ -542,12 +528,6 @@ fun RegionRadarCard(tag: String) {
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
-        Text(
-            "Sensores e fontes fora da imprensa. Mais detalhes na aba Radar.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }
 

@@ -201,87 +201,129 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                 }
-                ContextChips(cluster, onOpen, onRegion)
+                // A notícia em três partes: o texto, como foi coberta e o contexto em volta.
+                val coverageCount = listOf(
+                    cluster.sides != null, cluster.figures.isNotEmpty(), cluster.framing.isNotEmpty(),
+                    cluster.articles.any { it.edits.isNotEmpty() },
+                ).count { it }
+                var section by rememberSaveable(cluster.id) { mutableStateOf(0) }
+                androidx.compose.material3.TabRow(selectedTabIndex = section, modifier = Modifier.padding(top = 12.dp)) {
+                    androidx.compose.material3.Tab(selected = section == 0, onClick = { section = 0 }, text = { Text("Texto") })
+                    androidx.compose.material3.Tab(selected = section == 1, onClick = { section = 1 }, text = {
+                        Text("Cobertura · ${cluster.sourcesCount}" + if (coverageCount > 0) " ●" else "")
+                    })
+                    androidx.compose.material3.Tab(selected = section == 2, onClick = { section = 2 }, text = { Text("Contexto") })
+                }
+                // A checagem aparece em qualquer aba: é um aviso sobre a história inteira.
                 FactcheckCard(cluster)
-                SidesCard(cluster)
-                EditsCard(cluster)
-                FiguresCard(cluster)
-                SagaCard(cluster, onOpen)
-                if (isSaved) SavedMetaSection(cluster.id)
-                Spacer(Modifier.height(16.dp))
-
-                when (val state = textState) {
-                    TextState.Loading -> {
-                        Summary(cluster)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(Modifier.padding(end = 12.dp))
-                            Text("Baixando e traduzindo o texto completo…")
+                when (section) {
+                    1 -> {
+                        SidesCard(cluster)
+                        FiguresCard(cluster)
+                        EditsCard(cluster)
+                        FramingCard(cluster)
+                        Perspectives(cluster, newIds) { profileOf = it }
+                        if (cluster.articles.isNotEmpty()) {
+                            Spacer(Modifier.height(16.dp))
+                            Text("Linha do tempo · ${cluster.sourcesCount} veículos", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(8.dp))
+                            val ordered = cluster.articles.sortedBy { it.published }
+                            ordered.forEachIndexed { i, a ->
+                                TimelineItem(a, first = i == 0, last = i == ordered.lastIndex, isNew = a.id in newIds) { openUrl(context, a.url) }
+                            }
                         }
                     }
-                    TextState.Failed -> {
-                        Summary(cluster)
+                    2 -> {
+                        ContextChips(cluster, onOpen, onRegion)
                         Text(
-                            "Não foi possível baixar o texto completo (sem conexão ou paywall).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    is TextState.Ready -> {
-                        val text = state.text
-                        val translated = text.translated
-                        val paragraphs = if (translated != null && !showOriginal) translated else text.paragraphs
-                        // ~200 palavras por minuto.
-                        val minutes = (paragraphs.sumOf { p -> p.split(' ').size } / 200).coerceAtLeast(1)
-                        Text(
-                            "Texto: ${text.source} · ~$minutes min de leitura" +
-                                if (translated != null) " · traduzido automaticamente" else "",
+                            "Toque numa pessoa, grupo, arma ou região para abrir o cartão.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (translated != null) {
-                                TextButton(onClick = { showOriginal = !showOriginal }) {
-                                    Text(if (showOriginal) "Ver tradução" else "Ver original")
-                                }
+                        SagaCard(cluster, onOpen)
+                        cluster.tags.firstOrNull { it in com.abugdn.wid.data.TAG_LABELS }?.let { tag ->
+                            RegionRadarCard(tag)
+                            TextButton(onClick = { onRegion(tag) }) {
+                                Text("🌍 Tudo sobre ${com.abugdn.wid.data.TAG_LABELS[tag]}")
                             }
-                            ReaderMenu()
-                        }
-                        val settings by repo.settings.state.collectAsStateWithLifecycle()
-                        val base = MaterialTheme.typography.bodyLarge
-                        val readerStyle = base.copy(
-                            fontFamily = if (settings.readerSerif) FontFamily.Serif else base.fontFamily,
-                            lineHeight = if (settings.readerWide) base.fontSize * 1.75f else base.lineHeight,
-                        )
-                        paragraphs.forEach {
-                            Text(
-                                it,
-                                style = readerStyle,
-                                modifier = Modifier.padding(bottom = if (settings.readerWide) 18.dp else 12.dp),
-                            )
                         }
                     }
-                }
-
-                OutlinedButton(onClick = { openUrl(context, cluster.url) }, modifier = Modifier.padding(vertical = 8.dp)) {
-                    Text("Abrir no site (${cluster.source})")
-                }
-
-                Perspectives(cluster, newIds) { profileOf = it }
-                FramingCard(cluster)
-
-                if (cluster.articles.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
-                    Text("Linha do tempo · ${cluster.sourcesCount} veículos", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    val ordered = cluster.articles.sortedBy { it.published }
-                    ordered.forEachIndexed { i, a ->
-                        TimelineItem(a, first = i == 0, last = i == ordered.lastIndex, isNew = a.id in newIds) { openUrl(context, a.url) }
+                    else -> {
+                        if (isSaved) SavedMetaSection(cluster.id)
+                        Spacer(Modifier.height(16.dp))
+                        ArticleText(cluster, textState, showOriginal) { showOriginal = !showOriginal }
+                        OutlinedButton(onClick = { openUrl(context, cluster.url) }, modifier = Modifier.padding(vertical = 8.dp)) {
+                            Text("Abrir no site (${cluster.source})")
+                        }
+                        if (coverageCount > 0 || cluster.sourcesCount > 1) {
+                            TextButton(onClick = { section = 1 }) {
+                                Text("Ver como ${cluster.sourcesCount} veículos cobriram →")
+                            }
+                        }
                     }
                 }
             }
         }
     }
     StampFlash(stamp.first, stamp.second, Modifier.align(androidx.compose.ui.Alignment.Center))
+    }
+}
+
+/** Texto completo (traduzido) ou o resumo enquanto baixa. */
+@Composable
+private fun ArticleText(cluster: Cluster, state: TextState, showOriginal: Boolean, onToggleOriginal: () -> Unit) {
+    val repo = LocalContext.current.repository
+    when (state) {
+        TextState.Loading -> {
+            Summary(cluster)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(Modifier.padding(end = 12.dp))
+                Text("Baixando e traduzindo o texto completo…")
+            }
+        }
+        TextState.Failed -> {
+            Summary(cluster)
+            Text(
+                "Não foi possível baixar o texto completo (sem conexão ou paywall).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is TextState.Ready -> {
+            val text = state.text
+            val translated = text.translated
+            val paragraphs = if (translated != null && !showOriginal) translated else text.paragraphs
+            // ~200 palavras por minuto.
+            val minutes = (paragraphs.sumOf { p -> p.split(' ').size } / 200).coerceAtLeast(1)
+            Text(
+                "Texto: ${text.source} · ~$minutes min de leitura" +
+                    if (translated != null) " · traduzido automaticamente" else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (translated != null) {
+                    TextButton(onClick = onToggleOriginal) {
+                        Text(if (showOriginal) "Ver tradução" else "Ver original")
+                    }
+                }
+                ReaderMenu()
+            }
+            val settings by repo.settings.state.collectAsStateWithLifecycle()
+            val base = MaterialTheme.typography.bodyLarge
+            val readerStyle = base.copy(
+                fontFamily = if (settings.readerSerif) FontFamily.Serif else base.fontFamily,
+                lineHeight = if (settings.readerWide) base.fontSize * 1.75f else base.lineHeight,
+            )
+            paragraphs.forEach {
+                Text(
+                    it,
+                    style = readerStyle,
+                    modifier = Modifier.padding(bottom = if (settings.readerWide) 18.dp else 12.dp),
+                )
+            }
+        }
     }
 }
 
@@ -395,17 +437,11 @@ private fun SavedMetaSection(id: String) {
     val meta = allMeta[id] ?: SavedMeta()
     var editing by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { editing = true },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ArgosCard(
+        "★ SALVA" + (meta.folder?.let { " · PASTA: ${it.uppercase()}" } ?: ""),
+        onClick = { editing = true },
     ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                "SALVA" + (meta.folder?.let { " · PASTA: ${it.uppercase()}" } ?: ""),
-                style = MaterialTheme.typography.labelSmall,
-                color = Accent,
-                fontWeight = FontWeight.Bold,
-            )
+        run {
             Text(
                 meta.note ?: "Toque para escolher uma pasta ou escrever uma nota.",
                 style = MaterialTheme.typography.bodyMedium,
