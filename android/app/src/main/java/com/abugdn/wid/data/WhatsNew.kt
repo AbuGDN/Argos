@@ -11,6 +11,12 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        28,
+        listOf(
+            "🐞 Corrigido: o app fechava ao voltar para o Mapa com a linha de frente (ou outra camada) ligada.",
+        ),
+    ),
+    ChangelogEntry(
         26,
         listOf(
             "✈ Aviões militares no ar agora: reabastecedores, aviões-radar, drones de espionagem e bombardeiros sobre o Oriente Médio e o Mar Negro, com aviso quando passam do normal. No Radar e no Mapa.",

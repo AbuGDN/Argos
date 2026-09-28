@@ -95,6 +95,9 @@ web/                     página de download (index.html, icon.svg); build.py co
   no mesmo arquivo (por isso `RegionWidgetConfigActivity.kt` é separado de `RegionWidget.kt`).
 - **Lambda final**: em composables com `onDismiss` etc., o parâmetro de função precisa ser o último
   para aceitar `{ }` fora dos parênteses.
+- **osmdroid se destrói ao sair da tela** (`destroyMode` padrão): o `MapView` guardado no `remember`
+  voltava quebrado e criar `Polygon`/`Marker` nele derrubava o app. Fica `setDestroyMode(false)` e o
+  `onDetach()` só no `DisposableEffect`; o `update` do mapa roda dentro de `runCatching`.
 - **osmdroid (mapa)** desenha fora dos próprios limites; o `MapView` fica dentro de um `FrameLayout`
   com `clipChildren` + `Modifier.clipToBounds()`. Não remova.
 - **versionCode = run_number do workflow "App Android"**. A entrada nova do `CHANGELOG` usa o número
