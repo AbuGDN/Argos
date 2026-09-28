@@ -11,6 +11,19 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        30,
+        listOf(
+            "👁 Abertura com o olho do Argos se abrindo.",
+            "✨ Notícia abre “crescendo” a partir do cartão, com foto e título indo para o lugar; abas deslizam de lado.",
+            "🆕 Histórias novas entram na lista com um brilho dourado; puxar para atualizar mostra o olho girando.",
+            "🔢 Números sobem contando (tensão, Relógio, trégua, área ocupada) e gráficos se desenham na hora.",
+            "🔴 Cartões em alerta “respiram” com borda vermelha; o ícone do Radar tem varredura.",
+            "🗺 No Mapa, ondas de sonar sobre as regiões em alerta e aviões militares piscando.",
+            "🗂 Carimbo “SEGUINDO”/“ARQUIVADO” ao seguir ou salvar uma notícia.",
+            "♿ Se o celular estiver com as animações desligadas (Opções do desenvolvedor ou Acessibilidade), o Argos também desliga as dele.",
+        ),
+    ),
+    ChangelogEntry(
         28,
         listOf(
             "🐞 Corrigido: o app fechava ao voltar para o Mapa com a linha de frente (ou outra camada) ligada.",

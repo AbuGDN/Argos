@@ -157,6 +157,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var showCarriers by rememberSaveable { mutableStateOf(false) }
     var showFront by rememberSaveable { mutableStateOf(false) }
     var satellite by rememberSaveable { mutableStateOf(false) }
+    val reduceMotion = LocalReduceMotion.current
     val repo = context.repository
     val radar by repo.radar.collectAsStateWithLifecycle()
     val fireZones = radar?.fires?.zones.orEmpty().filter { it.points.isNotEmpty() }
@@ -297,7 +298,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     val map = mapView
                     val source = if (satellite) EsriImagery else TileSourceFactory.MAPNIK
                     if (map.tileProvider.tileSource.name() != source.name()) map.setTileSource(source)
-                    map.overlays.removeAll { it is Marker || it is Polygon || it is SimpleFastPointOverlay }
+                    map.overlays.removeAll { it is Marker || it is Polygon || it is SimpleFastPointOverlay || it is PulseOverlay }
                     // Área ocupada (vermelho) e cinzenta, por baixo de tudo.
                     if (showFront) front?.let { shapes ->
                         shapes.grey.forEach { map.overlays.add(frontPolygon(map, it, occupied = false)) }
@@ -335,6 +336,17 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             icon = dotIcon(context, militaryColor(ac.category), 12)
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
+                    }
+                    if (!reduceMotion) {
+                        // Onda de sonar sobre regiões em alta incomum, tensão crítica ou com sinal do Radar.
+                        val alertPoints = feed?.regions.orEmpty()
+                            .filter { (_, r) -> r.spike || r.level == "crítica" || r.signals.isNotEmpty() }
+                            .mapNotNull { (tag, _) -> REGION_POINTS[tag] }
+                        if (alertPoints.isNotEmpty()) map.overlays.add(PulseOverlay(alertPoints, 0xFFB3122E.toInt(), blink = false))
+                        if (showMilitary) {
+                            val planes = militaryZones.flatMap { it.aircraft }.map { GeoPoint(it.lat, it.lon) }
+                            if (planes.isNotEmpty()) map.overlays.add(PulseOverlay(planes, 0xFFC9A227.toInt(), blink = true))
+                        }
                     }
                     if (!byCity) counts.forEach { (tag, n) ->
                         val point = REGION_POINTS[tag] ?: return@forEach
@@ -510,6 +522,41 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             }
             }
         }
+    }
+}
+
+/**
+ * Animação desenhada pelo próprio mapa: onda de sonar que se expande (alertas) ou anel que pisca
+ * (aviões militares, como num radar de controle aéreo). Pede um novo quadro a cada 50 ms.
+ */
+private class PulseOverlay(
+    private val points: List<GeoPoint>,
+    private val color: Int,
+    private val blink: Boolean,
+) : org.osmdroid.views.overlay.Overlay() {
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE
+    }
+    private val pixel = android.graphics.Point()
+
+    override fun draw(canvas: android.graphics.Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow || points.isEmpty()) return
+        val d = mapView.context.resources.displayMetrics.density
+        val t = (android.os.SystemClock.uptimeMillis() % 1600L) / 1600f
+        for (gp in points) {
+            mapView.projection.toPixels(gp, pixel)
+            if (blink) {
+                val a = 0.5f + 0.5f * kotlin.math.sin(2 * Math.PI * t).toFloat()
+                paint.strokeWidth = 2f * d
+                paint.color = (color and 0x00FFFFFF) or ((a * 220).toInt() shl 24)
+                canvas.drawCircle(pixel.x.toFloat(), pixel.y.toFloat(), 10f * d, paint)
+            } else {
+                paint.strokeWidth = 3f * d
+                paint.color = (color and 0x00FFFFFF) or (((1f - t) * 200).toInt() shl 24)
+                canvas.drawCircle(pixel.x.toFloat(), pixel.y.toFloat(), 16f * d + t * 42f * d, paint)
+            }
+        }
+        mapView.postInvalidateDelayed(50)
     }
 }
 

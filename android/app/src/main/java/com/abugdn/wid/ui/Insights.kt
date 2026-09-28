@@ -47,9 +47,9 @@ fun tensionColor(level: String): Color = when (level) {
 }
 
 @Composable
-private fun InsightCard(content: @Composable () -> Unit) {
+private fun InsightCard(alert: Boolean = false, content: @Composable () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).breathingBorder(alert),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(12.dp)) { content() }
@@ -67,12 +67,13 @@ fun TensionGauge(stat: RegionStat, modifier: Modifier = Modifier) {
     val color = tensionColor(stat.level)
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Tensão ${stat.tension}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            CountUpText(stat.tension.toLong(), MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, format = { "Tensão $it" })
             Text(" · ${stat.level}", style = MaterialTheme.typography.titleMedium, color = color, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(6.dp))
+        val grow = rememberGrow()
         LinearProgressIndicator(
-            progress = { stat.tension / 100f },
+            progress = { stat.tension / 100f * grow },
             color = color,
             trackColor = color.copy(alpha = 0.2f),
             modifier = Modifier.fillMaxWidth().height(8.dp),
@@ -333,12 +334,15 @@ fun TensionHistoryChart(values: List<Pair<String, Int>>, modifier: Modifier = Mo
     }
     val levels = values.map { (_, v) -> tensionColor(levelOf(v)) }
     val peak = values.maxOf { it.second }
+    // As barras crescem da base, uma depois da outra.
+    val grow = rememberGrow(durationMs = 900)
     Column(modifier) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(if (compact) 32.dp else 90.dp)) {
             val slot = size.width / values.size.coerceAtLeast(if (compact) 1 else 7)
             val bar = slot * 0.7f
             values.forEachIndexed { i, (_, v) ->
-                val h = (size.height * v / 100f).coerceAtLeast(2.dp.toPx())
+                val step = ((grow * (values.size + 4) - i) / 4f).coerceIn(0f, 1f)
+                val h = (size.height * v / 100f * step).coerceAtLeast(2.dp.toPx())
                 drawRect(
                     color = levels[i],
                     topLeft = androidx.compose.ui.geometry.Offset(i * slot + (slot - bar) / 2, size.height - h),
@@ -372,21 +376,23 @@ fun levelOf(score: Int): String = when {
 fun ArgosClock(clock: com.abugdn.wid.data.GlobalClock, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val color = tensionColor(clock.level)
     Card(
-        modifier = modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it },
+        modifier = modifier.fillMaxWidth().breathingBorder(clock.level == "crítica")
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${clock.index}",
-                style = MaterialTheme.typography.displaySmall,
+            CountUpText(
+                clock.index.toLong(),
+                MaterialTheme.typography.displaySmall,
                 color = color,
                 fontWeight = FontWeight.Black,
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text("👁 RELÓGIO DO ARGOS · ${clock.level.uppercase()}", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+                val grow = rememberGrow()
                 LinearProgressIndicator(
-                    progress = { clock.index / 100f },
+                    progress = { clock.index / 100f * grow },
                     color = color,
                     trackColor = color.copy(alpha = 0.2f),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).height(6.dp),
@@ -434,7 +440,16 @@ fun TruceCard(
         }
         val days = java.time.temporal.ChronoUnit.DAYS.between(truce.start, java.time.LocalDate.now(zone)) + 1
         val day = NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(days)
-        CardTitle("🕊 ${truce.label.uppercase()} · DIA $day")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CardTitle("🕊 ${truce.label.uppercase()} · DIA ")
+            CountUpText(
+                days,
+                MaterialTheme.typography.labelMedium,
+                color = Accent,
+                fontWeight = FontWeight.Bold,
+                format = { NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(it) },
+            )
+        }
         Text(
             "desde ${truce.start.dayOfMonth}/${truce.start.monthValue}/${truce.start.year}",
             style = MaterialTheme.typography.labelSmall,
@@ -468,7 +483,7 @@ fun FactcheckCard(cluster: Cluster) {
     val radar by repo.radar.collectAsStateWithLifecycle()
     val checks = remember(radar, cluster.id) { repo.factchecksFor(cluster.id) }
     if (checks.isEmpty()) return
-    InsightCard {
+    InsightCard(alert = true) {
         CardTitle("⚠ CHECAGEM SOBRE ESTE ASSUNTO", Alert)
         checks.take(3).forEach { fc ->
             Column(Modifier.fillMaxWidth().clickable { openUrl(context, fc.url) }.padding(top = 8.dp)) {
@@ -516,7 +531,7 @@ fun RegionRadarCard(tag: String) {
         }
     }
     if (lines.isEmpty()) return
-    InsightCard {
+    InsightCard(alert = lines.any { it.second }) {
         CardTitle("📡 RADAR")
         lines.forEach { (text, alert) ->
             Text(
@@ -534,4 +549,16 @@ fun RegionRadarCard(tag: String) {
             modifier = Modifier.padding(top = 6.dp),
         )
     }
+}
+
+
+/** 0 → 1 uma vez ao aparecer (1 direto com "remover animações"). Para barras e medidores. */
+@Composable
+fun rememberGrow(durationMs: Int = 700): Float {
+    val reduce = LocalReduceMotion.current
+    val a = remember { androidx.compose.animation.core.Animatable(if (reduce) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        a.animateTo(1f, androidx.compose.animation.core.tween(durationMs, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    return a.value
 }
