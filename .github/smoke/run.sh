@@ -17,9 +17,13 @@ shot 02-hoje
 tap "Mapa" 6; shot 03-mapa
 tap "Focos" 4; shot 04-focos
 tap "Satélite" 5; shot 04b-satelite
+python3 .github/smoke/tap.py "Focos" swipe; sleep 2
 tap "Militares" 4; shot 04c-militares
 tap "Porta-aviões" 4; shot 04d-porta-avioes
 tap "Frente" 8; shot 04e-frente
+# O mapa sai da tela e volta com as camadas ligadas (derrubava o app na 1.0.27).
+tap "Tendência" 3; tap "Mapa" 6; shot 04f-mapa-de-volta
+tap "Radar" 3; tap "Mapa" 6; shot 04g-mapa-de-volta-2
 tap "Radar" 5; shot 05-radar
 for t in Mercados "Números" Vozes "Análise" Contexto; do tap "$t" 4; shot "06-radar-$t"; done
 adb shell input swipe 500 1800 500 500 400; sleep 2

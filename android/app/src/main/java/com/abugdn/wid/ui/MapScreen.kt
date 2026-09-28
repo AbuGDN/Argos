@@ -123,6 +123,10 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
+            // Por padrão o osmdroid se destrói ao sair da tela (trocar para Tendência, abrir outra
+            // tela por cima) e o MapView guardado volta quebrado: desenhar nele derrubava o app.
+            // Quem desmonta o mapa é o DisposableEffect abaixo, quando a tela sai de vez.
+            setDestroyMode(false)
             // Sem mundo repetido nem área cinza fora do mapa.
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
@@ -289,7 +293,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth().weight(0.6f).clipToBounds(),
-                update = { _ ->
+                update = { _ -> runCatching {
                     val map = mapView
                     val source = if (satellite) EsriImagery else TileSourceFactory.MAPNIK
                     if (map.tileProvider.tileSource.name() != source.name()) map.setTileSource(source)
@@ -346,7 +350,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         })
                     }
                     map.invalidate()
-                },
+                }.onFailure { android.util.Log.w("Argos", "mapa: falha ao desenhar as camadas", it) } },
             )
             if (satellite) {
                 Text(
