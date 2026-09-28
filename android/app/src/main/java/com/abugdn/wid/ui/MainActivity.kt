@@ -10,6 +10,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
@@ -97,7 +106,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by repository.settings.state.collectAsStateWithLifecycle()
             WidTheme(settings.theme, settings.textScale) {
-                CompositionLocalProvider(LocalDataSaver provides settings.dataSaver) {
+                val reduceMotion = remember { animationsOff() }
+                CompositionLocalProvider(LocalDataSaver provides settings.dataSaver, LocalReduceMotion provides reduceMotion) {
                     App(
                         openCluster = openCluster,
                         onOpenCluster = { openCluster = it },
@@ -129,6 +139,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun App(
     openCluster: String?,
@@ -196,8 +207,11 @@ private fun App(
         }
     }
 
-    val detail = remember(openCluster, feed, saved, archive) { openCluster?.let(repo::cluster) }
+    // Abertura com o olho, só quando o app começa do zero (não ao girar a tela).
+    val reduceMotion = LocalReduceMotion.current
+    var splash by rememberSaveable { mutableStateOf(!reduceMotion) }
 
+    Box {
     Scaffold(
         bottomBar = {
             val overlay = settingsOpen || storyOpen || regionOpen != null || missedOpen || vigilOpen || bulletinOpen || clockOpen
@@ -226,8 +240,20 @@ private fun App(
         // O "dia em 1 minuto" ocupa a tela inteira, inclusive atrás da barra de navegação.
         CompositionLocalProvider(LocalOpenMap provides openMap) {
         Box(Modifier.padding(bottom = if (storyOpen) 0.dp else padding.calculateBottomPadding())) {
+        // A notícia "abre" do cartão da lista: título e foto viajam até a tela da notícia.
+        SharedTransitionLayout {
+        AnimatedContent(
+            targetState = openCluster,
+            transitionSpec = {
+                if (reduceMotion) fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                else fadeIn(tween(260)) togetherWith fadeOut(tween(200))
+            },
+            label = "noticia",
+        ) { openId ->
+        CompositionLocalProvider(LocalSharedScope provides this@SharedTransitionLayout, LocalAnimScope provides this@AnimatedContent) {
+            val detail = remember(openId, feed, saved, archive) { openId?.let(repo::cluster) }
             when {
-                openCluster != null -> {
+                openId != null -> {
                     BackHandler { onOpenCluster(null) }
                     if (detail != null) {
                         DetailScreen(
@@ -270,7 +296,21 @@ private fun App(
                 }
                 else -> {
                     if (tab != Tab.HOME) BackHandler { tab = Tab.HOME }
-                    when (tab) {
+                    // Troca de aba desliza para o lado da aba escolhida.
+                    AnimatedContent(
+                        targetState = tab,
+                        transitionSpec = {
+                            if (reduceMotion) {
+                                fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                            } else {
+                                val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                                (slideInHorizontally(tween(240)) { w -> dir * w / 6 } + fadeIn(tween(240))) togetherWith
+                                    (slideOutHorizontally(tween(200)) { w -> -dir * w / 6 } + fadeOut(tween(160)))
+                            }
+                        },
+                        label = "aba",
+                    ) { current ->
+                    when (current) {
                         Tab.HOME -> HomeScreen(
                             tag = tag,
                             onTag = { tag = it },
@@ -290,10 +330,16 @@ private fun App(
                         )
                         Tab.SAVED -> SavedScreen(onOpen = { onOpenCluster(it) }, initialSub = savedSub)
                     }
+                    }
                 }
             }
         }
         }
+        }
+        }
+        }
+    }
+    if (splash) ArgosSplash(onDone = { splash = false })
     }
 }
 

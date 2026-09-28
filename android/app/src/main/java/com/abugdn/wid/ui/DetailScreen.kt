@@ -96,6 +96,8 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
     val isFollowed = cluster.id in followed
     val translator = repo.translator
     var showOriginal by rememberSaveable { mutableStateOf(false) }
+    // Carimbo que bate ao salvar ou seguir.
+    var stamp by remember { mutableStateOf(0 to "") }
 
     val textState by produceState<TextState>(TextState.Loading, cluster.id) {
         value = repo.fullText(cluster).fold({ TextState.Ready(it) }, { TextState.Failed })
@@ -109,6 +111,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
     var profileOf by remember { mutableStateOf<String?>(null) }
     profileOf?.let { SourceProfileDialog(it) { profileOf = null } }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = {
@@ -120,14 +123,20 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                     }
                 },
                 actions = {
-                    IconButton(onClick = { repo.toggleFollow(cluster) }) {
+                    IconButton(onClick = {
+                        if (!isFollowed) stamp = (stamp.first + 1) to "SEGUINDO"
+                        repo.toggleFollow(cluster)
+                    }) {
                         Icon(
                             Icons.Filled.Notifications,
                             contentDescription = if (isFollowed) "Deixar de seguir" else "Seguir história",
                             tint = if (isFollowed) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    IconButton(onClick = { repo.toggleSaved(cluster) }) {
+                    IconButton(onClick = {
+                        if (!isSaved) stamp = (stamp.first + 1) to "ARQUIVADO"
+                        repo.toggleSaved(cluster)
+                    }) {
                         Icon(
                             Icons.Filled.Star,
                             contentDescription = if (isSaved) "Remover dos salvos" else "Salvar",
@@ -158,7 +167,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
         Column(
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
-            NewsImage(cluster, Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+            NewsImage(cluster, Modifier.sharedKey("img-${cluster.id}").fillMaxWidth().aspectRatio(16f / 9f))
             val image = cluster.image
             if (image != null && !LocalDataSaver.current) {
                 // Busca reversa: mostra se a foto já circulou antes (outra data, outro conflito).
@@ -171,7 +180,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                 if (cluster.urgent) {
                     Text("URGENTE", color = Alert, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(title, modifier = Modifier.sharedKey("title-${cluster.id}"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Meta(cluster)
                 if (isFollowed) {
@@ -271,6 +280,8 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                 }
             }
         }
+    }
+    StampFlash(stamp.first, stamp.second, Modifier.align(androidx.compose.ui.Alignment.Center))
     }
 }
 

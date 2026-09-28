@@ -100,6 +100,16 @@ fun HomeScreen(
     val readIds by repo.read.collectAsStateWithLifecycle()
     val settings by repo.settings.state.collectAsStateWithLifecycle()
 
+    // Ids que chegaram na última atualização do feed (comparando com o feed anterior).
+    var knownIds by remember { mutableStateOf<Set<String>?>(null) }
+    var fresh by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(feed?.generatedAt) {
+        val ids = feed?.clusters.orEmpty().map { it.id }.toSet()
+        val before = knownIds
+        fresh = if (before == null) emptySet() else ids - before
+        knownIds = ids
+    }
+
     fun refresh() = scope.launch {
         refreshing = true
         error = repo.refresh().exceptionOrNull()?.let { "Sem conexão — mostrando o que está salvo" }
@@ -153,10 +163,14 @@ fun HomeScreen(
             }
         },
     ) { padding ->
+        val pullState = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = { refresh() },
             modifier = Modifier.padding(padding).fillMaxSize(),
+            state = pullState,
+            // O olho do Argos abre conforme o dedo desce e a íris gira enquanto carrega.
+            indicator = { EyePullIndicator(pullState, refreshing, Modifier.align(androidx.compose.ui.Alignment.TopCenter)) },
         ) {
             val data = feed
             val searching = searchOpen && query.isNotBlank()
@@ -273,8 +287,11 @@ fun HomeScreen(
                 }
                 top?.let { item { TopCard(it, onOpen) } }
                 items(clusters.filter { it.id != top?.id }, key = { it.id }) { c ->
-                    ClusterRow(c, onOpen)
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    // Histórias que chegaram nesta sincronização entram deslizando, com brilho dourado.
+                    Column(Modifier.animateItem().freshGlow(c.id in fresh)) {
+                        ClusterRow(c, onOpen)
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
                 }
             }
         }
@@ -310,11 +327,11 @@ private fun TopCard(c: Cluster, onOpen: (String) -> Unit) {
         modifier = Modifier.padding(16.dp).fillMaxWidth().clickable { onOpen(c.id) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        NewsImage(c, Modifier.fillMaxWidth().aspectRatio(16f / 9f), revealable = false)
+        NewsImage(c, Modifier.sharedKey("img-${c.id}").fillMaxWidth().aspectRatio(16f / 9f), revealable = false)
         Column(Modifier.padding(16.dp)) {
             Text("PRINCIPAL DO DIA", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text(translator.display(c.title, c.lang), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(translator.display(c.title, c.lang), modifier = Modifier.sharedKey("title-${c.id}"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (c.summary.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -357,6 +374,7 @@ fun ClusterRow(c: Cluster, onOpen: (String) -> Unit) {
             }
             Text(
                 translator.display(c.title, c.lang),
+                modifier = Modifier.sharedKey("title-${c.id}"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isRead) FontWeight.Normal else FontWeight.Medium,
                 color = if (isRead) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
@@ -366,7 +384,7 @@ fun ClusterRow(c: Cluster, onOpen: (String) -> Unit) {
             Spacer(Modifier.height(4.dp))
             Meta(c)
         }
-        NewsImage(c, Modifier.width(88.dp).aspectRatio(1f).clip(RoundedCornerShape(8.dp)), revealable = false)
+        NewsImage(c, Modifier.sharedKey("img-${c.id}").width(88.dp).aspectRatio(1f).clip(RoundedCornerShape(8.dp)), revealable = false)
     }
 }
 

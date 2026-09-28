@@ -111,7 +111,12 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
         contentWindowInsets = NoInsets,
         topBar = {
             TopAppBar(
-                title = { Text("📡 Radar", fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadarSweepIcon(alert = radar?.let { radarAlerts(it).isNotEmpty() } == true, modifier = Modifier.padding(end = 10.dp))
+                        Text("Radar", fontWeight = FontWeight.Bold)
+                    }
+                },
                 actions = {
                     if (loading) {
                         CircularProgressIndicator(Modifier.padding(12.dp).width(20.dp).height(20.dp), strokeWidth = 2.dp)
@@ -160,9 +165,9 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun RadarCard(content: @Composable () -> Unit) {
+private fun RadarCard(alert: Boolean = false, content: @Composable () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).breathingBorder(alert),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(12.dp)) { content() }
@@ -217,6 +222,8 @@ private fun Sparkline(values: List<Double?>, color: Color, modifier: Modifier = 
     val min = minOf(present.min(), baseline ?: present.min())
     val max = maxOf(present.max(), baseline ?: present.max())
     val range = (max - min).takeIf { it > 0 } ?: 1.0
+    // A linha se traça da esquerda para a direita ao aparecer.
+    val grow = rememberGrow(durationMs = 800)
     Canvas(modifier.height(28.dp)) {
         val step = size.width / (values.size - 1).coerceAtLeast(1)
         fun y(v: Double) = (size.height - (v - min) / range * size.height).toFloat()
@@ -225,7 +232,9 @@ private fun Sparkline(values: List<Double?>, color: Color, modifier: Modifier = 
         }
         val path = Path()
         var open = false
+        val visible = (values.size * grow).toInt().coerceAtLeast(2)
         values.forEachIndexed { i, v ->
+            if (i >= visible) return@forEachIndexed
             if (v == null) {
                 open = false
                 return@forEachIndexed
@@ -333,7 +342,7 @@ private fun airColor(status: String) = when (status) {
 private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) {
     item {
         val alerts = radarAlerts(radar)
-        RadarCard {
+        RadarCard(alert = alerts.isNotEmpty()) {
             SectionTitle(if (alerts.isEmpty()) "👁 NENHUM SINAL DE ALERTA AGORA" else "👁 SINAIS DE ALERTA AGORA", radar.generatedAt)
             alerts.forEach {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = Alert, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
@@ -1018,11 +1027,12 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
         val openMap = LocalOpenMap.current
         RadarCard {
             SectionTitle("🗺 LINHA DE FRENTE NA UCRÂNIA", section.updated, status)
-            Text(
-                "Ocupado pela Rússia: ${formatKm2(section.occupiedKm2)}",
-                style = MaterialTheme.typography.titleMedium,
+            CountUpText(
+                section.occupiedKm2,
+                MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 6.dp),
+                format = { "Ocupado pela Rússia: ${formatKm2(it)}" },
             )
             section.change7dKm2?.let { d ->
                 Text(
