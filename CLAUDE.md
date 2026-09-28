@@ -143,7 +143,7 @@ web/                     página de download (index.html, icon.svg); build.py co
   em `s_home_order`/`s_home_hidden`/`s_panel_*`. Bloco novo: acrescente no mapa (entra no fim da ordem de
   quem já tinha configurado) e trate o id em `HomeScreen`/`HomePanel`.
 - **Painel web**: teste local servindo uma cópia da gh-pages + `copy_web()` com `python -m http.server`
-  e Playwright (Chromium com `--use-angle=swiftshader` para o WebGL). Os blocos de mapa (CARTO/Esri)
+  e Playwright (Chromium com `--use-angle=swiftshader` para o WebGL). Os blocos de mapa (Esri; o CARTO passou a exigir chave e mostra "API KEY REQUIRED")
   não carregam na sessão em nuvem; o fundo vetorial (countries.geojson) aparece mesmo assim.
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
