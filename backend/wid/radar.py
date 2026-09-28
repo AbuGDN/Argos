@@ -12,6 +12,7 @@ import gzip
 import io
 import json
 import logging
+import math
 import os
 import re
 import statistics
@@ -968,6 +969,294 @@ def collect_predictions(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Aviões militares (adsb.lol)
+# ---------------------------------------------------------------------------
+
+MIL_URL = "https://api.adsb.lol/v2/mil"
+# Tipo ICAO -> categoria. Os que mais dizem algo antes de um ataque: reabastecedores,
+# aviões-radar, espionagem/drones e bombardeiros.
+MIL_TYPES = {
+    "reabastecedor": ["K35R", "K35E", "KC46", "K46", "DC10", "KC10", "A332", "A310", "B762", "K767", "IL78"],
+    "radar": ["E3TF", "E3CF", "E767", "E7", "E737", "A50", "E2", "GLEX", "SB3"],
+    "espionagem": ["R135", "P8", "EP3", "U2", "Q4", "RQ4", "MQ9", "Q9", "HRON", "MQ4C", "G550", "CL60", "B350", "PC12"],
+    "bombardeiro": ["B52", "B1", "B2", "TU95", "T160", "TU22"],
+    "caça": ["F15", "F16", "F18", "F22", "F35", "EUFI", "RFAL", "SU27", "SU30", "SU34", "SU35", "MG29", "MG31"],
+    "transporte": ["C17", "C5M", "C30J", "C130", "A400", "IL76", "C2", "KC390"],
+}
+MIL_LABELS = {
+    "reabastecedor": "Reabastecedor", "radar": "Avião-radar", "espionagem": "Espionagem/drone",
+    "bombardeiro": "Bombardeiro", "caça": "Caça", "transporte": "Transporte", "outro": "Outro militar",
+}
+MIL_KEEP_DAYS = 14
+
+
+def mil_category(ac_type: str) -> str:
+    t = (ac_type or "").upper()
+    for cat, types in MIL_TYPES.items():
+        if t in types:
+            return cat
+    return "outro"
+
+
+def military_in_zones(payload: dict, zones: list[dict]) -> dict[str, list[dict]]:
+    """Aeronaves com posição dentro de cada zona."""
+    out: dict[str, list[dict]] = {z["id"]: [] for z in zones}
+    for ac in payload.get("ac") or []:
+        lat, lon = ac.get("lat"), ac.get("lon")
+        if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+            continue
+        for z in zones:
+            s, w, n, e = z["box"]
+            if s <= lat <= n and w <= lon <= e:
+                alt = ac.get("alt_baro")
+                out[z["id"]].append({
+                    "hex": ac.get("hex", ""),
+                    "callsign": (ac.get("flight") or "").strip(),
+                    "type": ac.get("t") or "",
+                    "reg": ac.get("r") or "",
+                    "category": mil_category(ac.get("t") or ""),
+                    "lat": round(lat, 3),
+                    "lon": round(lon, 3),
+                    "alt": alt if isinstance(alt, (int, float)) else 0,
+                    "track": round(ac["track"]) if isinstance(ac.get("track"), (int, float)) else None,
+                })
+                break
+    return out
+
+
+def collect_military(ctx: Ctx) -> dict:
+    payload = _get_json(ctx.client, MIL_URL)
+    found = military_in_zones(payload, ctx.conf["zones"])
+    today = ctx.now.date().isoformat()
+    zones = []
+    for z in ctx.conf["zones"]:
+        aircraft = found[z["id"]]
+        counts: dict[str, int] = {}
+        for a in aircraft:
+            counts[a["category"]] = counts.get(a["category"], 0) + 1
+        # Linha de base: média do máximo diário de "aviões que importam" (sem caças/transporte/outros).
+        key = sum(v for k, v in counts.items() if k in ("reabastecedor", "radar", "espionagem", "bombardeiro"))
+        days = ctx.state.setdefault(z["id"], {})
+        past = [v for d, v in days.items() if d != today]
+        days[today] = max(days.get(today, 0), key)
+        for d in sorted(days)[:-MIL_KEEP_DAYS]:
+            del days[d]
+        baseline = round(sum(past) / len(past), 1) if past else None
+        zones.append({
+            "id": z["id"], "name": z["name"], "tag": z["tag"],
+            "count": len(aircraft), "key": key, "baseline": baseline,
+            "unusual": baseline is not None and len(past) >= 3 and key >= max(4, 2 * baseline),
+            "counts": counts,
+            "aircraft": sorted(aircraft, key=lambda a: list(MIL_LABELS).index(a["category"]))[:80],
+        })
+    return {"zones": zones, "labels": MIL_LABELS}
+
+
+# ---------------------------------------------------------------------------
+# Porta-aviões (USNI News Fleet Tracker)
+# ---------------------------------------------------------------------------
+
+CARRIER_NAMES = {
+    68: "USS Nimitz", 69: "USS Dwight D. Eisenhower", 70: "USS Carl Vinson", 71: "USS Theodore Roosevelt",
+    72: "USS Abraham Lincoln", 73: "USS George Washington", 74: "USS John C. Stennis", 75: "USS Harry S. Truman",
+    76: "USS Ronald Reagan", 77: "USS George H.W. Bush", 78: "USS Gerald R. Ford", 79: "USS John F. Kennedy",
+}
+# Nome do lugar (inglês, como a USNI escreve) -> (nome em português, lat, lon). Os mais específicos primeiro.
+CARRIER_PLACES = [
+    ("Eastern Mediterranean", "Mediterrâneo Oriental", 33.8, 32.5), ("Mediterranean", "Mediterrâneo", 36.0, 18.0),
+    ("Red Sea", "Mar Vermelho", 20.5, 38.5), ("Gulf of Aden", "Golfo de Áden", 12.5, 47.5),
+    ("Arabian Sea", "Mar Arábico", 16.0, 63.0), ("Gulf of Oman", "Golfo de Omã", 24.5, 58.5),
+    ("Persian Gulf", "Golfo Pérsico", 27.0, 51.5), ("Arabian Gulf", "Golfo Pérsico", 27.0, 51.5),
+    ("North Arabian Sea", "Mar Arábico", 20.0, 63.0), ("Indian Ocean", "Oceano Índico", -5.0, 75.0),
+    ("Adriatic", "Mar Adriático", 42.5, 16.0), ("North Sea", "Mar do Norte", 56.0, 3.0),
+    ("Norwegian Sea", "Mar da Noruega", 68.0, 5.0), ("Baltic", "Mar Báltico", 57.0, 19.0),
+    ("Caribbean", "Caribe", 15.0, -72.0), ("South China Sea", "Mar do Sul da China", 12.0, 114.0),
+    ("East China Sea", "Mar da China Oriental", 29.0, 125.0), ("Philippine Sea", "Mar das Filipinas", 20.0, 130.0),
+    ("Sea of Japan", "Mar do Japão", 40.0, 135.0), ("Western Pacific", "Pacífico Ocidental", 15.0, 140.0),
+    ("Eastern Pacific", "Pacífico Oriental", 22.0, -125.0), ("Atlantic", "Atlântico", 35.0, -45.0),
+    ("Pacific", "Pacífico", 20.0, -150.0), ("San Diego", "San Diego (base)", 32.7, -117.2),
+    ("Norfolk", "Norfolk (base)", 36.9, -76.3), ("Newport News", "Newport News (estaleiro)", 36.98, -76.43),
+    ("Bremerton", "Bremerton (base)", 47.56, -122.63), ("Everett", "Everett (base)", 47.98, -122.22),
+    ("Yokosuka", "Yokosuka (Japão)", 35.28, 139.67), ("Pearl Harbor", "Pearl Harbor", 21.35, -157.95),
+    ("Guam", "Guam", 13.44, 144.66), ("Souda Bay", "Baía de Souda (Creta)", 35.48, 24.12),
+    ("Duqm", "Duqm (Omã)", 19.67, 57.7), ("Bahrain", "Bahrein", 26.2, 50.6),
+]
+_CVN = re.compile(r"\(CVN[- ]?(\d{2})\)")
+_SENT = re.compile(r"(?<=[.!?])\s+")
+
+
+def carriers_from_tracker(html: str) -> list[dict]:
+    """Posição de cada porta-aviões citado no texto do Fleet Tracker (frase do casco + lugar)."""
+    text = clean_html(_SCRIPT_RE.sub(" ", html))
+    sentences = _SENT.split(text)
+    found: dict[int, dict] = {}
+    for i, sent in enumerate(sentences):
+        for m in _CVN.finditer(sent):
+            hull = int(m.group(1))
+            if hull in found or hull not in CARRIER_NAMES:
+                continue
+            window = " ".join(sentences[i:i + 2])
+            place = next(((pt, lat, lon) for en, pt, lat, lon in CARRIER_PLACES if en in window), None)
+            if place is None:
+                continue
+            status = "no porto" if re.search(r"\b(in port|pierside|homeport|shipyard|maintenance|RCOH)\b", window, re.I) else "no mar"
+            found[hull] = {
+                "hull": f"CVN-{hull}", "name": CARRIER_NAMES[hull], "place": place[0],
+                "lat": place[1], "lon": place[2], "status": status, "text": truncate(sent, 260),
+            }
+    return sorted(found.values(), key=lambda c: c["hull"])
+
+
+def collect_carriers(ctx: Ctx) -> dict:
+    resp = ctx.client.get(ctx.conf["url"])
+    resp.raise_for_status()
+    import feedparser  # já é dependência do fetch
+
+    feed = feedparser.parse(resp.content)
+    for entry in feed.entries:
+        if "tracker" not in (entry.get("title") or "").lower():
+            continue
+        html = "".join(c.get("value", "") for c in entry.get("content") or []) or entry.get("summary", "")
+        ships = carriers_from_tracker(html)
+        if ships:
+            return {"title": entry.get("title", ""), "url": entry.get("link", ""), "ships": ships}
+    raise RuntimeError("Fleet Tracker sem porta-aviões reconhecidos")
+
+
+# ---------------------------------------------------------------------------
+# Linha de frente na Ucrânia (DeepStateMap)
+# ---------------------------------------------------------------------------
+
+DSM_LAST = "https://deepstatemap.live/api/history/last"
+DSM_HISTORY = "https://deepstatemap.live/api/history/public"
+DSM_OCCUPIED = ("geoJSON.status.occupied", "geoJSON.territories.crimea", "geoJSON.territories.ordlo", "geoJSON.territories.tuzla")
+DSM_GREY = ("geoJSON.status.unknown",)
+DSM_TOLERANCE = 0.01  # graus (~1 km): simplificação das bordas para o app
+DSM_MAX_POINTS = 9000
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _rings(geometry: dict) -> list[list[list[list[float]]]]:
+    """Polygon/MultiPolygon -> lista de polígonos, cada um uma lista de anéis [[lon, lat], ...]."""
+    coords = geometry.get("coordinates") or []
+    if geometry.get("type") == "Polygon":
+        return [coords]
+    if geometry.get("type") == "MultiPolygon":
+        return list(coords)
+    return []
+
+
+def ring_area_km2(ring: list) -> float:
+    """Área de um anel (lon/lat) em km², projeção equirretangular local (boa para a escala da frente)."""
+    if len(ring) < 3:
+        return 0.0
+    lat0 = math.radians(sum(p[1] for p in ring) / len(ring))
+    kx, ky = 111.32 * math.cos(lat0), 110.57
+    total = 0.0
+    for (x1, y1, *_), (x2, y2, *_) in zip(ring, ring[1:] + ring[:1]):
+        total += (x1 * kx) * (y2 * ky) - (x2 * kx) * (y1 * ky)
+    return abs(total) / 2
+
+
+def simplify(points: list, tol: float) -> list:
+    """Ramer–Douglas–Peucker iterativo (em graus)."""
+    if len(points) < 4:
+        return points
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(points) - 1)]
+    while stack:
+        a, b = stack.pop()
+        (ax, ay), (bx, by) = points[a][:2], points[b][:2]
+        dx, dy = bx - ax, by - ay
+        norm = math.hypot(dx, dy)
+        best, idx = 0.0, -1
+        for i in range(a + 1, b):
+            px, py = points[i][:2]
+            # Anel fechado (início = fim): usa a distância até o ponto, não até a reta.
+            d = abs(dy * px - dx * py + bx * ay - by * ax) / norm if norm > 1e-12 else math.hypot(px - ax, py - ay)
+            if d > best:
+                best, idx = d, i
+        if best > tol and idx > 0:
+            keep[idx] = True
+            stack += [(a, idx), (idx, b)]
+    return [p for p, k in zip(points, keep) if k]
+
+
+def frontline_summary(data: dict) -> dict:
+    """Área ocupada e cinzenta (km²) e os polígonos simplificados ([lat, lon]) para o mapa."""
+    occupied, grey, total_occ, total_grey = [], [], 0.0, 0.0
+    for f in (data.get("map") or {}).get("features") or []:
+        name = (f.get("properties") or {}).get("name", "")
+        is_occ = any(k in name for k in DSM_OCCUPIED)
+        is_grey = any(k in name for k in DSM_GREY)
+        if not (is_occ or is_grey):
+            continue
+        for poly in _rings(f.get("geometry") or {}):
+            if not poly:
+                continue
+            area = ring_area_km2(poly[0]) - sum(ring_area_km2(h) for h in poly[1:])
+            rings = []
+            for ring in poly:
+                pts = simplify([p[:2] for p in ring], DSM_TOLERANCE)
+                if len(pts) >= 4:
+                    rings.append([[round(lat, 3), round(lon, 3)] for lon, lat in pts])
+            if not rings:
+                continue
+            if is_occ:
+                total_occ += area
+                occupied.append(rings)
+            else:
+                total_grey += area
+                grey.append(rings)
+    if not occupied:
+        raise ValueError("nenhum polígono ocupado")
+    # Limite de pontos: corta os polígonos menores primeiro.
+    def points(polys):
+        return sum(len(r) for p in polys for r in p)
+    occupied.sort(key=lambda p: -len(p[0]))
+    while points(occupied) + points(grey) > DSM_MAX_POINTS and (grey or len(occupied) > 1):
+        (grey if grey else occupied).pop()
+    return {
+        "occupied_km2": round(total_occ),
+        "grey_km2": round(total_grey),
+        "occupied": occupied,
+        "grey": grey,
+    }
+
+
+def dsm_changes(history: list[dict], limit: int = 5) -> list[dict]:
+    """Últimas mudanças descritas pelo DeepStateMap (em inglês, quando houver)."""
+    out = []
+    for h in sorted(history, key=lambda h: h.get("createdAt", ""), reverse=True):
+        text = _TAG_RE.sub("", h.get("descriptionEn") or "").strip()
+        if text:
+            out.append({"text": truncate(text, 240), "at": h.get("createdAt", "")[:19] + "Z"})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def collect_frontline(ctx: Ctx) -> dict:
+    data = _get_json(ctx.client, DSM_LAST, timeout=60)
+    result = frontline_summary(data)
+    today = ctx.now.date().isoformat()
+    days = ctx.state.setdefault("occupied", {})
+    days[today] = result["occupied_km2"]
+    for d in sorted(days)[:-40]:
+        del days[d]
+    week_ago = (ctx.now.date() - timedelta(days=7)).isoformat()
+    older = [d for d in sorted(days) if d <= week_ago]
+    result["change_7d_km2"] = result["occupied_km2"] - days[older[-1]] if older else None
+    result["history"] = [[d, days[d]] for d in sorted(days)[-30:]]
+    try:
+        result["changes"] = dsm_changes(_get_json(ctx.client, DSM_HISTORY, timeout=60))
+    except Exception as exc:
+        log.info("DeepStateMap histórico: %s", exc)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Orquestração
 # ---------------------------------------------------------------------------
 
@@ -988,6 +1277,9 @@ COLLECTORS = {
     "crisiswatch": collect_crisiswatch,
     "factcheck": collect_factcheck,
     "predictions": collect_predictions,
+    "military": collect_military,
+    "carriers": collect_carriers,
+    "frontline": collect_frontline,
 }
 
 

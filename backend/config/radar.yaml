@@ -227,3 +227,23 @@ factcheck:
 predictions:
   interval: 60
   max_events: 12
+
+# --- Olhos militares (fontes abertas) ------------------------------------------------
+
+# Aviões militares com transponder ligado (adsb.lol, sem chave). Só os que estão dentro
+# das zonas. box: [sul, oeste, norte, leste]. Muitos voam com transponder desligado: o
+# que aparece é o mínimo, não o total.
+military:
+  interval: 30
+  zones:
+    - {id: oriente_medio, name: Oriente Médio, tag: ira, box: [12.0, 25.0, 42.0, 63.0]}
+    - {id: mar_negro, name: Mar Negro e Ucrânia, tag: ucrania_russia, box: [40.0, 22.0, 56.5, 45.0]}
+
+# Porta-aviões dos EUA: acompanhamento semanal da frota (USNI News).
+carriers:
+  interval: 360
+  url: "https://news.usni.org/category/fleet-tracker/feed"
+
+# Linha de frente na Ucrânia (DeepStateMap): área ocupada e variação na semana.
+frontline:
+  interval: 360
