@@ -343,11 +343,13 @@ class Repository(context: Context) {
         }
     }
 
+    private val STRING_MAP = kotlinx.serialization.serializer<Map<String, String>>()
+
     /** Retrato do Radar na última visita à aba (para "o que mudou desde a última vez"). */
     fun radarSeen(): Pair<Map<String, String>, Long> {
         val prefs = storage.prefs
         val map = runCatching {
-            json.decodeFromString<Map<String, String>>(prefs.getString("radar_seen", null) ?: return@runCatching emptyMap())
+            json.decodeFromString(STRING_MAP, prefs.getString("radar_seen", null) ?: return@runCatching emptyMap())
         }.getOrDefault(emptyMap())
         return map to prefs.getLong("radar_seen_at", 0)
     }
@@ -355,7 +357,7 @@ class Repository(context: Context) {
     fun markRadarSeen() {
         val r = _radar.value ?: return
         storage.prefs.edit()
-            .putString("radar_seen", json.encodeToString(radarFingerprint(r)))
+            .putString("radar_seen", json.encodeToString(STRING_MAP, radarFingerprint(r)))
             .putLong("radar_seen_at", System.currentTimeMillis())
             .apply()
     }
