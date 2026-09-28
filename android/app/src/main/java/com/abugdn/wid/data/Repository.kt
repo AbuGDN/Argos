@@ -126,6 +126,78 @@ class Repository(context: Context) {
         json.decodeFromString<RadarData>(raw).also { storage.saveRadar(raw) }
     }.getOrNull()
 
+    private val _frontline = MutableStateFlow<FrontlineShapes?>(null)
+    /** Polígonos da linha de frente (frontline.json), baixados só quando o mapa pede. */
+    val frontline: StateFlow<FrontlineShapes?> = _frontline.asStateFlow()
+
+    suspend fun loadFrontline(): Result<FrontlineShapes> = withContext(Dispatchers.IO) {
+        runCatching {
+            json.decodeFromString<FrontlineShapes>(getData("frontline.json?t=${System.currentTimeMillis() / 3_600_000}"))
+                .also { _frontline.value = it }
+        }
+    }
+
+    // --- Dossiês -----------------------------------------------------------------------
+
+    private val _dossiers = MutableStateFlow(storage.loadDossiers())
+    val dossiers: StateFlow<List<Dossier>> = _dossiers.asStateFlow()
+
+    @Synchronized
+    private fun setDossiers(list: List<Dossier>) {
+        storage.saveDossiers(list)
+        _dossiers.value = list
+    }
+
+    /** Cria o dossiê já com as notícias do feed atual que batem com os termos. */
+    fun createDossier(title: String, terms: List<String>) {
+        val base = Dossier(id = "d" + System.currentTimeMillis(), title = title.trim(), terms = terms.map { it.trim() }.filter { it.isNotEmpty() })
+        val filled = Dossiers.merge(base, Dossiers.matches(base, _feed.value?.clusters.orEmpty(), translator::cached))
+        setDossiers(listOf(filled) + _dossiers.value)
+    }
+
+    fun updateDossier(d: Dossier) = setDossiers(_dossiers.value.map { if (it.id == d.id) d else it })
+
+    fun deleteDossier(id: String) = setDossiers(_dossiers.value.filter { it.id != id })
+
+    @Synchronized
+    private fun recordDossiers(feed: Feed) {
+        val list = _dossiers.value
+        if (list.isEmpty()) return
+        val next = list.map { d -> Dossiers.merge(d, Dossiers.matches(d, feed.clusters, translator::cached)) }
+        if (next != list) setDossiers(next)
+    }
+
+    // --- Previsões ---------------------------------------------------------------------
+
+    private val _predictions = MutableStateFlow(storage.loadPredictions())
+    val predictions: StateFlow<List<Prediction>> = _predictions.asStateFlow()
+
+    @Synchronized
+    private fun setPredictions(list: List<Prediction>) {
+        storage.savePredictions(list)
+        _predictions.value = list
+    }
+
+    fun addPrediction(text: String, deadline: java.time.LocalDate, confidence: Int) =
+        setPredictions(
+            listOf(Prediction("p" + System.currentTimeMillis(), text.trim(), deadline.toString(), confidence)) + _predictions.value
+        )
+
+    fun resolvePrediction(id: String, hit: Boolean?) =
+        setPredictions(_predictions.value.map { if (it.id == id) it.copy(hit = hit) else it })
+
+    fun deletePrediction(id: String) = setPredictions(_predictions.value.filter { it.id != id })
+
+    /** Previsões vencidas ainda não avisadas; marca como avisadas. */
+    fun takeDuePredictions(): List<Prediction> {
+        val due = _predictions.value.filter { it.due() && !it.notified }
+        if (due.isNotEmpty()) {
+            val ids = due.map { it.id }.toSet()
+            setPredictions(_predictions.value.map { if (it.id in ids) it.copy(notified = true) else it })
+        }
+        return due
+    }
+
     /** Checagens (Radar) ligadas a uma história do feed. */
     fun factchecksFor(clusterId: String): List<RadarItem> =
         _radar.value?.factcheck?.items.orEmpty().filter { clusterId in it.clusters }
@@ -193,11 +265,13 @@ class Repository(context: Context) {
             val radar = fetchRadar() ?: _radar.value
             recordVigil(feed, radar)
             val texts = feedTexts(feed) + textsOf(_saved.value) + textsOf(_archive.value.orEmpty().map { it.top }) +
-                _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty()
+                _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty() +
+                _dossiers.value.flatMap { d -> d.entries.filter { it.lang != "pt" }.map { it.title } }
             translator.translateAll(texts)
             storage.saveTranslations(keep = texts)
             _radar.value = radar
             recordQuotes(feed)
+            recordDossiers(feed)
             storage.saveFeed(raw)
             this@Repository.raw = feed
             applySourcePrefs(feed, settings.value).also { _feed.value = it }!!

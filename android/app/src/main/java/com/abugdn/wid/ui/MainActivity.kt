@@ -151,6 +151,7 @@ private fun App(
     var vigilOpen by rememberSaveable { mutableStateOf(false) }
     var bulletinOpen by rememberSaveable { mutableStateOf(false) }
     var clockOpen by rememberSaveable { mutableStateOf(false) }
+    var savedSub by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(shortcut) {
         val request = shortcut ?: return@LaunchedEffect
         if (!request.startsWith("region:")) return@LaunchedEffect
@@ -171,6 +172,7 @@ private fun App(
             "vigil" -> { settingsOpen = false; vigilOpen = true }
             "clock" -> { settingsOpen = false; clockOpen = true }
             "radar" -> { settingsOpen = false; tab = Tab.RADAR }
+            "predictions" -> { settingsOpen = false; savedSub = 2; tab = Tab.SAVED }
             else -> return@LaunchedEffect
         }
         onShortcutHandled()
@@ -286,7 +288,7 @@ private fun App(
                             onVigil = { vigilOpen = true },
                             onBulletin = { bulletinOpen = true },
                         )
-                        Tab.SAVED -> SavedScreen(onOpen = { onOpenCluster(it) })
+                        Tab.SAVED -> SavedScreen(onOpen = { onOpenCluster(it) }, initialSub = savedSub)
                     }
                 }
             }

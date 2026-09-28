@@ -1,6 +1,9 @@
 package com.abugdn.wid.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -30,10 +33,33 @@ import com.abugdn.wid.repository
 
 private const val NO_FOLDER = "\u0000sem-pasta"
 
-/** Notícias salvas com a estrela: ficam no aparelho sem prazo, com texto completo, pasta e nota. */
+/** Aba Salvos: notícias salvas, dossiês e minhas previsões. [initialSub]: 0, 1 ou 2. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SavedScreen(onOpen: (String) -> Unit) {
+fun SavedScreen(onOpen: (String) -> Unit, initialSub: Int = 0) {
+    var sub by rememberSaveable(initialSub) { mutableStateOf(initialSub) }
+    Scaffold(
+        contentWindowInsets = NoInsets,
+        topBar = { TopAppBar(title = { Text("Salvos", fontWeight = FontWeight.Bold) }) },
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            TabRow(selectedTabIndex = sub) {
+                Tab(selected = sub == 0, onClick = { sub = 0 }, text = { Text("★ Notícias") })
+                Tab(selected = sub == 1, onClick = { sub = 1 }, text = { Text("🗂 Dossiês") })
+                Tab(selected = sub == 2, onClick = { sub = 2 }, text = { Text("🎯 Previsões") })
+            }
+            when (sub) {
+                1 -> DossiersTab(onOpen)
+                2 -> PredictionsTab()
+                else -> SavedNews(onOpen)
+            }
+        }
+    }
+}
+
+/** Notícias salvas com a estrela: ficam no aparelho sem prazo, com texto completo, pasta e nota. */
+@Composable
+private fun SavedNews(onOpen: (String) -> Unit) {
     val repo = LocalContext.current.repository
     val saved by repo.saved.collectAsStateWithLifecycle()
     val meta by repo.savedMeta.collectAsStateWithLifecycle()
@@ -49,11 +75,8 @@ fun SavedScreen(onOpen: (String) -> Unit) {
         }
     }
 
-    Scaffold(
-        contentWindowInsets = NoInsets,
-        topBar = { TopAppBar(title = { Text("Salvos", fontWeight = FontWeight.Bold) }) },
-    ) { padding ->
-        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    run {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             if (saved.isEmpty()) {
                 item { Text("Toque na ★ dentro de uma notícia para guardá-la aqui.", modifier = Modifier.padding(24.dp)) }
             }

@@ -16,6 +16,10 @@ tap "Fechar" 2; tap "Entendi" 3; tap "Depois" 2
 shot 02-hoje
 tap "Mapa" 6; shot 03-mapa
 tap "Focos" 4; shot 04-focos
+tap "Satélite" 5; shot 04b-satelite
+tap "Militares" 4; shot 04c-militares
+tap "Porta-aviões" 4; shot 04d-porta-avioes
+tap "Frente" 8; shot 04e-frente
 tap "Radar" 5; shot 05-radar
 for t in Mercados "Números" Vozes "Análise" Contexto; do tap "$t" 4; shot "06-radar-$t"; done
 adb shell input swipe 500 1800 500 500 400; sleep 2
@@ -28,6 +32,9 @@ adb shell input keyevent KEYCODE_BACK; sleep 2
 tap "Irã" 6; shot 07b-quem-manda-ira
 tap "Arquivo" 4; shot 09-arquivo
 tap "Salvos" 3
+tap "Dossiês" 3; shot 09b-dossies
+tap "Novo dossiê" 2; adb shell input text "Ira"; tap "Cancelar" 2
+tap "Previsões" 3; shot 09c-previsoes
 tap "Hoje" 4
 adb shell input tap 540 900; sleep 6; shot 10-noticia   # abre uma notícia da lista
 adb shell input swipe 500 1600 500 700 300; sleep 2; shot 11-noticia-rolada

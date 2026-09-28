@@ -11,6 +11,20 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        26,
+        listOf(
+            "✈ Aviões militares no ar agora: reabastecedores, aviões-radar, drones de espionagem e bombardeiros sobre o Oriente Médio e o Mar Negro, com aviso quando passam do normal. No Radar e no Mapa.",
+            "⚓ Onde estão os porta-aviões americanos: posição de cada um pelo acompanhamento semanal da frota, e quantos estão perto do Oriente Médio.",
+            "🗺 Linha de frente na Ucrânia: área ocupada desenhada no Mapa, quanto avançou ou recuou na semana e as últimas mudanças.",
+            "🛰 Mapa em modo satélite (botão Satélite).",
+            "◉ Faixa de manchetes urgentes rolando no topo da tela Hoje. Dá para desligar em Ajustes → Tela Hoje.",
+            "👁 O olho do Argos reage à tensão: meio fechado quando está calmo, vermelho e pulsando na crítica. Toque nele para abrir o Relógio.",
+            "🗂 Cartão de compartilhar e boletim com cara de dossiê: número do dossiê, letra de máquina de escrever e carimbo CONFIDENCIAL.",
+            "🗂 Dossiês (aba Salvos): acompanhe um assunto e o Argos monta sozinho a linha do tempo com as notícias, com espaço para notas.",
+            "🎯 Minhas previsões (aba Salvos): registre um palpite, o Argos avisa na data e mostra seu placar de acertos.",
+        ),
+    ),
+    ChangelogEntry(
         24,
         listOf(
             "🐞 Corrigido: o app fechava sozinho ao carregar fotos e bandeiras (cartões de pessoas, regiões e “Quem manda”).",

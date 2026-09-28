@@ -48,7 +48,8 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
   config/radar.yaml      Radar: países/zonas/fontes de cada seção e intervalo mínimo entre coletas
   wid/radar.py           Radar (radar.json): IODA, OpenSky, NASA FIRMS, PortWatch, cotações (Stooq →
                          Yahoo → câmbio aberto), Tech for Palestine + HDX HAPI, perdas (russianwarship.rip),
-                         RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket. Cada seção é
+                         RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket, aviões
+                         militares (adsb.lol), porta-aviões (USNI Fleet Tracker), frente (DeepStateMap). Cada seção é
                          independente e guarda o último dado bom; baselines em stats/radar_state.json.
                          apply_signals() soma apagão/espaço aéreo fechado na tensão; link_factchecks()
   wid/build.py           orquestra; escreve feed.json (com "global" = Relógio do Argos), top.json,
@@ -69,7 +70,9 @@ android/app/src/main/java/com/abugdn/wid/
   data/Ranges.kt         alcance de mísseis/defesas desenhado no mapa; Weapons.kt: fichas das armas
   data/Cities.kt         cidades para o mapa "por cidade"; Truces.kt: contador de tréguas
   data/Quotes.kt         "quem disse o quê" (aspas + verbo de fala + uma pessoa-chave, quotes.json)
-  data/Radar.kt          espelho do radar.json; Agenda.kt (agenda, "neste dia", relógios das capitais,
+  data/Personal.kt       Dossiês (assunto + termos → linha do tempo automática) e Minhas previsões
+  ui/PersonalScreens.kt  sub-abas Dossiês e Previsões da aba Salvos; ui/Watch.kt: olho animado e ticker
+  data/Radar.kt          espelho do radar.json (+ military, carriers, frontline; polígonos em frontline.json); Agenda.kt (agenda, "neste dia", relógios das capitais,
                          nascer/pôr do sol); Power.kt (quem manda em cada lado, linha do tempo dos reféns)
   ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto
   sync/                  SyncWorker (30 min), DigestWorker, Notifier, NotificationActionReceiver

@@ -226,6 +226,24 @@ object Notifier {
         NotificationManagerCompat.from(context).notify(RADAR_ID, notification)
     }
 
+    private const val PREDICTION_ID = 8_006
+
+    /** Previsões que chegaram na data: hora de conferir se acertou. */
+    @SuppressLint("MissingPermission") // checado em canNotify
+    fun predictions(context: Context, due: List<com.abugdn.wid.data.Prediction>) {
+        if (due.isEmpty() || !canNotify(context)) return
+        val text = due.joinToString("\n") { "• ${it.text}" }
+        val notification = NotificationCompat.Builder(context, CHANNEL_DIGEST)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(if (due.size == 1) "🎯 Hora de conferir sua previsão" else "🎯 ${due.size} previsões para conferir")
+            .setContentText(due.first().text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(shortcutIntent(context, "predictions"))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(PREDICTION_ID, notification)
+    }
+
     /** História seguida ganhou veículos. Toca mesmo fora das regiões escolhidas (o usuário pediu). */
     fun followed(context: Context, updates: List<Pair<Cluster, Int>>) {
         if (context.repository.settings.value.isQuiet()) return

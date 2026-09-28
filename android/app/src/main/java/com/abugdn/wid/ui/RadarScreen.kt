@@ -63,6 +63,7 @@ import com.abugdn.wid.data.HOSTAGES_TAKEN
 import com.abugdn.wid.data.HOSTAGE_TERMS
 import com.abugdn.wid.data.HOSTAGE_TIMELINE
 import com.abugdn.wid.data.INTERNET_STATUS
+import com.abugdn.wid.data.MILITARY_ICONS
 import com.abugdn.wid.data.PEOPLE
 import com.abugdn.wid.data.POWER
 import com.abugdn.wid.data.POWER_DISCLAIMER
@@ -310,6 +311,9 @@ fun radarAlerts(radar: RadarData): List<String> = buildList {
     radar.straits?.items.orEmpty().filter { s -> s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6 }.forEach {
         add("🚢 Tráfego em queda: ${it.name}")
     }
+    radar.military?.zones.orEmpty().filter { it.unusual }.forEach {
+        add("✈ Aviões militares acima do normal: ${it.name} (${it.key} reabastecedores/radar/espionagem)")
+    }
 }
 
 private fun internetColor(status: String) = when (status) {
@@ -478,6 +482,7 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             Note("Fonte: IMF PortWatch (FMI), com dados de satélite dos navios (AIS). Média de passagens por dia na última semana; o FMI atualiza uma vez por semana, com alguns dias de atraso.")
         }
     }
+    militaryItems(radar)
 }
 
 private fun pct(now: Double?, before: Double): String {
@@ -925,5 +930,126 @@ private fun PowerCards() {
             HorizontalDivider()
         }
         Note("$POWER_DISCLAIMER $CONTEXT_DISCLAIMER")
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Olhos militares: aviões, porta-aviões e linha de frente
+// ---------------------------------------------------------------------------
+
+private fun LazyListScope.militaryItems(radar: RadarData) {
+    item {
+        val section = radar.military
+        val status = radar.status["military"]
+        if (section == null) {
+            Unavailable("✈ Aviões militares", status)
+            return@item
+        }
+        val openMap = LocalOpenMap.current
+        RadarCard {
+            SectionTitle("✈ AVIÕES MILITARES NO AR", section.updated, status)
+            section.zones.forEach { z ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(z.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "${z.count} no ar · ${z.key} que importam" + (z.baseline?.let { " · normal ${it.toInt()}" } ?: ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (z.unusual) Alert else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (z.unusual) FontWeight.Bold else FontWeight.Normal,
+                        )
+                        if (z.counts.isNotEmpty()) {
+                            Text(
+                                z.counts.entries.sortedByDescending { it.value }.joinToString(" · ") { (k, v) ->
+                                    "${MILITARY_ICONS[k] ?: "•"} ${section.labels[k] ?: k} $v"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (z.aircraft.isNotEmpty()) TextButton(onClick = { openMap("military:${z.id}") }) { Text("Mapa") }
+                }
+            }
+            Note("Fonte: adsb.lol (receptores de rádio voluntários). \"Que importam\" = reabastecedores, aviões-radar, espionagem/drones e bombardeiros: quando se juntam acima do normal, costuma vir operação. Muitos voam com transponder desligado; o número é um mínimo.")
+        }
+    }
+    item {
+        val section = radar.carriers
+        val status = radar.status["carriers"]
+        if (section == null) {
+            Unavailable("⚓ Porta-aviões", status)
+            return@item
+        }
+        val context = LocalContext.current
+        val openMap = LocalOpenMap.current
+        RadarCard {
+            SectionTitle("⚓ PORTA-AVIÕES DOS EUA", section.updated, status)
+            val nearby = section.ships.count { it.lat in 10.0..40.0 && it.lon in 25.0..65.0 }
+            Text(
+                "$nearby no Oriente Médio e arredores",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (nearby >= 2) Alert else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            section.ships.forEach { ship ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text(ship.name.removePrefix("USS "), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text("${ship.place} · ${ship.status}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row {
+                TextButton(onClick = { openMap("carriers") }) { Text("Ver no mapa") }
+                if (section.url.isNotBlank()) TextButton(onClick = { openUrl(context, section.url) }) { Text("Relatório da semana") }
+            }
+            Note("Posição aproximada pelo texto do acompanhamento semanal da frota (USNI News): região, não coordenada exata. Pode estar alguns dias atrasada.")
+        }
+    }
+    item {
+        val section = radar.frontline
+        val status = radar.status["frontline"]
+        if (section == null) {
+            Unavailable("🗺 Linha de frente", status)
+            return@item
+        }
+        val repo = LocalContext.current.repository
+        val openMap = LocalOpenMap.current
+        RadarCard {
+            SectionTitle("🗺 LINHA DE FRENTE NA UCRÂNIA", section.updated, status)
+            Text(
+                "Ocupado pela Rússia: ${formatKm2(section.occupiedKm2)}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            section.change7dKm2?.let { d ->
+                Text(
+                    when {
+                        d > 0 -> "▲ Rússia avançou ${formatKm2(d)} em 7 dias"
+                        d < 0 -> "▼ Ucrânia retomou ${formatKm2(-d)} em 7 dias"
+                        else -> "Sem mudança em 7 dias"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (d > 0) Alert else Moss,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (section.greyKm2 > 0) {
+                Text("Zona cinzenta (incerta): ${formatKm2(section.greyKm2)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            val history = section.history.mapNotNull { row -> row.getOrNull(1)?.toString()?.toDoubleOrNull() }
+            Sparkline(history, Alert, Modifier.fillMaxWidth().padding(top = 6.dp))
+            section.changes.take(3).forEach { ch ->
+                Text(
+                    "• " + repo.translator.cached(ch.text) + (if (ch.at.isNotBlank()) " (${dayClock(ch.at)})" else ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            TextButton(onClick = { openMap("frontline") }) { Text("Ver a frente no mapa") }
+            Note("Fonte: DeepStateMap, mapa ucraniano independente atualizado todo dia a partir de fotos e vídeos verificados. A área é calculada pelo Argos a partir do desenho.")
+        }
     }
 }
