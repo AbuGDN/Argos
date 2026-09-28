@@ -98,6 +98,7 @@ fun HomeScreen(
     LaunchedEffect(searchRequest) { if (searchRequest > 0) searchOpen = true }
     val saved by repo.saved.collectAsStateWithLifecycle()
     val readIds by repo.read.collectAsStateWithLifecycle()
+    val settings by repo.settings.state.collectAsStateWithLifecycle()
 
     fun refresh() = scope.launch {
         refreshing = true
@@ -134,6 +135,8 @@ fun HomeScreen(
                     IconButton(onClick = { searchOpen = true }) { Icon(Icons.Filled.Search, contentDescription = "Buscar") }
                     IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Ajustes") }
                 }, title = {
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    ArgosEyeIcon(feed?.global?.level, Modifier.padding(end = 10.dp).clickable(onClick = onClock))
                     Column {
                         Text("ARGOS", fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, letterSpacing = 4.sp, color = Accent)
                         feed?.let { f ->
@@ -144,6 +147,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
                     }
                 })
             }
@@ -169,6 +173,12 @@ fun HomeScreen(
             val top = data?.topOfDay?.takeIf { tag == null && !searching && !showRead && it.id !in readIds }
 
             LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                if (settings.showTicker && !searching) {
+                    val headlines = tickerHeadlines(data?.clusters.orEmpty())
+                    if (headlines.isNotEmpty()) {
+                        item { HeadlineTicker(headlines, { repo.translator.display(it.title, it.lang) }, onOpen) }
+                    }
+                }
                 error?.let { item { Text(it, color = Accent, modifier = Modifier.padding(16.dp, 8.dp)) } }
                 item { UpdateBanner(Modifier.padding(16.dp, 8.dp)) }
                 if (data == null) {

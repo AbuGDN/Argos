@@ -38,6 +38,8 @@ data class Settings(
     val blurSensitive: Boolean = true,
     /** Aviso do Radar: apagão de internet ou espaço aéreo fechado. */
     val notifyRadar: Boolean = true,
+    /** Faixa de manchetes rolando no topo da tela Hoje. */
+    val showTicker: Boolean = true,
 ) {
     fun matchesRegion(tags: List<String>) = regions.isEmpty() || tags.any { it in regions }
 
@@ -75,6 +77,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("s_reader_wide", next.readerWide)
             .putBoolean("s_blur", next.blurSensitive)
             .putBoolean("s_notify_radar", next.notifyRadar)
+            .putBoolean("s_ticker", next.showTicker)
             .apply()
         _state.value = next
         onChange?.invoke(next)
@@ -103,6 +106,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         readerWide = prefs.getBoolean("s_reader_wide", false),
         blurSensitive = prefs.getBoolean("s_blur", true),
         notifyRadar = prefs.getBoolean("s_notify_radar", true),
+        showTicker = prefs.getBoolean("s_ticker", true),
     )
 }
 

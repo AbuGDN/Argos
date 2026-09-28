@@ -20,6 +20,8 @@ class Storage(context: Context) {
     private val vigilFile = File(dir, "vigil.json")
     private val quotesFile = File(dir, "quotes.json")
     private val radarFile = File(dir, "radar.json")
+    private val dossiersFile = File(dir, "dossiers.json")
+    private val predictionsFile = File(dir, "predictions.json")
     private val articlesDir = File(dir, "articles").apply { mkdirs() }
     val prefs = context.getSharedPreferences("wid", Context.MODE_PRIVATE)
 
@@ -37,6 +39,20 @@ class Storage(context: Context) {
     }.getOrNull()
 
     fun saveRadar(raw: String) = writeAtomic(radarFile, raw)
+
+    fun loadDossiers(): List<Dossier> = runCatching {
+        json.decodeFromString(ListSerializer(Dossier.serializer()), dossiersFile.readText())
+    }.getOrDefault(emptyList())
+
+    fun saveDossiers(list: List<Dossier>) =
+        writeAtomic(dossiersFile, json.encodeToString(ListSerializer(Dossier.serializer()), list))
+
+    fun loadPredictions(): List<Prediction> = runCatching {
+        json.decodeFromString(ListSerializer(Prediction.serializer()), predictionsFile.readText())
+    }.getOrDefault(emptyList())
+
+    fun savePredictions(list: List<Prediction>) =
+        writeAtomic(predictionsFile, json.encodeToString(ListSerializer(Prediction.serializer()), list))
 
     private fun loadTranslations(): Map<String, String> = runCatching {
         json.decodeFromString(MapSerializer(String.serializer(), String.serializer()), translationsFile.readText())

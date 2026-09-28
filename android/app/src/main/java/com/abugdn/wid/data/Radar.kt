@@ -23,7 +23,92 @@ data class RadarData(
     val crisiswatch: CrisisWatchSection? = null,
     val factcheck: FeedSection? = null,
     val predictions: PredictionsSection? = null,
+    val military: MilitarySection? = null,
+    val carriers: CarriersSection? = null,
+    val frontline: FrontlineSection? = null,
     val status: Map<String, SectionStatus> = emptyMap(),
+)
+
+/** Aviões militares com transponder ligado (adsb.lol), por zona. */
+@Serializable
+data class MilitarySection(
+    val updated: String = "",
+    val zones: List<MilitaryZone> = emptyList(),
+    val labels: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class MilitaryZone(
+    val id: String,
+    val name: String,
+    val tag: String = "",
+    val count: Int = 0,
+    /** Reabastecedores, aviões-radar, espionagem e bombardeiros: os que mais dizem algo. */
+    val key: Int = 0,
+    val baseline: Double? = null,
+    val unusual: Boolean = false,
+    val counts: Map<String, Int> = emptyMap(),
+    val aircraft: List<MilitaryAircraft> = emptyList(),
+)
+
+@Serializable
+data class MilitaryAircraft(
+    val hex: String = "",
+    val callsign: String = "",
+    val type: String = "",
+    val reg: String = "",
+    val category: String = "outro",
+    val lat: Double,
+    val lon: Double,
+    val alt: Double = 0.0,
+    val track: Double? = null,
+)
+
+/** Porta-aviões dos EUA (USNI News Fleet Tracker, semanal). */
+@Serializable
+data class CarriersSection(
+    val updated: String = "",
+    val title: String = "",
+    val url: String = "",
+    val ships: List<Carrier> = emptyList(),
+)
+
+@Serializable
+data class Carrier(
+    val hull: String,
+    val name: String,
+    val place: String = "",
+    val lat: Double,
+    val lon: Double,
+    val status: String = "",
+    val text: String = "",
+)
+
+/** Linha de frente na Ucrânia (DeepStateMap): números; os polígonos vêm de frontline.json. */
+@Serializable
+data class FrontlineSection(
+    val updated: String = "",
+    @SerialName("occupied_km2") val occupiedKm2: Long = 0,
+    @SerialName("grey_km2") val greyKm2: Long = 0,
+    @SerialName("change_7d_km2") val change7dKm2: Long? = null,
+    val history: List<List<kotlinx.serialization.json.JsonElement>> = emptyList(),
+    val changes: List<FrontlineChange> = emptyList(),
+)
+
+@Serializable
+data class FrontlineChange(val text: String, val at: String = "")
+
+/** frontline.json: polígonos simplificados, cada um uma lista de anéis de [lat, lon]. */
+@Serializable
+data class FrontlineShapes(
+    val occupied: List<List<List<List<Double>>>> = emptyList(),
+    val grey: List<List<List<List<Double>>>> = emptyList(),
+    val updated: String = "",
+)
+
+val MILITARY_ICONS = mapOf(
+    "reabastecedor" to "⛽", "radar" to "📡", "espionagem" to "🛰", "bombardeiro" to "💣",
+    "caça" to "✈", "transporte" to "📦", "outro" to "•",
 )
 
 @Serializable
@@ -224,6 +309,8 @@ fun RadarData.foreignTexts(): Set<String> = buildSet {
         }
     }
     crisiswatch?.let { cw -> listOf(cw.title, cw.summary).filter { it.isNotBlank() }.forEach(::add) }
+    frontline?.changes?.forEach { add(it.text) }
+    carriers?.ships?.forEach { if (it.text.isNotBlank()) add(it.text) }
     predictions?.events?.forEach { e ->
         add(e.title)
         e.markets.forEach { m -> if (m.label != e.title) add(m.label) }

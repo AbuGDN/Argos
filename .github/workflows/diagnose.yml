@@ -16,3 +16,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Testar URLs
         run: python3 .github/diagnose/probe.py .github/diagnose/urls.txt
+      - name: Resumo do DeepStateMap
+        run: python3 .github/diagnose/deepstate.py

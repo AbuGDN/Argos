@@ -63,6 +63,8 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
+import com.abugdn.wid.data.MILITARY_ICONS
+import androidx.compose.foundation.horizontalScroll
 import org.osmdroid.views.overlay.simplefastpoint.LabelledGeoPoint
 import org.osmdroid.views.overlay.simplefastpoint.SimpleFastPointOverlay
 import org.osmdroid.views.overlay.simplefastpoint.SimpleFastPointOverlayOptions
@@ -147,9 +149,18 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var byCity by rememberSaveable { mutableStateOf(false) }
     var highlight by rememberSaveable { mutableStateOf<String?>(null) }
     var showFires by rememberSaveable { mutableStateOf(false) }
+    var showMilitary by rememberSaveable { mutableStateOf(false) }
+    var showCarriers by rememberSaveable { mutableStateOf(false) }
+    var showFront by rememberSaveable { mutableStateOf(false) }
+    var satellite by rememberSaveable { mutableStateOf(false) }
     val repo = context.repository
     val radar by repo.radar.collectAsStateWithLifecycle()
     val fireZones = radar?.fires?.zones.orEmpty().filter { it.points.isNotEmpty() }
+    val militaryZones = radar?.military?.zones.orEmpty()
+    val carriers = radar?.carriers?.ships.orEmpty()
+    val front by repo.frontline.collectAsStateWithLifecycle()
+    // Os polígonos da frente só são baixados quando a camada é ligada.
+    LaunchedEffect(showFront) { if (showFront && repo.frontline.value == null) repo.loadFrontline() }
     // Cidade -> histórias que a citam (mais recentes primeiro).
     val cityStories = remember(feed) {
         val out = linkedMapOf<com.abugdn.wid.data.City, MutableList<com.abugdn.wid.data.Cluster>>()
@@ -163,7 +174,26 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     LaunchedEffect(focus) {
         val id = focus ?: return@LaunchedEffect
         tab = 0
-        // Vindo do Radar: liga os focos de calor e vai até a zona pedida.
+        // Vindo do Radar: liga a camada pedida e vai até ela.
+        when {
+            id.startsWith("military:") -> {
+                showMilitary = true
+                val center = if (id.endsWith("mar_negro")) GeoPoint(47.0, 34.0) to 4.6 else GeoPoint(28.0, 44.0) to 4.0
+                mapView.controller.animateTo(center.first, center.second, 600L)
+            }
+            id == "carriers" -> {
+                showCarriers = true
+                mapView.controller.animateTo(GeoPoint(25.0, 30.0), 2.6, 600L)
+            }
+            id == "frontline" -> {
+                showFront = true
+                mapView.controller.animateTo(GeoPoint(47.8, 36.5), 6.0, 600L)
+            }
+        }
+        if (id.startsWith("military:") || id == "carriers" || id == "frontline") {
+            repo.mapFocus.value = null
+            return@LaunchedEffect
+        }
         if (id.startsWith("fires:")) {
             showFires = true
             repo.radar.value?.fires?.zones?.firstOrNull { it.id == id.removePrefix("fires:") }?.let { z -> fireCenter(z)?.let { mapView.controller.animateTo(it, 7.0, 600L) } }
@@ -189,7 +219,12 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             if (tab == 1) {
                 TrendBody(onRegion)
             } else {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+            // Camadas do mapa: rolam de lado, porque já são muitas.
+            Row(
+                Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(selected = satellite, onClick = { satellite = !satellite }, label = { Text("🛰 Satélite") })
                 FilterChip(
                     selected = byCity,
                     onClick = { byCity = !byCity },
@@ -211,6 +246,36 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         label = { Text("🔥 Focos") },
                     )
                 }
+                if (militaryZones.isNotEmpty()) {
+                    FilterChip(
+                        selected = showMilitary,
+                        onClick = {
+                            showMilitary = !showMilitary
+                            if (showMilitary) mapView.controller.animateTo(GeoPoint(33.0, 40.0), 3.6, 600L)
+                        },
+                        label = { Text("✈ Militares") },
+                    )
+                }
+                if (carriers.isNotEmpty()) {
+                    FilterChip(
+                        selected = showCarriers,
+                        onClick = {
+                            showCarriers = !showCarriers
+                            if (showCarriers) mapView.controller.animateTo(GeoPoint(25.0, 30.0), 2.6, 600L)
+                        },
+                        label = { Text("⚓ Porta-aviões") },
+                    )
+                }
+                if (radar?.frontline != null) {
+                    FilterChip(
+                        selected = showFront,
+                        onClick = {
+                            showFront = !showFront
+                            if (showFront) mapView.controller.animateTo(GeoPoint(47.8, 36.5), 5.5, 600L)
+                        },
+                        label = { Text("🗺 Frente (Ucrânia)") },
+                    )
+                }
             }
             // O MapView desenha fora dos próprios limites ao arrastar/dar zoom; a moldura com
             // clipChildren e o clipToBounds impedem que ele pinte por cima do resto da tela.
@@ -226,7 +291,14 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().weight(0.6f).clipToBounds(),
                 update = { _ ->
                     val map = mapView
+                    val source = if (satellite) EsriImagery else TileSourceFactory.MAPNIK
+                    if (map.tileProvider.tileSource.name() != source.name()) map.setTileSource(source)
                     map.overlays.removeAll { it is Marker || it is Polygon || it is SimpleFastPointOverlay }
+                    // Área ocupada (vermelho) e cinzenta, por baixo de tudo.
+                    if (showFront) front?.let { shapes ->
+                        shapes.grey.forEach { map.overlays.add(frontPolygon(map, it, occupied = false)) }
+                        shapes.occupied.forEach { map.overlays.add(frontPolygon(map, it, occupied = true)) }
+                    }
                     // Círculos antes dos marcadores, para os marcadores ficarem por cima e receberem o toque.
                     if (showRanges) RANGES.forEach { map.overlays.add(rangePolygon(map, it, it.id == highlight)) }
                     if (showFires) firesOverlay(fireZones)?.let { map.overlays.add(it) }
@@ -240,6 +312,24 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 if (m.isInfoWindowShown) onOpen(stories.first().id) else m.showInfoWindow()
                                 true
                             }
+                        })
+                    }
+                    if (showCarriers) carriers.forEach { ship ->
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(ship.lat, ship.lon)
+                            title = "⚓ ${ship.name} (${ship.hull})"
+                            snippet = "${ship.place} · ${ship.status}"
+                            icon = dotIcon(context, 0xFFC9A227.toInt(), 18)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        })
+                    }
+                    if (showMilitary) militaryZones.flatMap { it.aircraft }.forEach { ac ->
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(ac.lat, ac.lon)
+                            title = "${MILITARY_ICONS[ac.category] ?: "•"} ${radar?.military?.labels?.get(ac.category) ?: ac.category} · ${ac.type}"
+                            snippet = listOf(ac.callsign, ac.reg, if (ac.alt > 0) "${ac.alt.toInt()} pés" else "").filter { it.isNotBlank() }.joinToString(" · ")
+                            icon = dotIcon(context, militaryColor(ac.category), 12)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
                     }
                     if (!byCity) counts.forEach { (tag, n) ->
@@ -258,6 +348,14 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     map.invalidate()
                 },
             )
+            if (satellite) {
+                Text(
+                    "Imagens de satélite © Esri, Maxar, Earthstar Geographics",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+                )
+            }
             Text(
                 "Toque no marcador para ver o nome; toque de novo (ou na lista) para abrir as notícias.",
                 style = MaterialTheme.typography.labelSmall,
@@ -289,6 +387,53 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 )
                             }
                         }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+                if (showFront) {
+                    item {
+                        radar?.frontline?.let { f ->
+                            Column(Modifier.padding(16.dp, 10.dp)) {
+                                Text("🗺 Área ocupada: ${formatKm2(f.occupiedKm2)}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                                f.change7dKm2?.let { d ->
+                                    Text(
+                                        (if (d > 0) "▲ +${formatKm2(d)}" else if (d < 0) "▼ ${formatKm2(d)}" else "sem mudança") + " em 7 dias",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (d > 0) Alert else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(
+                                    if (front == null) "Carregando o desenho da frente…" else "Vermelho: ocupado pela Rússia; cinza: situação incerta (DeepStateMap).",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                }
+                if (showCarriers) {
+                    items(carriers, key = { "cvn-" + it.hull }) { ship ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { mapView.controller.animateTo(GeoPoint(ship.lat, ship.lon), 5.0, 600L) }
+                                .padding(16.dp, 10.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("⚓ ${ship.name}", style = MaterialTheme.typography.bodyLarge)
+                                Text(ship.hull, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(ship.place, style = MaterialTheme.typography.bodyMedium)
+                                Text(ship.status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+                if (showMilitary) {
+                    items(militaryZones, key = { "mil-" + it.id }) { z ->
+                        MilitaryZoneRow(z, radar?.military?.labels.orEmpty())
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
@@ -361,6 +506,67 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             }
             }
         }
+    }
+}
+
+/** Imagem de satélite da Esri (World Imagery): URL no formato z/y/x. */
+private object EsriImagery : org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase(
+    "EsriWorldImagery", 0, 18, 256, ".jpg",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
+    "Esri",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + org.osmdroid.util.MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            org.osmdroid.util.MapTileIndex.getY(pMapTileIndex) + "/" + org.osmdroid.util.MapTileIndex.getX(pMapTileIndex)
+}
+
+/** Polígono da frente: anel externo + buracos, em [lat, lon]. */
+private fun frontPolygon(map: MapView, rings: List<List<List<Double>>>, occupied: Boolean): Polygon = Polygon(map).apply {
+    points = rings.first().map { GeoPoint(it[0], it[1]) }
+    holes = rings.drop(1).map { ring -> ring.map { GeoPoint(it[0], it[1]) } }
+    val color = if (occupied) 0xFFB3122E.toInt() else 0xFFBCAAA4.toInt()
+    outlinePaint.color = color
+    outlinePaint.strokeWidth = 1.5f * map.context.resources.displayMetrics.density
+    fillPaint.color = (color and 0x00FFFFFF) or (if (occupied) 0x55000000 else 0x40000000)
+    setOnClickListener { _, _, _ -> false }
+}
+
+/** Bolinha colorida para marcadores pequenos (aviões, navios). */
+private fun dotIcon(context: Context, color: Int, sizeDp: Int): Drawable =
+    android.graphics.drawable.GradientDrawable().apply {
+        shape = android.graphics.drawable.GradientDrawable.OVAL
+        setColor(color)
+        setStroke((1.5f * context.resources.displayMetrics.density).toInt(), 0xFF050505.toInt())
+        val px = (sizeDp * context.resources.displayMetrics.density).toInt()
+        setSize(px, px)
+    }
+
+private fun militaryColor(category: String): Int = when (category) {
+    "reabastecedor" -> 0xFFC9A227.toInt()
+    "radar" -> 0xFF4FC3F7.toInt()
+    "espionagem" -> 0xFFB388FF.toInt()
+    "bombardeiro" -> 0xFFB3122E.toInt()
+    "caça" -> 0xFFC8662B.toInt()
+    else -> 0xFF8A8578.toInt()
+}
+
+fun formatKm2(km2: Long): String = java.text.NumberFormat.getIntegerInstance(java.util.Locale("pt", "BR")).format(km2) + " km²"
+
+@Composable
+private fun MilitaryZoneRow(z: com.abugdn.wid.data.MilitaryZone, labels: Map<String, String>) {
+    Column(Modifier.fillMaxWidth().padding(16.dp, 10.dp)) {
+        Text(
+            "✈ ${z.name} · ${z.count} no ar" + if (z.unusual) " · ⚠ acima do normal" else "",
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (z.unusual) Alert else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (z.unusual) FontWeight.Bold else FontWeight.Normal,
+        )
+        Text(
+            z.counts.entries.sortedByDescending { it.value }
+                .joinToString(" · ") { (k, v) -> "${MILITARY_ICONS[k] ?: "•"} ${labels[k] ?: k} $v" },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

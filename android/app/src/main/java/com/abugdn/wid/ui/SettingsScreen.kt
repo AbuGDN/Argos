@@ -224,6 +224,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 s.dataSaver,
             ) { update { st -> st.copy(dataSaver = it) } }
 
+            Section("Tela Hoje")
+            Toggle("Faixa de manchetes", "Manchetes urgentes rolando no topo da tela Hoje", s.showTicker) {
+                update { st -> st.copy(showTicker = it) }
+            }
             Section("Imagens sensíveis")
             Toggle(
                 "Borrar imagens sensíveis",

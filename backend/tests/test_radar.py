@@ -313,3 +313,57 @@ def test_crisiswatch_entries_from_country_blocks():
     assert {c["tag"] for c in t["deteriorated"]} == {"israel", "gaza"}
     assert [c["tag"] for c in t["risk"]] == ["iemen"]
     assert [c["tag"] for c in t["improved"]] == ["sudao"]
+
+
+def test_military_in_zones_and_category():
+    payload = {"ac": [
+        {"hex": "a1", "flight": "QID71 ", "t": "K35R", "lat": 30.0, "lon": 40.0, "alt_baro": 30000, "track": 90},
+        {"hex": "a2", "t": "RQ4", "lat": 44.0, "lon": 33.0, "alt_baro": 55000},
+        {"hex": "a3", "t": "C17", "lat": 38.0, "lon": -77.0},
+        {"hex": "a4", "t": "E3TF"},
+    ]}
+    zones = [{"id": "me", "box": [12, 25, 42, 63]}, {"id": "bs", "box": [40, 22, 56.5, 45]}]
+    out = radar.military_in_zones(payload, zones)
+    assert [a["hex"] for a in out["me"]] == ["a1"] and out["me"][0]["category"] == "reabastecedor"
+    assert out["me"][0]["callsign"] == "QID71"
+    assert out["bs"][0]["category"] == "espionagem"
+
+
+def test_carriers_from_tracker():
+    html = """<p>Aircraft carrier USS <em>Gerald R. Ford</em> (CVN-78) is operating in the Eastern Mediterranean.</p>
+    <p>Aircraft carrier USS <em>George H.W. Bush</em> (CVN-77) is underway in the Atlantic Ocean.</p>
+    <p>USS <em>Carl Vinson</em> (CVN-70) is in port in San Diego.</p>"""
+    ships = radar.carriers_from_tracker(html)
+    by = {s["hull"]: s for s in ships}
+    assert by["CVN-78"]["place"] == "Mediterrâneo Oriental" and by["CVN-78"]["status"] == "no mar"
+    assert by["CVN-77"]["place"] == "Atlântico"
+    assert by["CVN-70"]["status"] == "no porto"
+
+
+def test_frontline_summary_area_and_filter():
+    square = [[37.0, 48.0, 0], [38.0, 48.0, 0], [38.0, 49.0, 0], [37.0, 49.0, 0], [37.0, 48.0, 0]]
+    data = {"map": {"features": [
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [square]},
+         "properties": {"name": "Окуповано /// Occupied /// geoJSON.status.occupied"}},
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [square]},
+         "properties": {"name": "Karelia joke /// geoJSON.territories.karelia"}},
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [37, 48, 0]}, "properties": {"name": "x"}},
+    ]}}
+    s = radar.frontline_summary(data)
+    # 1° x 1° a 48,5°N ≈ 73,8 km × 110,6 km ≈ 8.150 km²
+    assert 7900 < s["occupied_km2"] < 8400
+    assert len(s["occupied"]) == 1 and s["occupied"][0][0][0] == [48.0, 37.0]
+    assert s["grey"] == []
+
+
+def test_simplify_keeps_corners():
+    line = [[0, 0], [1, 0.001], [2, 0], [2, 2]]
+    assert radar.simplify(line, 0.01) == [[0, 0], [2, 0], [2, 2]]
+
+
+def test_build_splits_frontline_polygons(tmp_path):
+    data = {"version": 1, "status": {}, "frontline": {"occupied_km2": 10, "occupied": [[[[1, 2]]]], "grey": [], "updated": "x"}}
+    build(tmp_path, NOW, [], kw(), [], {}, data)
+    radar_json = json.loads((tmp_path / "radar.json").read_text())
+    assert "occupied" not in radar_json["frontline"] and radar_json["frontline"]["occupied_km2"] == 10
+    assert json.loads((tmp_path / "frontline.json").read_text())["occupied"] == [[[[1, 2]]]]

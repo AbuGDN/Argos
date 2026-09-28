@@ -194,6 +194,12 @@ def build(
         # Radar (radar.json): sensores sobem a tensão; checagens se ligam às histórias.
         radar_mod.apply_signals(regions, radar, now)
         radar_mod.link_factchecks(radar, items)
+        # Polígonos da frente (pesados) vão para frontline.json, baixado só quando o mapa pede.
+        front = radar.get("frontline")
+        if front and "occupied" in front:
+            write_json(out / "frontline.json", {"occupied": front["occupied"], "grey": front.get("grey", []),
+                                                "updated": front.get("updated", "")})
+            radar["frontline"] = {k: v for k, v in front.items() if k not in ("occupied", "grey")}
         write_json(out / "radar.json", radar)
     clock = global_index(regions)
     record_tension(out, stats_days, regions, clock)

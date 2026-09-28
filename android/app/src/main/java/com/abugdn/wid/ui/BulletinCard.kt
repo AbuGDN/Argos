@@ -58,7 +58,8 @@ fun drawBulletin(b: Bulletin, translator: Translator): Bitmap {
     val kicker = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = BONE; textSize = 30f; typeface = Typeface.DEFAULT_BOLD; letterSpacing = 0.12f
     }
-    canvas.drawText("BOLETIM SEMANAL · ${short.format(b.from)} A ${full.format(b.to)}", 198f, 158f, kicker)
+    canvas.drawText("BOLETIM SEMANAL · ${short.format(b.from)} A ${full.format(b.to)}", 198f, 158f, kicker.apply { typeface = Typeface.MONOSPACE })
+    drawStamp(canvas, "CONFIDENCIAL", "", W - 190f, 96f, -10f)
     val rule = Paint().apply { color = GOLD; strokeWidth = 2f }
     canvas.drawLine(MARGIN, 210f, W - MARGIN, 210f, rule)
 

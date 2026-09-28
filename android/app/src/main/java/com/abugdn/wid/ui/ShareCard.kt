@@ -91,6 +91,11 @@ private fun drawCard(cluster: Cluster, title: String, photo: Bitmap?): Bitmap {
     val gold = 0xFFC9A227.toInt()
     val label = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = gold; textSize = 34f; typeface = Typeface.DEFAULT_BOLD; letterSpacing = 0.08f }
     canvas.drawText("ARGOS", 60f, y, label)
+    // Número do dossiê em "máquina de escrever", ao lado do nome.
+    val typewriter = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFF8A8578.toInt(); textSize = 28f; typeface = Typeface.MONOSPACE; letterSpacing = 0.05f
+    }
+    canvas.drawText("DOSSIÊ Nº ${cluster.id.take(6).uppercase()}", 230f, y, typewriter)
     y += 40f
 
     val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -113,15 +118,37 @@ private fun drawCard(cluster: Cluster, title: String, photo: Bitmap?): Bitmap {
     val date = runCatching {
         DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault()).format(Instant.parse(cluster.updated))
     }.getOrDefault("")
-    val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF8A8578.toInt(); textSize = 36f }
+    val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF8A8578.toInt(); textSize = 32f; typeface = Typeface.MONOSPACE }
     canvas.drawText(
         "${cluster.source} · ${cluster.sourcesCount} ${if (cluster.sourcesCount == 1) "veículo" else "veículos"} · $date",
         60f, y, meta,
     )
 
-    // Rodapé: só o olho no triângulo, o ícone do app.
+    // Rodapé: o olho no triângulo como selo e o carimbo com a data.
     drawArgosEye(canvas, 100f, H - 96f, 80f, gold)
+    drawStamp(canvas, "CONFIDENCIAL", date, W - 250f, H - 120f, -12f)
     return bitmap
+}
+
+/** Carimbo vermelho-sangue inclinado, com moldura dupla, estilo documento secreto. */
+fun drawStamp(canvas: Canvas, title: String, subtitle: String, cx: Float, cy: Float, angle: Float) {
+    val red = 0xCCB3122E.toInt()
+    val big = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = red; textSize = 46f; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        letterSpacing = 0.12f; textAlign = Paint.Align.CENTER
+    }
+    val small = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = red; textSize = 26f; typeface = Typeface.MONOSPACE; letterSpacing = 0.1f; textAlign = Paint.Align.CENTER
+    }
+    val w = maxOf(big.measureText(title), small.measureText(subtitle)) / 2 + 28f
+    val box = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = red; style = Paint.Style.STROKE; strokeWidth = 5f }
+    canvas.save()
+    canvas.rotate(angle, cx, cy)
+    canvas.drawRect(cx - w, cy - 52f, cx + w, cy + (if (subtitle.isBlank()) 22f else 52f), box)
+    canvas.drawRect(cx - w + 9f, cy - 43f, cx + w - 9f, cy + (if (subtitle.isBlank()) 13f else 43f), box.apply { strokeWidth = 2f })
+    canvas.drawText(title, cx, cy + 4f, big)
+    if (subtitle.isNotBlank()) canvas.drawText(subtitle, cx, cy + 36f, small)
+    canvas.restore()
 }
 
 /** Logo Argos: triângulo com o olho no centro, desenhado centrado em (cx, cy) com lado [size]. */
