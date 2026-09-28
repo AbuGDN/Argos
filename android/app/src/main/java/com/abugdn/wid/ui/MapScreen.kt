@@ -178,6 +178,23 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     val focus by repo.mapFocus.collectAsStateWithLifecycle()
     LaunchedEffect(focus) {
         val id = focus ?: return@LaunchedEffect
+        // Vindo das Ferramentas ou da página de uma região.
+        when {
+            id == "trend" -> { tab = 1; repo.mapFocus.value = null; return@LaunchedEffect }
+            id == "ranges" -> {
+                tab = 0
+                showRanges = true
+                mapView.controller.animateTo(GeoPoint(30.0, 44.0), 3.6, 600L)
+                repo.mapFocus.value = null
+                return@LaunchedEffect
+            }
+            id.startsWith("at:") -> {
+                tab = 0
+                REGION_POINTS[id.removePrefix("at:")]?.let { mapView.controller.animateTo(it, 5.5, 600L) }
+                repo.mapFocus.value = null
+                return@LaunchedEffect
+            }
+        }
         tab = 0
         // Vindo do Radar: liga a camada pedida e vai até ela.
         when {

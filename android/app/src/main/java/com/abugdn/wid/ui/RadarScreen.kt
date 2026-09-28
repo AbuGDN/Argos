@@ -100,10 +100,14 @@ private val Copper = Color(0xFFC8662B)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
+fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int = 0, onTab: (Int) -> Unit = {}) {
     val repo = LocalContext.current.repository
     val radar by repo.radar.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    // Retrato da última visita, lido uma vez ao abrir; ao sair da aba vira o retrato de agora.
+    val seen = remember { repo.radarSeen() }
+    var changesDismissed by rememberSaveable { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { repo.markRadarSeen() } }
+    val changes = remember(radar) { radar?.let { com.abugdn.wid.data.radarChanges(it, seen.first) }.orEmpty() }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -131,9 +135,21 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            if (changes.isNotEmpty() && !changesDismissed) {
+                RadarChangesCard(changes, seen.second) { changesDismissed = true; repo.markRadarSeen() }
+            }
+            val sensorsAlert = radar?.let { radarAlerts(it).isNotEmpty() } == true
+            val analysisAlert = radar?.crisiswatch?.let { it.deteriorated.isNotEmpty() || it.risk.isNotEmpty() } == true
             ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
                 RADAR_TABS.forEachIndexed { i, label ->
-                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) })
+                    // Bolinha vermelha na categoria que tem alerta agora.
+                    val dot = (i == 0 && sensorsAlert) || (i == 4 && analysisAlert)
+                    Tab(selected = tab == i, onClick = { onTab(i) }, text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(label)
+                            if (dot) Text(" ●", color = Alert, style = MaterialTheme.typography.labelSmall)
+                        }
+                    })
                 }
             }
             val data = radar
@@ -164,13 +180,31 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
 // Blocos comuns
 // ---------------------------------------------------------------------------
 
+/** "O que mudou desde a última vez" que a pessoa abriu o Radar. */
 @Composable
-private fun RadarCard(alert: Boolean = false, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).breathingBorder(alert),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(Modifier.padding(12.dp)) { content() }
+private fun RadarChangesCard(changes: List<com.abugdn.wid.data.RadarChange>, since: Long, onDismiss: () -> Unit) {
+    val shown = changes.take(6)
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        ArgosCard(
+            "🆕 O QUE MUDOU DESDE A ÚLTIMA VISITA",
+            alert = changes.any { it.alert },
+            source = if (since > 0) "última visita ${relativeTime(Instant.ofEpochMilli(since).toString())}" else null,
+            info = "Compara o Radar de agora com o da última vez que você abriu esta aba: status de internet e espaço aéreo, " +
+                "alertas de focos de calor, navios e aviões militares, porta-aviões, linha de frente e publicações novas.",
+            collapsedSummary = "${changes.size} mudança(s)",
+        ) {
+            shown.forEach { c ->
+                Text(
+                    c.text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (c.alert) Alert else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (c.alert) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+            }
+            if (changes.size > shown.size) Note("e mais ${changes.size - shown.size}")
+            TextButton(onClick = onDismiss) { Text("Visto") }
+        }
     }
 }
 
@@ -203,8 +237,7 @@ private fun Note(text: String) {
 
 @Composable
 private fun Unavailable(what: String, status: SectionStatus?) {
-    RadarCard {
-        SectionTitle(what.uppercase())
+    ArgosCard(what.uppercase(), titleColor = MaterialTheme.colorScheme.onSurfaceVariant) {
         Text(
             if (status == null) "Ainda não coletado. Aparece nas próximas rodadas do servidor."
             else "Fonte indisponível no momento; o servidor tenta de novo em até 1 hora.",
@@ -286,14 +319,14 @@ private fun LazyListScope.feedSection(title: String, section: FeedSection?, stat
         if (section == null) {
             Unavailable(title, status)
         } else {
-            Column(Modifier.padding(top = 16.dp)) {
-                SectionTitle(title.uppercase(), section.updated, status)
-                Note(note)
+            ArgosCard(title.uppercase(), updated = section.updated, status = status, info = note) {
                 val down = section.sources.filterValues { !it }.keys
+                Text(
+                    if (section.items.isEmpty()) "Nada recente." else "${section.items.size} publicações recentes · toque para abrir no site",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
                 if (down.isNotEmpty()) Note("Fora do ar nesta rodada: ${down.joinToString(", ")}")
-                if (section.items.isEmpty()) {
-                    Text("Nada recente.", modifier = Modifier.padding(vertical = 8.dp))
-                }
             }
         }
     }
@@ -342,14 +375,46 @@ private fun airColor(status: String) = when (status) {
 private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) {
     item {
         val alerts = radarAlerts(radar)
-        RadarCard(alert = alerts.isNotEmpty()) {
-            SectionTitle(if (alerts.isEmpty()) "👁 NENHUM SINAL DE ALERTA AGORA" else "👁 SINAIS DE ALERTA AGORA", radar.generatedAt)
+        ArgosCard(
+            if (alerts.isEmpty()) "👁 NENHUM SINAL DE ALERTA AGORA" else "👁 SINAIS DE ALERTA AGORA",
+            alert = alerts.isNotEmpty(),
+            updated = radar.generatedAt,
+            info = "Dados de sensores, que costumam mostrar um ataque antes da primeira manchete. " +
+                "Apagões e espaço aéreo fechado também somam na tensão da região. " +
+                "Os cartões com alerta sobem para o topo; os calmos ficam recolhidos (toque para abrir).",
+        ) {
             alerts.forEach {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = Alert, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
             }
-            Note("Dados de sensores, que costumam mostrar um ataque antes da primeira manchete. Apagões e espaço aéreo fechado também somam na tensão da região.")
+            if (alerts.isEmpty()) {
+                Text("Internet, espaço aéreo, focos de calor, navios e aviões militares dentro do normal.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+            }
         }
     }
+    // Quem está em alerta sobe; o resto vem recolhido, na ordem de sempre.
+    val order = listOf(
+        "internet" to radar.internet?.countries.orEmpty().any { it.status == "apagao" || it.status == "queda" },
+        "airspace" to radar.airspace?.zones.orEmpty().any { it.status == "fechado" || it.status == "reduzido" },
+        "fires" to radar.fires?.zones.orEmpty().any { z -> z.baseline != null && z.baseline >= 3 && z.count >= 2 * z.baseline },
+        "straits" to radar.straits?.items.orEmpty().any { s -> s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6 },
+        "military" to radar.military?.zones.orEmpty().any { it.unusual },
+        "carriers" to (radar.carriers?.ships.orEmpty().count { it.lat in 10.0..40.0 && it.lon in 25.0..65.0 } >= 2),
+        "frontline" to ((radar.frontline?.change7dKm2 ?: 0L) > 50L),
+    ).sortedByDescending { it.second }
+    order.forEach { (key, _) ->
+        when (key) {
+            "internet" -> internetItem(radar, onRegion)
+            "airspace" -> airspaceItem(radar, onRegion)
+            "fires" -> firesItem(radar, onRegion)
+            "straits" -> straitsItem(radar, onRegion)
+            "military" -> militaryItem(radar)
+            "carriers" -> carriersItem(radar)
+            else -> frontlineItem(radar)
+        }
+    }
+}
+
+private fun LazyListScope.internetItem(radar: RadarData, onRegion: (String) -> Unit) {
     // Internet
     item {
         val section = radar.internet
@@ -358,8 +423,17 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             Unavailable("🌐 Internet", status)
             return@item
         }
-        RadarCard {
-            SectionTitle("🌐 INTERNET", section.updated, status)
+        val bad = section.countries.filter { it.status == "apagao" || it.status == "queda" }
+        ArgosCard(
+            "🌐 INTERNET",
+            alert = bad.isNotEmpty(),
+            source = "IODA",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: IODA (Georgia Tech). Compara a conectividade da última hora com as 24 h anteriores. Abaixo de 85% é queda; abaixo de 50%, apagão. Linha cinza = normal.",
+            collapsedSummary = if (bad.isEmpty()) "${section.countries.size} países · todos normais" else bad.joinToString(" · ") { "${it.name}: ${INTERNET_STATUS[it.status] ?: it.status}" },
+            startExpanded = bad.isNotEmpty(),
+        ) {
             section.countries.forEach { c ->
                 Row(
                     Modifier.fillMaxWidth().clickable(enabled = c.tag.isNotBlank()) { onRegion(c.tag) }.padding(vertical = 6.dp),
@@ -379,9 +453,11 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
                     Sparkline(c.spark, internetColor(c.status), Modifier.width(96.dp), baseline = 1.0)
                 }
             }
-            Note("Fonte: IODA (Georgia Tech). Compara a conectividade da última hora com as 24 h anteriores. Abaixo de 85% é queda; abaixo de 50%, apagão. Linha cinza = normal.")
         }
     }
+}
+
+private fun LazyListScope.airspaceItem(radar: RadarData, onRegion: (String) -> Unit) {
     // Espaço aéreo
     item {
         val section = radar.airspace
@@ -390,8 +466,17 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             Unavailable("✈ Espaço aéreo", status)
             return@item
         }
-        RadarCard {
-            SectionTitle("✈ ESPAÇO AÉREO", section.updated, status)
+        val shut = section.zones.filter { it.status == "fechado" || it.status == "reduzido" }
+        ArgosCard(
+            "✈ ESPAÇO AÉREO",
+            alert = shut.isNotEmpty(),
+            source = "OpenSky",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: OpenSky Network. Conta os aviões no ar sobre cada país e compara com o mesmo horário nos últimos 14 dias (nos primeiros 3 dias, ainda está aprendendo o normal). Menos de 25% do normal = fechado.",
+            collapsedSummary = if (shut.isEmpty()) "${section.zones.size} zonas · nenhuma fechada" else shut.joinToString(" · ") { "${it.name}: ${it.status}" },
+            startExpanded = shut.isNotEmpty(),
+        ) {
             section.zones.forEach { z ->
                 Row(
                     Modifier.fillMaxWidth().clickable(enabled = z.tag.isNotBlank()) { onRegion(z.tag) }.padding(vertical = 6.dp),
@@ -415,9 +500,11 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
                     }
                 }
             }
-            Note("Fonte: OpenSky Network. Conta os aviões no ar sobre cada país e compara com o mesmo horário nos últimos 14 dias (nos primeiros 3 dias, ainda está aprendendo o normal). Menos de 25% do normal = fechado.")
         }
     }
+}
+
+private fun LazyListScope.firesItem(radar: RadarData, onRegion: (String) -> Unit) {
     // Focos de calor
     item {
         val section = radar.fires
@@ -426,8 +513,21 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             Unavailable("🔥 Focos de calor", status)
             return@item
         }
-        RadarCard {
-            SectionTitle("🔥 FOCOS DE CALOR · 24 H", section.updated, status)
+        val hot = section.zones.filter { z -> z.baseline != null && z.baseline >= 3 && z.count >= 2 * z.baseline }
+        ArgosCard(
+            "🔥 FOCOS DE CALOR · 24 H",
+            alert = hot.isNotEmpty(),
+            source = "NASA FIRMS",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: NASA FIRMS (satélites VIIRS). Mostra calor intenso: explosões e incêndios, mas também queimadas agrícolas, fábricas e chamas de gás. Um salto repentino numa área de combate é o que interessa.",
+            collapsedSummary = when {
+                section.missingKey -> "falta a chave da NASA"
+                hot.isEmpty() -> "${fmt(section.zones.sumOf { it.count })} focos · dentro do normal"
+                else -> hot.joinToString(" · ") { "${it.name}: ${fmt(it.count)} (acima do normal)" }
+            },
+            startExpanded = hot.isNotEmpty() || section.missingKey,
+        ) {
             if (section.missingKey) {
                 Text(
                     "Falta a chave grátis da NASA (FIRMS_MAP_KEY) nos Secrets do repositório. " +
@@ -435,7 +535,7 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 6.dp),
                 )
-                return@RadarCard
+                return@ArgosCard
             }
             val openMap = LocalOpenMap.current
             section.zones.forEach { z ->
@@ -454,9 +554,11 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
                     if (z.points.isNotEmpty()) TextButton(onClick = { openMap("fires:${z.id}") }) { Text("Mapa") }
                 }
             }
-            Note("Fonte: NASA FIRMS (satélites VIIRS). Mostra calor intenso: explosões e incêndios, mas também queimadas agrícolas, fábricas e chamas de gás. Um salto repentino numa área de combate é o que interessa.")
         }
     }
+}
+
+private fun LazyListScope.straitsItem(radar: RadarData, onRegion: (String) -> Unit) {
     // Estreitos
     item {
         val section = radar.straits
@@ -465,8 +567,18 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             Unavailable("🚢 Estreitos", status)
             return@item
         }
-        RadarCard {
-            SectionTitle("🚢 NAVIOS NOS ESTREITOS", section.updated, status)
+        val low = section.items.filter { s -> s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6 }
+        ArgosCard(
+            "🚢 NAVIOS NOS ESTREITOS",
+            alert = low.isNotEmpty(),
+            source = "IMF PortWatch",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: IMF PortWatch (FMI), com dados de satélite dos navios (AIS). Média de passagens por dia na última semana; o FMI atualiza uma vez por semana, com alguns dias de atraso.",
+            collapsedSummary = if (low.isEmpty()) section.items.filter { it.avg7 != null }.joinToString(" · ") { "${it.name} ${it.avg7!!.toInt()}/dia" }
+            else low.joinToString(" · ") { "${it.name}: tráfego em queda" },
+            startExpanded = low.isNotEmpty(),
+        ) {
             section.items.forEach { s ->
                 Column(Modifier.fillMaxWidth().clickable(enabled = s.tag.isNotBlank()) { onRegion(s.tag) }.padding(vertical = 6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -488,11 +600,10 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
                     }
                 }
             }
-            Note("Fonte: IMF PortWatch (FMI), com dados de satélite dos navios (AIS). Média de passagens por dia na última semana; o FMI atualiza uma vez por semana, com alguns dias de atraso.")
         }
     }
-    militaryItems(radar)
 }
+
 
 private fun pct(now: Double?, before: Double): String {
     if (now == null || before <= 0) return ""
@@ -512,10 +623,14 @@ private fun LazyListScope.markets(radar: RadarData) {
             Unavailable("🛢 Cotações", status)
             return@item
         }
-        RadarCard {
-            SectionTitle("🛢 TERMÔMETRO DO MERCADO", section.updated, status)
+        ArgosCard(
+            "🛢 TERMÔMETRO DO MERCADO",
+            source = "EIA, Stooq, Yahoo e câmbio aberto",
+            updated = section.updated,
+            status = status,
+            info = "Fechamento do dia anterior ou cotação com atraso. Petróleo e ouro costumam subir com medo de guerra; shekel, rublo e hryvnia mostram como o mercado vê Israel, Rússia e Ucrânia.",
+        ) {
             section.items.forEach { QuoteRow(it) }
-            Note("Fontes: Stooq e Yahoo Finance (fechamento do dia anterior ou cotação com atraso) e câmbio aberto. Petróleo e ouro costumam subir com medo de guerra; shekel, rublo e hryvnia mostram como o mercado vê Israel, Rússia e Ucrânia.")
         }
     }
     item {
@@ -525,9 +640,14 @@ private fun LazyListScope.markets(radar: RadarData) {
             Unavailable("🎲 Mercados de previsão", status)
             return@item
         }
-        Column(Modifier.padding(top = 16.dp)) {
-            SectionTitle("🎲 O QUE OS APOSTADORES ACHAM", section.updated, status)
-            Note("Probabilidades do Polymarket: apostas com dinheiro real sobre as guerras. Não são previsões oficiais nem análises; mudam com boatos e podem ser manipuladas.")
+        ArgosCard(
+            "🎲 O QUE OS APOSTADORES ACHAM",
+            source = "Polymarket",
+            updated = section.updated,
+            status = status,
+            info = "Probabilidades do Polymarket: apostas com dinheiro real sobre as guerras. Não são previsões oficiais nem análises; mudam com boatos e podem ser manipuladas.",
+        ) {
+            Text("${section.events.size} apostas abertas sobre os conflitos acompanhados.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
         }
     }
     radar.predictions?.events?.let { events ->
@@ -618,8 +738,13 @@ private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, o
             return@item
         }
         if (human.palestine.isNotEmpty()) {
-            RadarCard {
-                SectionTitle("🩸 GAZA E CISJORDÂNIA", human.updated, radar?.status?.get("humanitarian"))
+            ArgosCard(
+                "🩸 GAZA E CISJORDÂNIA",
+                source = "Tech for Palestine",
+                updated = human.updated,
+                status = radar?.status?.get("humanitarian"),
+                info = "Números do Ministério da Saúde de Gaza (ligado ao Hamas) e da ONU (OCHA), compilados pelo projeto Tech for Palestine. Não separam civis de combatentes; Israel contesta parte deles.",
+            ) {
                 human.palestine.groupBy { it.region }.forEach { (region, figures) ->
                     Text(
                         regionLabel(region) + (figures.firstOrNull()?.date?.takeIf { it.isNotBlank() }?.let { " · até ${dayLabel(it)}" } ?: ""),
@@ -634,12 +759,15 @@ private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, o
                         }
                     }
                 }
-                Note("Números do Ministério da Saúde de Gaza (ligado ao Hamas) e da ONU (OCHA), compilados pelo projeto Tech for Palestine. Não separam civis de combatentes; Israel contesta parte deles.")
             }
         }
         if (human.idps.isNotEmpty()) {
-            RadarCard {
-                SectionTitle("🏚 DESLOCADOS DENTRO DO PRÓPRIO PAÍS", human.updated)
+            ArgosCard(
+                "🏚 DESLOCADOS DENTRO DO PRÓPRIO PAÍS",
+                source = "ONU (HDX HAPI)",
+                updated = human.updated,
+                info = "Fonte: ONU (HDX HAPI, com dados da OIM e do ACNUR). Levantamentos periódicos; a data de cada país aparece embaixo do nome.",
+            ) {
                 human.idps.sortedByDescending { it.value }.forEach { d ->
                     Row(
                         Modifier.fillMaxWidth().clickable(enabled = d.tag.isNotBlank()) { onRegion(d.tag) }.padding(vertical = 4.dp),
@@ -654,7 +782,6 @@ private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, o
                         Text(fmt(d.value), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                     }
                 }
-                Note("Fonte: ONU (HDX HAPI, com dados da OIM e do ACNUR). Levantamentos periódicos; a data de cada país aparece embaixo do nome.")
             }
         }
     }
@@ -665,12 +792,13 @@ private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, o
             if (radar != null) Unavailable("🇺🇦 Perdas declaradas", radar.status["losses"])
             return@item
         }
-        RadarCard {
-            SectionTitle(
-                "🇺🇦 PERDAS RUSSAS SEGUNDO A UCRÂNIA" + (losses.day?.let { " · DIA ${fmt(it)}" } ?: ""),
-                losses.updated,
-                radar?.status?.get("losses"),
-            )
+        ArgosCard(
+            "🇺🇦 PERDAS RUSSAS SEGUNDO A UCRÂNIA" + (losses.day?.let { " · DIA ${fmt(it)}" } ?: ""),
+            source = "Estado-Maior da Ucrânia" + if (losses.date.isNotBlank()) " · ${dayLabel(losses.date)}" else "",
+            updated = losses.updated,
+            status = radar?.status?.get("losses"),
+            info = "Números do Estado-Maior da Ucrânia, divulgados todo dia. É a versão de um dos lados, sem verificação independente; a Rússia não divulga as próprias perdas.",
+        ) {
             losses.items.forEach { l ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     Text(l.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -683,13 +811,12 @@ private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, o
                     )
                 }
             }
-            Note("Números do Estado-Maior da Ucrânia (${if (losses.date.isNotBlank()) dayLabel(losses.date) else "último boletim"}), divulgados todo dia. É a versão de um dos lados, sem verificação independente; a Rússia não divulga as próprias perdas.")
         }
     }
 }
 
 @Composable
-private fun HostagesCard(onOpen: (String) -> Unit) {
+fun HostagesCard(onOpen: (String) -> Unit) {
     val repo = LocalContext.current.repository
     val feed by repo.feed.collectAsStateWithLifecycle()
     val terms = remember { HOSTAGE_TERMS.map(::normalize) }
@@ -699,8 +826,7 @@ private fun HostagesCard(onOpen: (String) -> Unit) {
             terms.any { it in text }
         }.take(5)
     }
-    RadarCard {
-        SectionTitle("🎗 REFÉNS DO 7 DE OUTUBRO")
+    ArgosCard("🎗 REFÉNS DO 7 DE OUTUBRO", info = HOSTAGES_DISCLAIMER) {
         Text("$HOSTAGES_TAKEN levados para Gaza", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
         HOSTAGE_TIMELINE.forEach { step ->
             Row(Modifier.padding(top = 6.dp)) {
@@ -708,7 +834,6 @@ private fun HostagesCard(onOpen: (String) -> Unit) {
                 Text(step.text, style = MaterialTheme.typography.bodySmall)
             }
         }
-        Note(HOSTAGES_DISCLAIMER)
         if (news.isNotEmpty()) {
             Text("NAS NOTÍCIAS AGORA", style = MaterialTheme.typography.labelSmall, color = Accent, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
             news.forEach { c ->
@@ -778,8 +903,14 @@ private fun FactcheckLinks(item: RadarItem, onOpen: (String) -> Unit) {
 @Composable
 private fun CrisisWatchCard(cw: CrisisWatchSection, status: SectionStatus?, onRegion: (String) -> Unit) {
     val context = LocalContext.current
-    RadarCard {
-        SectionTitle("📉 CRISISWATCH" + if (cw.month.isNotBlank()) " · ${cw.month.uppercase()}" else "", cw.updated, status)
+    ArgosCard(
+        "📉 CRISISWATCH" + if (cw.month.isNotBlank()) " · ${cw.month.uppercase()}" else "",
+        alert = cw.deteriorated.isNotEmpty() || cw.risk.isNotEmpty(),
+        source = "International Crisis Group",
+        updated = cw.updated,
+        status = status,
+        info = "Avaliação mensal do International Crisis Group sobre ~70 conflitos. Leitura automática da página; confira no site.",
+    ) {
         @Composable
         fun group(label: String, list: List<CwCountry>, color: Color) {
             if (list.isEmpty()) return
@@ -807,7 +938,6 @@ private fun CrisisWatchCard(cw: CrisisWatchSection, status: SectionStatus?, onRe
                 Text("Nenhum dos conflitos acompanhados pelo Argos mudou de tendência neste mês.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
             }
         }
-        Note("Avaliação mensal do International Crisis Group sobre ~70 conflitos. Leitura automática da página; confira no site.")
         if (cw.url.isNotBlank()) TextButton(onClick = { openUrl(context, cw.url) }) { Text("Abrir o CrisisWatch") }
     }
 }
@@ -823,8 +953,7 @@ private fun LazyListScope.contextTab(onRegion: (String) -> Unit) {
         val today = LocalDate.now()
         val past = onThisDay(today)
         if (past.isNotEmpty()) {
-            RadarCard {
-                SectionTitle("📜 NESTE DIA")
+            ArgosCard("📜 NESTE DIA") {
                 past.forEach { (tag, m) ->
                     Text(
                         "${m.date} · ${regionLabel(tag)}: ${m.text}",
@@ -834,8 +963,10 @@ private fun LazyListScope.contextTab(onRegion: (String) -> Unit) {
                 }
             }
         }
-        RadarCard {
-            SectionTitle("📅 AGENDA · PRÓXIMOS 4 MESES")
+        ArgosCard(
+            "📅 AGENDA · PRÓXIMOS 4 MESES",
+            info = "Datas que costumam mexer com as guerras: aniversários de ataques, feriados religiosos, eleições. Feriados islâmicos dependem da lua e podem variar um dia.",
+        ) {
             upcomingAgenda(today).forEach { e ->
                 Column(
                     Modifier.fillMaxWidth().clickable(enabled = e.tag != null) { e.tag?.let(onRegion) }.padding(vertical = 6.dp),
@@ -854,7 +985,6 @@ private fun LazyListScope.contextTab(onRegion: (String) -> Unit) {
                     Text(e.text + (e.tag?.let { " (${regionLabel(it)})" } ?: ""), style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            Note("Datas que costumam mexer com as guerras: aniversários de ataques, feriados religiosos, eleições. Feriados islâmicos dependem da lua e podem variar um dia.")
         }
     }
     item { CapitalsCard() }
@@ -872,8 +1002,7 @@ private fun CapitalsCard() {
             now = Instant.now()
         }
     }
-    RadarCard {
-        SectionTitle("🕰 HORA NAS CAPITAIS")
+    ArgosCard("🕰 HORA NAS CAPITAIS", info = "Muitos ataques aéreos e com drones acontecem de madrugada no horário local.") {
         CAPITALS.forEach { c ->
             val zone = runCatching { ZoneId.of(c.zone) }.getOrDefault(ZoneId.of("UTC"))
             val local = now.atZone(zone)
@@ -892,19 +1021,17 @@ private fun CapitalsCard() {
                 Text(hhmm.format(local), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
-        Note("Muitos ataques aéreos e com drones acontecem de madrugada no horário local.")
     }
 }
 
 @Composable
-private fun PowerCards() {
+fun PowerCards(only: String? = null) {
     var person by remember { mutableStateOf<Actor?>(null) }
     person?.let { ActorContextDialog(it, onOpen = null) { person = null } }
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
-    RadarCard {
-        SectionTitle("🧭 QUEM MANDA EM CADA LADO")
-        POWER.forEach { side ->
-            val open = expanded == side.title
+    ArgosCard("🧭 QUEM MANDA" + if (only == null) " EM CADA LADO" else "", info = "$POWER_DISCLAIMER $CONTEXT_DISCLAIMER") {
+        POWER.filter { only == null || it.tag == only }.forEach { side ->
+            val open = expanded == side.title || only != null
             Row(
                 Modifier.fillMaxWidth().clickable { expanded = if (open) null else side.title }.padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -938,7 +1065,6 @@ private fun PowerCards() {
             }
             HorizontalDivider()
         }
-        Note("$POWER_DISCLAIMER $CONTEXT_DISCLAIMER")
     }
 }
 
@@ -947,7 +1073,7 @@ private fun PowerCards() {
 // Olhos militares: aviões, porta-aviões e linha de frente
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.militaryItems(radar: RadarData) {
+private fun LazyListScope.militaryItem(radar: RadarData) {
     item {
         val section = radar.military
         val status = radar.status["military"]
@@ -956,8 +1082,18 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
             return@item
         }
         val openMap = LocalOpenMap.current
-        RadarCard {
-            SectionTitle("✈ AVIÕES MILITARES NO AR", section.updated, status)
+        val unusual = section.zones.filter { it.unusual }
+        ArgosCard(
+            "✈ AVIÕES MILITARES NO AR",
+            alert = unusual.isNotEmpty(),
+            source = "adsb.lol",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: adsb.lol (receptores de rádio voluntários). \"Que importam\" = reabastecedores, aviões-radar, espionagem/drones e bombardeiros: quando se juntam acima do normal, costuma vir operação. Muitos voam com transponder desligado; o número é um mínimo.",
+            collapsedSummary = if (unusual.isEmpty()) section.zones.joinToString(" · ") { "${it.name}: ${it.count}" } + " · normal"
+            else unusual.joinToString(" · ") { "${it.name}: acima do normal" },
+            startExpanded = unusual.isNotEmpty(),
+        ) {
             section.zones.forEach { z ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -981,9 +1117,11 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
                     if (z.aircraft.isNotEmpty()) TextButton(onClick = { openMap("military:${z.id}") }) { Text("Mapa") }
                 }
             }
-            Note("Fonte: adsb.lol (receptores de rádio voluntários). \"Que importam\" = reabastecedores, aviões-radar, espionagem/drones e bombardeiros: quando se juntam acima do normal, costuma vir operação. Muitos voam com transponder desligado; o número é um mínimo.")
         }
     }
+}
+
+private fun LazyListScope.carriersItem(radar: RadarData) {
     item {
         val section = radar.carriers
         val status = radar.status["carriers"]
@@ -993,9 +1131,16 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
         }
         val context = LocalContext.current
         val openMap = LocalOpenMap.current
-        RadarCard {
-            SectionTitle("⚓ PORTA-AVIÕES DOS EUA", section.updated, status)
-            val nearby = section.ships.count { it.lat in 10.0..40.0 && it.lon in 25.0..65.0 }
+        val nearby = section.ships.count { it.lat in 10.0..40.0 && it.lon in 25.0..65.0 }
+        ArgosCard(
+            "⚓ PORTA-AVIÕES DOS EUA",
+            source = "USNI News",
+            updated = section.updated,
+            status = status,
+            info = "Posição aproximada pelo texto do acompanhamento semanal da frota (USNI News): região, não coordenada exata. Pode estar alguns dias atrasada.",
+            collapsedSummary = "$nearby no Oriente Médio e arredores · ${section.ships.size} no total",
+            startExpanded = nearby >= 2,
+        ) {
             Text(
                 "$nearby no Oriente Médio e arredores",
                 style = MaterialTheme.typography.titleMedium,
@@ -1013,9 +1158,11 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
                 TextButton(onClick = { openMap("carriers") }) { Text("Ver no mapa") }
                 if (section.url.isNotBlank()) TextButton(onClick = { openUrl(context, section.url) }) { Text("Relatório da semana") }
             }
-            Note("Posição aproximada pelo texto do acompanhamento semanal da frota (USNI News): região, não coordenada exata. Pode estar alguns dias atrasada.")
         }
     }
+}
+
+private fun LazyListScope.frontlineItem(radar: RadarData) {
     item {
         val section = radar.frontline
         val status = radar.status["frontline"]
@@ -1025,8 +1172,21 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
         }
         val repo = LocalContext.current.repository
         val openMap = LocalOpenMap.current
-        RadarCard {
-            SectionTitle("🗺 LINHA DE FRENTE NA UCRÂNIA", section.updated, status)
+        val weekChange = section.change7dKm2
+        ArgosCard(
+            "🗺 LINHA DE FRENTE NA UCRÂNIA",
+            source = "DeepStateMap",
+            updated = section.updated,
+            status = status,
+            info = "Fonte: DeepStateMap, mapa ucraniano independente atualizado todo dia a partir de fotos e vídeos verificados. A área é calculada pelo Argos a partir do desenho.",
+            collapsedSummary = "Ocupado: ${formatKm2(section.occupiedKm2)}" + when {
+                weekChange == null -> ""
+                weekChange > 0 -> " · Rússia +${formatKm2(weekChange)} em 7 dias"
+                weekChange < 0 -> " · Ucrânia retomou ${formatKm2(-weekChange)}"
+                else -> " · sem mudança em 7 dias"
+            },
+            startExpanded = false,
+        ) {
             CountUpText(
                 section.occupiedKm2,
                 MaterialTheme.typography.titleMedium,
@@ -1059,7 +1219,6 @@ private fun LazyListScope.militaryItems(radar: RadarData) {
                 )
             }
             TextButton(onClick = { openMap("frontline") }) { Text("Ver a frente no mapa") }
-            Note("Fonte: DeepStateMap, mapa ucraniano independente atualizado todo dia a partir de fotos e vídeos verificados. A área é calculada pelo Argos a partir do desenho.")
         }
     }
 }

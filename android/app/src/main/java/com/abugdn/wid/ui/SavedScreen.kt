@@ -33,25 +33,73 @@ import com.abugdn.wid.repository
 
 private const val NO_FOLDER = "\u0000sem-pasta"
 
-/** Aba Salvos: notícias salvas, dossiês e minhas previsões. [initialSub]: 0, 1 ou 2. */
+/** Sub-abas da Biblioteca, na ordem dos atalhos "library:N". */
+private val LIBRARY_TABS = listOf("★ Salvos", "🗂 Dossiês", "🎯 Previsões", "📅 Arquivo", "👁 Lidas")
+
+/**
+ * Aba Biblioteca: tudo o que fica guardado. Salvos, dossiês, previsões, o arquivo com a
+ * principal de cada dia e as notícias lidas nos últimos 30 dias.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SavedScreen(onOpen: (String) -> Unit, initialSub: Int = 0) {
-    var sub by rememberSaveable(initialSub) { mutableStateOf(initialSub) }
+fun LibraryScreen(onOpen: (String) -> Unit, sub: Int, onSub: (Int) -> Unit) {
     Scaffold(
         contentWindowInsets = NoInsets,
-        topBar = { TopAppBar(title = { Text("Salvos", fontWeight = FontWeight.Bold) }) },
+        topBar = { TopAppBar(title = { Text("Biblioteca", fontWeight = FontWeight.Bold) }) },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = sub) {
-                Tab(selected = sub == 0, onClick = { sub = 0 }, text = { Text("★ Notícias") })
-                Tab(selected = sub == 1, onClick = { sub = 1 }, text = { Text("🗂 Dossiês") })
-                Tab(selected = sub == 2, onClick = { sub = 2 }, text = { Text("🎯 Previsões") })
+            androidx.compose.material3.ScrollableTabRow(selectedTabIndex = sub, edgePadding = 8.dp) {
+                LIBRARY_TABS.forEachIndexed { i, label ->
+                    Tab(selected = sub == i, onClick = { onSub(i) }, text = { Text(label) })
+                }
             }
             when (sub) {
                 1 -> DossiersTab(onOpen)
                 2 -> PredictionsTab()
+                3 -> ArchiveTab(onOpen)
+                4 -> ReadTab(onOpen)
                 else -> SavedNews(onOpen)
+            }
+        }
+    }
+}
+
+/** Notícias abertas nos últimos 30 dias, do dia mais recente para o mais antigo. */
+@Composable
+private fun ReadTab(onOpen: (String) -> Unit) {
+    val repo = LocalContext.current.repository
+    val log by repo.readLog.collectAsStateWithLifecycle()
+    val feed by repo.feed.collectAsStateWithLifecycle()
+    val saved by repo.saved.collectAsStateWithLifecycle()
+    val archive by repo.archive.collectAsStateWithLifecycle()
+    val days = androidx.compose.runtime.remember(log, feed, saved, archive) {
+        log.sortedByDescending { it.day }.distinctBy { it.id }
+            .mapNotNull { e -> repo.cluster(e.id)?.let { e.day to it } }
+            .groupBy({ it.first }, { it.second })
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        if (days.isEmpty()) {
+            item {
+                Text(
+                    "Nada por aqui ainda. Notícias que você abrir ficam listadas por 30 dias " +
+                        "(as que já saíram do feed e não foram salvas não aparecem).",
+                    modifier = Modifier.padding(24.dp),
+                )
+            }
+        }
+        days.forEach { (day, clusters) ->
+            item(key = "d$day") {
+                Text(
+                    dayLabel(java.time.LocalDate.ofEpochDay(day).toString()).uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Accent,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(start = 16.dp, top = 12.dp),
+                )
+            }
+            items(clusters, key = { "r$day-" + it.id }) { c ->
+                ClusterRow(c, onOpen)
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }

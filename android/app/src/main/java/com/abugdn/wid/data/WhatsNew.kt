@@ -11,6 +11,21 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        32,
+        listOf(
+            "🗂 App mais organizado:",
+            "🏠 Tela Hoje mais enxuta: um painel de mini-cartões (Relógio, Radar, O dia em 1 minuto, trégua, agenda, vigília) que rola de lado, e as notícias logo depois.",
+            "🧩 Monte a tela Hoje: em Ajustes → Tela Hoje, ligue, desligue e mude a ordem dos blocos e dos mini-cartões.",
+            "📰 Notícia em três abas: Texto · Cobertura (lados, números, manchetes alteradas, linha do tempo) · Contexto (pessoas, saga, Radar da região).",
+            "📚 Arquivo e Salvos viraram a aba Biblioteca: Salvos, Dossiês, Previsões, Arquivo e Lidas.",
+            "🧰 Ferramentas: tudo do Argos num lugar só (botão 🔧 na tela Hoje). A busca também acha telas: experimente “petróleo” ou “reféns”.",
+            "📡 Radar por prioridade: “o que mudou desde a última visita” no topo, cartões em alerta primeiro e os calmos recolhidos.",
+            "🌍 Página da região virou a central: atalhos para o mapa e o Radar, quem manda, reféns, agenda, apostas e vozes oficiais.",
+            "⚙ Ajustes em categorias, com busca. Novo: Aparência → Reduzir animações.",
+            "ⓘ Cartões padronizados: mesmo cabeçalho com fonte e hora, e a explicação no ⓘ.",
+        ),
+    ),
+    ChangelogEntry(
         30,
         listOf(
             "👁 Abertura com o olho do Argos se abrindo.",

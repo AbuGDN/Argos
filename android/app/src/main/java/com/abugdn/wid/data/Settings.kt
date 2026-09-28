@@ -38,9 +38,18 @@ data class Settings(
     val blurSensitive: Boolean = true,
     /** Aviso do Radar: apagão de internet ou espaço aéreo fechado. */
     val notifyRadar: Boolean = true,
-    /** Faixa de manchetes rolando no topo da tela Hoje. */
-    val showTicker: Boolean = true,
+    /** Blocos da tela Hoje na ordem escolhida (ids de [HOME_BLOCKS]) e os escondidos. */
+    val homeOrder: List<String> = HOME_BLOCKS.keys.toList(),
+    val homeHidden: Set<String> = emptySet(),
+    /** Mini-cartões do painel da tela Hoje (ids de [PANEL_ITEMS]) e os escondidos. */
+    val panelOrder: List<String> = PANEL_ITEMS.keys.toList(),
+    val panelHidden: Set<String> = emptySet(),
+    /** Desliga as animações do Argos mesmo com as do Android ligadas. */
+    val reduceMotion: Boolean = false,
 ) {
+    /** Faixa de manchetes rolando no topo da tela Hoje. */
+    val showTicker: Boolean get() = "ticker" !in homeHidden
+
     fun matchesRegion(tags: List<String>) = regions.isEmpty() || tags.any { it in regions }
 
     fun isQuiet(now: LocalTime = LocalTime.now()): Boolean {
@@ -77,7 +86,11 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("s_reader_wide", next.readerWide)
             .putBoolean("s_blur", next.blurSensitive)
             .putBoolean("s_notify_radar", next.notifyRadar)
-            .putBoolean("s_ticker", next.showTicker)
+            .putString("s_home_order", next.homeOrder.joinToString(","))
+            .putStringSet("s_home_hidden", next.homeHidden)
+            .putString("s_panel_order", next.panelOrder.joinToString(","))
+            .putStringSet("s_panel_hidden", next.panelHidden)
+            .putBoolean("s_reduce_motion", next.reduceMotion)
             .apply()
         _state.value = next
         onChange?.invoke(next)
@@ -106,8 +119,47 @@ class SettingsStore(private val prefs: SharedPreferences) {
         readerWide = prefs.getBoolean("s_reader_wide", false),
         blurSensitive = prefs.getBoolean("s_blur", true),
         notifyRadar = prefs.getBoolean("s_notify_radar", true),
-        showTicker = prefs.getBoolean("s_ticker", true),
+        homeOrder = orderOf(prefs.getString("s_home_order", null), HOME_BLOCKS.keys),
+        // Quem desligou a faixa de manchetes antes (ajuste antigo) continua sem ela.
+        homeHidden = prefs.getStringSet("s_home_hidden", null)?.toSet()
+            ?: if (prefs.getBoolean("s_ticker", true)) emptySet() else setOf("ticker"),
+        panelOrder = orderOf(prefs.getString("s_panel_order", null), PANEL_ITEMS.keys),
+        panelHidden = prefs.getStringSet("s_panel_hidden", emptySet())!!.toSet(),
+        reduceMotion = prefs.getBoolean("s_reduce_motion", false),
     )
+
+    /** Ordem salva + blocos novos que surgirem em versões futuras (no fim). */
+    private fun orderOf(saved: String?, all: Set<String>): List<String> {
+        val list = saved?.split(',')?.filter { it in all }.orEmpty()
+        return list + all.filter { it !in list }
+    }
+}
+
+/** Blocos que dá para mover e esconder na tela Hoje. */
+val HOME_BLOCKS = linkedMapOf(
+    "ticker" to "Faixa de manchetes",
+    "panel" to "Painel (Relógio, alertas e atalhos)",
+    "filters" to "Filtros por região",
+    "top" to "Principal do dia",
+)
+
+/** Mini-cartões do painel da tela Hoje. */
+val PANEL_ITEMS = linkedMapOf(
+    "clock" to "Relógio do Argos",
+    "radar" to "Alertas do Radar",
+    "story" to "O dia em 1 minuto",
+    "truce" to "Trégua",
+    "agenda" to "Próxima data da agenda",
+    "vigil" to "Último registro da vigília",
+    "tools" to "Ferramentas",
+)
+
+/** Move [id] uma posição para cima (-1) ou para baixo (+1). */
+fun List<String>.moved(id: String, by: Int): List<String> {
+    val i = indexOf(id)
+    val j = i + by
+    if (i < 0 || j !in indices) return this
+    return toMutableList().also { it[i] = it[j]; it[j] = id }
 }
 
 private val MARKS = Regex("\\p{M}+")

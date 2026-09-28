@@ -343,6 +343,23 @@ class Repository(context: Context) {
         }
     }
 
+    /** Retrato do Radar na última visita à aba (para "o que mudou desde a última vez"). */
+    fun radarSeen(): Pair<Map<String, String>, Long> {
+        val prefs = storage.prefs
+        val map = runCatching {
+            json.decodeFromString<Map<String, String>>(prefs.getString("radar_seen", null) ?: return@runCatching emptyMap())
+        }.getOrDefault(emptyMap())
+        return map to prefs.getLong("radar_seen_at", 0)
+    }
+
+    fun markRadarSeen() {
+        val r = _radar.value ?: return
+        storage.prefs.edit()
+            .putString("radar_seen", json.encodeToString(radarFingerprint(r)))
+            .putLong("radar_seen_at", System.currentTimeMillis())
+            .apply()
+    }
+
     /** Última versão cujas novidades a pessoa confirmou com "não mostrar de novo". */
     private fun changelogSeen(): Long {
         val prefs = storage.prefs
