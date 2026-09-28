@@ -1,5 +1,0 @@
-https://api.adsb.lol/v2/mil	"flight"	400
-https://api.airplanes.live/v2/mil	"flight"	400
-https://news.usni.org/category/fleet-tracker/feed	Tracker|Carrier|carrier	500
-https://deepstatemap.live/api/history/public	id	300
-https://deepstatemap.live/api/history/last	occupied|Feature|name	400
