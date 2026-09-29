@@ -236,6 +236,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                         }
                     }
                     2 -> {
+                        UnderstandCard(cluster, onRegion)
                         ContextChips(cluster, onOpen, onRegion)
                         Text(
                             "Toque numa pessoa, grupo, arma ou região para abrir o cartão.",

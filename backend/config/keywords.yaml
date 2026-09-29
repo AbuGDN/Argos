@@ -206,6 +206,16 @@ boost:
   siria: 1.1
   eua: 1.2
 
+# Temas (atravessam as regiões): aparecem como filtro e página própria no app. Não mexem na relevância.
+topics:
+  nuclear: [nuclear, nucleares, urânio, uranium, enriquecimento de urânio, uranium enrichment, aiea, iaea, ogiva*, warhead*, fordow, natanz, dimona, גרעין*, نووي*, النووي*]
+  drones: [drone*, shahed, uav, uavs, vant, vants, רחפן*, כטבם, مسيرة, مسيرات]
+  misseis: [míssil, mísseis, missile*, balístico*, balística*, ballistic, interceptor*, interceptação, interception*, domo de ferro, iron dome, arrow 3, thaad, patriot, טיל*, יירוט*, صاروخ*, صواريخ, اعتراض]
+  refens: [refém, reféns, hostage*, sequestrado*, sequestrada*, abducted, חטופ*, רהינ*, رهائن, الرهائن, الاسرى]
+  humanitario: [ajuda humanitária, humanitarian, fome, famine, starvation, desnutrição, malnutrition, refugiado*, refugee*, deslocado*, displaced, unrwa, crise humanitária, مساعدات, مجاعة, نازح*, סיוע הומניטרי]
+  navios: [navio*, ship, ships, shipping, vessel*, tanker*, petroleiro*, cargueiro*, frota, fleet, flotilha, flotilla, estreito de ormuz, strait of hormuz, bab el-mandeb, mar vermelho, red sea, canal de suez, suez canal, ספינ*, سفينة, سفن]
+  ciber: [ciberataque*, cyberattack*, cyber-attack*, cyber attack*, hacker*, ransomware, ataque hacker, cibernético*, cyber, סייבר, سيبراني*, الكتروني]
+
 # Tags que bastam sozinhas para a notícia entrar (sem termo de guerra) e tags que não contam como
 # região no filtro (precisam de outra região ou de 2 termos de guerra). Nenhuma das duas entra no
 # Relógio do Argos (não são frentes de guerra).

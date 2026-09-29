@@ -304,6 +304,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                         s.blurSensitive,
                     ) { update { st -> st.copy(blurSensitive = it) } }
 
+                    Section("Lista de notícias")
+                    Toggle(
+                        "Modo manchetes",
+                        "A tela Hoje mostra só os títulos, sem foto nem resumo, para passar rápido pelo dia",
+                        s.headlinesOnly,
+                    ) { update { st -> st.copy(headlinesOnly = it) } }
+
                     Section("Privacidade")
                     Toggle(
                         "Contar meu uso (anônimo)",

@@ -11,6 +11,21 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        42,
+        listOf(
+            "🇺🇦 Placar aéreo da Ucrânia: drones e mísseis lançados pela Rússia por noite e quantos foram abatidos, com gráfico de 30 dias (Radar → Números e página da região).",
+            "🇺🇳 Conselho de Segurança da ONU: reuniões, resoluções aprovadas, vetos (e quem vetou) e votações previstas (Radar → Vozes).",
+            "🌦 Tempo nas zonas de conflito: vento, chuva, neve, neblina e tempestade de areia em Gaza, Kiev, Cartum e outros pontos (Radar → Sensores).",
+            "⏰ Sirenes por hora do dia: em que horários os alertas mais tocaram em Israel na semana (tela Sirenes).",
+            "🏷 Temas: nuclear, drones, mísseis, reféns, humanitário, navios e ciberataques, com página própria (chips na tela Hoje).",
+            "📰 Modo manchetes: a lista mostra só os títulos (Ajustes → Lista de notícias).",
+            "🎓 Entenda o contexto: na notícia, atalho para a lição do Curso e os marcos da região.",
+            "✔ Aviso quando uma história que você segue é confirmada por várias fontes ou fica com informações conflitantes.",
+            "🧩 Dois widgets novos: próximo ultimato (contagem regressiva) e sirenes em Israel.",
+            "🗓 Boletim mensal: os últimos 30 dias em imagem para compartilhar (Ferramentas → Resumos).",
+        ),
+    ),
+    ChangelogEntry(
         41,
         listOf(
             "🔍 Busca com filtros: região:irã, fonte:g1, lado:árabe, depois:01/09, antes:15/09, tipo:urgente (ou conflito, confirmado, umlado, alterada). Agora ela procura também no Arquivo.",

@@ -29,6 +29,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         }
         Notifier.handle(applicationContext, feed)
         Notifier.followed(applicationContext, repo.followUpdates(feed))
+        Notifier.trustChanges(applicationContext, feed)
         Notifier.spikes(applicationContext, feed)
         Notifier.clock(applicationContext, feed)
         Notifier.radar(applicationContext, repo.radar.value)
@@ -39,6 +40,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         CompactWidget().updateAll(applicationContext)
         RegionWidget().updateAll(applicationContext)
         ClockWidget().updateAll(applicationContext)
+        com.abugdn.wid.widget.DeadlineWidget().updateAll(applicationContext)
+        com.abugdn.wid.widget.SirensWidget().updateAll(applicationContext)
         // Com economia de dados, textos completos antecipados só fora da rede móvel.
         val metered = applicationContext.getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered
         if (!repo.settings.value.dataSaver || !metered) runCatching { repo.prefetch(feed) }

@@ -186,6 +186,7 @@ private fun App(
     var toolsOpen by rememberSaveable { mutableStateOf(false) }
     // Telas avulsas: "sirens", "deadlines", "scale", "course".
     var page by rememberSaveable { mutableStateOf<String?>(null) }
+    var pageArg by rememberSaveable { mutableStateOf("") }
     var librarySub by rememberSaveable { mutableIntStateOf(0) }
     var radarTab by rememberSaveable { mutableIntStateOf(0) }
     // Mais de 24 h sem abrir: mostra o que a pessoa perdeu (uma vez por abertura).
@@ -216,7 +217,9 @@ private fun App(
             "vigil" -> { closeAll(); vigilOpen = true }
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
-            "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy" -> { closeAll(); page = route.substringBefore(':') }
+            "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy", "topic", "monthly" -> {
+                closeAll(); page = route.substringBefore(':'); pageArg = arg
+            }
             "settings" -> { closeAll(); settingsOpen = true }
             "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
             "region" -> { closeAll(); regionOpen = arg }
@@ -330,8 +333,10 @@ private fun App(
                         "compare" -> CompareScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
                         "sources" -> SourcesStatusScreen(onBack = { page = null })
                         "alliances" -> AlliancesScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        "topic" -> TopicScreen(pageArg, onBack = { page = null }, onOpen = { onOpenCluster(it) })
+                        "monthly" -> MonthlyScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
                         "diplomacy" -> DiplomacyScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) }, onRegion = { page = null; regionOpen = it })
-                        else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it }, initial = pageArg.ifBlank { null })
                     }
                 }
                 regionOpen != null -> {

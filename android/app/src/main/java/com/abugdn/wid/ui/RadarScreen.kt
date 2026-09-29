@@ -167,7 +167,7 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
                     0 -> data?.let { sensors(it, onRegion) }
                     1 -> data?.let { markets(it) }
                     2 -> numbers(data, onOpen, onRegion)
-                    3 -> data?.let { voices(it) }
+                    3 -> data?.let { voices(it, onRegion) }
                     4 -> data?.let { analysis(it, onOpen, onRegion) }
                     else -> contextTab(data, onRegion)
                 }
@@ -424,6 +424,7 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             else -> frontlineItem(radar)
         }
     }
+    item { WeatherCard(radar, onRegion) }
 }
 
 private fun LazyListScope.internetItem(radar: RadarData, onRegion: (String) -> Unit) {
@@ -743,6 +744,7 @@ private fun PredictionCard(e: PredictionEvent) {
 // ---------------------------------------------------------------------------
 
 private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
+    item { AirwarCard(onOpen) }
     val human = radar?.humanitarian
     item {
         if (human == null) {
@@ -863,7 +865,8 @@ fun HostagesCard(onOpen: (String) -> Unit) {
 // Vozes
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.voices(radar: RadarData) {
+private fun LazyListScope.voices(radar: RadarData, onRegion: (String) -> Unit) {
+    item { UnscCard(radar, onRegion) }
     feedSection(
         "🏛 Fontes oficiais", radar.official, radar.status["official"],
         "O que governos, Forças Armadas e a ONU dizem nos próprios canais, sem intermediário. É a versão de quem publica: compare com a imprensa.",

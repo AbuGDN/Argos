@@ -114,6 +114,18 @@ data class Cluster(
     val confidence: Confidence? = null,
     /** Primeira aparição em cada imprensa, em ordem. */
     val spread: List<SpreadStep> = emptyList(),
+    /** Temas (nuclear, drones, mísseis, reféns, humanitário, navios, ciber). */
+    val topics: List<String> = emptyList(),
+)
+
+val TOPIC_LABELS = linkedMapOf(
+    "nuclear" to "☢ Nuclear",
+    "drones" to "🛸 Drones",
+    "misseis" to "🚀 Mísseis e defesa aérea",
+    "refens" to "🎗 Reféns",
+    "humanitario" to "🩹 Humanitário",
+    "navios" to "🚢 Navios e rotas",
+    "ciber" to "💻 Ciberataques",
 )
 
 @Serializable

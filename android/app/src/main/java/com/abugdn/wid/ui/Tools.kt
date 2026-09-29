@@ -67,6 +67,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     "Resumos" to listOf(
         Tool("story", "▶", "O dia em 1 minuto", "As 5 principais em tela cheia", "resumo stories"),
         Tool("bulletin", "🗞", "Boletim semanal", "As principais da semana em imagem para compartilhar", "semana imagem"),
+        Tool("monthly", "🗓", "Boletim mensal", "Os últimos 30 dias em imagem: Relógio, principais e regiões mais tensas", "mes mensal imagem resumo"),
         Tool("library:3", "📅", "Arquivo e Sua semana", "A principal de cada dia, suas leituras e quem noticia primeiro", "historico dias ranking primeiro"),
     ),
     "Mapas" to listOf(
@@ -82,6 +83,9 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     "Radar" to listOf(
         Tool("radar:1", "🛢", "Mercados", "Petróleo, ouro, moedas e apostas sobre as guerras", "cotacao petroleo brent ouro polymarket"),
         Tool("radar:2", "🩸", "Números", "Gaza, deslocados, reféns e perdas russas", "mortos refens humanitario perdas"),
+        Tool("radar:2", "🇺🇦", "Placar aéreo da Ucrânia", "Drones e mísseis lançados por noite e quantos foram abatidos", "drones misseis ucrania abatidos noite"),
+        Tool("radar:3", "🇺🇳", "Conselho de Segurança da ONU", "Reuniões, resoluções aprovadas, vetos e votações previstas", "onu veto resolucao conselho seguranca"),
+        Tool("radar:0", "🌦", "Tempo nas zonas de conflito", "Vento, chuva, neve e tempestade de areia no front", "clima tempo chuva vento areia neve"),
         Tool("radar:3", "🏛", "Vozes", "O que governos dizem nos próprios canais e sanções", "oficial governo sancoes"),
         Tool("radar:4", "🧠", "Análise", "CrisisWatch, checagens e institutos de análise", "crisiswatch checagem isw fatos"),
         Tool("radar:5", "📅", "Contexto", "Alertas de viagem, agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres viagem turismo"),

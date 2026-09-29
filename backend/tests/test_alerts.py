@@ -90,3 +90,9 @@ def test_update_deadlines_tracks_and_links_what_happened(tmp_path):
     assert d["after"]["cluster_id"] == "c"
     saved = json.loads((tmp_path / "deadlines.json").read_text(encoding="utf-8"))
     assert saved["deadlines"][0]["id"] == d["id"]
+
+
+def test_siren_hours_histogram():
+    t = int(datetime(2026, 9, 29, 7, 30, tzinfo=timezone.utc).timestamp())  # 10:30 em Israel
+    s = siren_summary([{"alerts": [{"time": t, "cities": ["a", "b"], "threat": 0}]}], {}, NOW)
+    assert s["hours"][10] == 2 and sum(s["hours"]) == 2

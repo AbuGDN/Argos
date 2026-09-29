@@ -312,3 +312,28 @@ travel:
     - {country: Taiwan, name: Taiwan, tag: asia}
     - {country: Venezuela, name: Venezuela}
     - {country: Brazil, name: Brasil, tag: brasil}
+
+# Conselho de Segurança da ONU: reuniões, resoluções, vetos e votações previstas (30 dias).
+unsc:
+  interval: 120
+
+# Tempo nas zonas de conflito (Open-Meteo, grátis e sem chave; poeira pelo serviço de qualidade do ar).
+weather:
+  interval: 60
+  places:
+    - {name: Cidade de Gaza, tag: gaza, lat: 31.52, lon: 34.45}
+    - {name: Tel Aviv, tag: israel, lat: 32.08, lon: 34.78}
+    - {name: Beirute, tag: libano, lat: 33.89, lon: 35.50}
+    - {name: Damasco, tag: siria, lat: 33.51, lon: 36.29}
+    - {name: Bagdá, tag: iraque, lat: 33.31, lon: 44.37}
+    - {name: Teerã, tag: ira, lat: 35.69, lon: 51.39}
+    - {name: Sanaa, tag: iemen, lat: 15.37, lon: 44.19}
+    - {name: Kiev, tag: ucrania_russia, lat: 50.45, lon: 30.52}
+    - {name: Kharkiv, tag: ucrania_russia, lat: 49.99, lon: 36.23}
+    - {name: Pokrovsk (frente), tag: ucrania_russia, lat: 48.28, lon: 37.18}
+    - {name: Moscou, tag: ucrania_russia, lat: 55.76, lon: 37.62}
+    - {name: Cartum, tag: sudao, lat: 15.50, lon: 32.56}
+    - {name: El Fasher, tag: sudao, lat: 13.63, lon: 25.35}
+    - {name: Mogadíscio, tag: somalia, lat: 2.05, lon: 45.32}
+    - {name: Estreito de Ormuz, tag: ira, lat: 26.57, lon: 56.25}
+    - {name: Bab el-Mandeb, tag: iemen, lat: 12.60, lon: 43.40}

@@ -63,6 +63,7 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.abugdn.wid.data.Cluster
+import com.abugdn.wid.data.TOPIC_LABELS
 import com.abugdn.wid.data.TAG_LABELS
 import com.abugdn.wid.repository
 import com.abugdn.wid.widget.TopWidget
@@ -271,6 +272,24 @@ fun HomeScreen(
                                         }
                                     }
                                 }
+                                // Temas atravessam as regiões: cada um abre a própria página.
+                                val topicsPresent = TOPIC_LABELS.keys.filter { key -> data?.clusters.orEmpty().any { key in it.topics } }
+                                if (topicsPresent.isNotEmpty()) {
+                                    item(key = "topics") {
+                                        LazyRow(
+                                            contentPadding = PaddingValues(horizontal = 16.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.padding(top = 4.dp),
+                                        ) {
+                                            items(topicsPresent) { key ->
+                                                androidx.compose.material3.AssistChip(
+                                                    onClick = { onRoute("topic:$key") },
+                                                    label = { Text(TOPIC_LABELS.getValue(key)) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                                 if (tag != null) {
                                     item(key = "region-link") {
                                         androidx.compose.material3.TextButton(
@@ -387,6 +406,29 @@ fun ClusterRow(c: Cluster, onOpen: (String) -> Unit) {
     val isNew = !isRead && isNewSinceLastVisit(c, repo.previousVisit)
     val snapshots by repo.snapshots.collectAsStateWithLifecycle()
     val addedSinceRead = if (isRead) newSinceRead(c, snapshots[c.id]) else 0
+    val settings by repo.settings.state.collectAsStateWithLifecycle()
+    // Modo manchetes: só o título (e o selo de urgente), para passar rápido pelo dia.
+    if (settings.headlinesOnly) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { onOpen(c.id) }.padding(16.dp, 7.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.Top,
+        ) {
+            Text(
+                if (c.urgent) "● " else "· ",
+                color = if (c.urgent) Alert else Accent,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                translator.display(c.title, c.lang) + if (c.sourcesCount > 1) "  (${c.sourcesCount})" else "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isRead) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        return
+    }
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onOpen(c.id) }.padding(16.dp, 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),

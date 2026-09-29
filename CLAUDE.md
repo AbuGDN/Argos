@@ -37,7 +37,7 @@ que publica JSON na branch `gh-pages`; app Kotlin/Compose que lê esse JSON.
 ```
 backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python -m wid.build --out ../site
   config/sources.yaml    ~33 veículos: url (ou lista de alternativas), lang pt|en|he|ar, origin, weight
-  config/keywords.yaml   termos de guerra, tags de região, boost, termos de urgência; standalone_tags (ICE entra
+  config/keywords.yaml   termos de guerra, tags de região, topics (temas: nuclear, drones... → cluster.topics), boost, termos de urgência; standalone_tags (ICE entra
                          sem termo de guerra) e weak_tags (Brasil não conta como região no filtro); nenhuma das
                          duas entra no Relógio; "!TERMO" diferencia maiúsculas (ICE ≠ ice)
   wid/fetch.py           download/parse RSS, canonical_url, limpeza de resumos, Google News
@@ -53,7 +53,9 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket, aviões
                          militares (adsb.lol), porta-aviões (USNI Fleet Tracker), frente (DeepStateMap), sirenes
                          (Tzeva Adom; oref.org.il dá 403 no GitHub; dicionário de cidades em sirens_cities.json),
-                         sismos (USGS) e alertas de viagem (Departamento de Estado dos EUA). Cada seção é
+                         sismos (USGS), alertas de viagem (Departamento de Estado dos EUA), Conselho de Segurança
+                         (press.un.org + Security Council Report: reuniões, aprovadas, vetos) e tempo (Open-Meteo,
+                         com poeira do serviço de qualidade do ar). Cada seção é
                          independente e guarda o último dado bom; baselines em stats/radar_state.json.
                          apply_signals() soma apagão/espaço aéreo fechado na tensão (parts.sensores);
                          correlate() junta sinais de tipos diferentes na mesma região (radar.incidents); link_factchecks()
@@ -63,6 +65,7 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
   wid/trust.py           por história: wires (árvore de fontes: agências citadas no título/resumo, com maiúsculas),
                          confidence (alta/media/baixa/conflito + motivos) e spread (1ª aparição por origem)
   wid/diplomacy.py       termômetro diplomático: categorias por regex no título (pt/en), 7 dias → diplomacy.json
+  wid/airwar.py          placar aéreo da Ucrânia (drones/mísseis/abatidos por noite, regex nas manchetes) → airwar.json
   wid/deadlines.py       ultimatos ("48 horas para…") nas manchetes → deadlines.json, com "o que aconteceu depois"
   tests/                 pytest com fixtures; rode sempre antes do push
 android/app/src/main/java/com/abugdn/wid/
@@ -96,7 +99,9 @@ android/app/src/main/java/com/abugdn/wid/
   ui/MethodScreens.kt    Contradições ao vivo e "Como sabemos?" (metodologia: mudou uma regra, atualize o texto)
   data/Rules.kt          regras de alerta da pessoa (tensão, Radar em alerta, mercado, palavra; avisa na virada),
                          radarAlertTags(); ui/RulesScreen.kt. data/Alliances.kt: "quem apoia quem" (fixo até 2025)
-  ui/ExtraScreens.kt     Comparar (regiões/datas), Status das fontes, Quem apoia quem (grafo em Canvas),
+  ui/WorldCards.kt       cartões ONU, tempo, placar aéreo e sirenes por hora; ui/MonthlyBulletin.kt: boletim mensal
+  widget/AlertWidgets.kt widgets Próximo prazo e Sirenes (Glance)
+  ui/ExtraScreens.kt     TopicScreen (tema), Comparar (regiões/datas), Status das fontes, Quem apoia quem (grafo em Canvas),
                          Termômetro diplomático (+ DiplomacyCard) e BrazilImpactCard ("E o Brasil?")
   ui/HomeScreen.kt       search()/parseSearch(): filtros região:, fonte:, lado:, antes:, depois:, tipo:
   Compartilhar           intent SEND text/plain → Repository.findShared (link, depois palavras do título/og:title)
