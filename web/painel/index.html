@@ -31,6 +31,7 @@
   </div>
   <div class="actions">
     <span id="updated" class="updated"></span>
+    <button class="btn" type="button" data-action="share" title="Imagem do globo para compartilhar (I)">📷 Imagem</button>
     <button id="btn-layers" class="btn" type="button" aria-expanded="false">Camadas</button>
     <a class="btn gold" href="../">Baixar o app</a>
   </div>
@@ -41,6 +42,7 @@
     <button role="tab" data-tab="regions" class="on">Regiões</button>
     <button role="tab" data-tab="news">Notícias</button>
     <button role="tab" data-tab="radar">Radar</button>
+    <button role="tab" data-tab="archive">Arquivo</button>
   </nav>
   <div class="tr-banner" id="tr-banner" hidden></div>
   <div class="scroll" id="left-body"></div>
@@ -55,6 +57,9 @@
   <h3>Camadas</h3>
   <label><input type="checkbox" data-layer="regions" checked> Regiões e tensão</label>
   <label><input type="checkbox" data-layer="cities" checked> Cidades citadas</label>
+  <label><input type="checkbox" data-layer="arcs" checked> Ligações entre regiões</label>
+  <label><input type="checkbox" data-layer="straits" checked> Estreitos (navios)</label>
+  <label><input type="checkbox" data-layer="night" checked> Dia e noite + hora nas capitais</label>
   <label><input type="checkbox" data-layer="fires"> Focos de calor (24 h)</label>
   <label><input type="checkbox" data-layer="aircraft"> Aviões militares</label>
   <label><input type="checkbox" data-layer="carriers"> Porta-aviões dos EUA</label>
@@ -73,10 +78,11 @@
   <div class="track"><div class="marquee" id="marquee"></div></div>
 </footer>
 
-<div class="hud" id="hud"><span id="hud-pos">—</span><span id="hud-utc"></span></div>
+<div class="hud" id="hud"><span id="hud-pos">—</span><span id="hud-utc"></span><button type="button" data-action="help" class="hud-help">? atalhos</button></div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="app.js"></script>
+<script src="features.js"></script>
 </body>
 </html>

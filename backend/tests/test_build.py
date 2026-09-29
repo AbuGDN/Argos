@@ -256,5 +256,9 @@ def test_webgeo_reads_app_data():
     assert g["conflicts"]["gaza"]["start"] == "2023-10-07"
     assert g["milestones"]["israel"][0]["date"] == "1948"
     assert g["origins"]["arabe"] == "Imprensa árabe"
+    assert any(c["city"] == "Teerã" and c["zone"] == "Asia/Tehran" for c in g["capitals"])
+    israel = next(p for p in g["power"] if p["tag"] == "israel")
+    assert israel["roles"][0] == {"role": "Primeiro-ministro", "name": "Benjamin Netanyahu", "person": "netanyahu"}
+    assert g["wiki"]["netanyahu"] == "Benjamin_Netanyahu"
     # Todas as regiões com nome têm ponto no mapa.
     assert set(g["labels"]) == set(g["points"])
