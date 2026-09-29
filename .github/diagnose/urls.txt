@@ -1,9 +1,7 @@
-https://api.tzevaadom.co.il/alerts-history	"cities"	300
-https://api.tzevaadom.co.il/notifications
-https://www.tzevaadom.co.il/static/cities.json?v=5	"lat"	200
-https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json
-https://www.oref.org.il/WarningMessages/History/AlertsHistory.json
-https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson	"mag"	200
-https://travel.state.gov/_res/rss/TAsTWs.xml	Level \d	200
-https://data.international.gc.ca/travel-voyage/index-updated.json	"advisory-state"	200
-https://www.gov.uk/api/content/foreign-travel-advice	alert_status	200
+https://press.un.org/en/rss.xml	<title>	150
+https://press.un.org/en/content/security-council/meetings-coverage/feed	<title>	150
+https://news.un.org/feed/subscribe/en/news/topic/peace-and-security/feed/rss.xml	<title>	150
+https://www.securitycouncilreport.org/whatsinblue/feed	<title>	150
+https://www.securitycouncilreport.org/feed	<title>	150
+https://api.open-meteo.com/v1/forecast?latitude=31.52,50.45,15.5&longitude=34.45,30.52,32.56&current=temperature_2m,wind_speed_10m,wind_gusts_10m,weather_code,precipitation,visibility,cloud_cover&timezone=UTC	"current"	300
+https://air-quality-api.open-meteo.com/v1/air-quality?latitude=31.52&longitude=34.45&current=dust,pm10	"current"	200
