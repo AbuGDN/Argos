@@ -126,6 +126,36 @@ class Repository(context: Context) {
         json.decodeFromString<RadarData>(raw).also { storage.saveRadar(raw) }
     }.getOrNull()
 
+    // --- Termômetro diplomático e status das fontes -------------------------------------
+
+    private val _diplomacy = MutableStateFlow(
+        runCatching { json.decodeFromString<DiplomacyFile>(storage.prefs.getString("diplomacy_raw", null)!!) }.getOrNull()
+    )
+    val diplomacy: StateFlow<DiplomacyFile?> = _diplomacy.asStateFlow()
+
+    private fun fetchDiplomacy(): DiplomacyFile? = runCatching {
+        val raw = getData("diplomacy.json?t=${System.currentTimeMillis() / 60_000}")
+        json.decodeFromString<DiplomacyFile>(raw).also { storage.prefs.edit().putString("diplomacy_raw", raw).apply() }
+    }.getOrNull()
+
+    /** Veículos e se a última coleta deu certo (sources_status.json), para a tela Status das fontes. */
+    suspend fun loadSourcesStatus(): Result<SourcesStatus> = withContext(Dispatchers.IO) {
+        runCatching { json.decodeFromString<SourcesStatus>(getData("sources_status.json?t=${System.currentTimeMillis() / 60_000}")) }
+    }
+
+    // --- Regras de alerta da pessoa -------------------------------------------------------
+
+    private val _rules = MutableStateFlow(
+        runCatching { json.decodeFromString(RULES_SERIALIZER, storage.prefs.getString("alert_rules", null)!!) }.getOrDefault(emptyList())
+    )
+    val rules: StateFlow<List<AlertRule>> = _rules.asStateFlow()
+
+    @Synchronized
+    fun setRules(list: List<AlertRule>) {
+        storage.prefs.edit().putString("alert_rules", json.encodeToString(RULES_SERIALIZER, list)).apply()
+        _rules.value = list
+    }
+
     // --- Ultimatos e sirenes ------------------------------------------------------------
 
     private val _deadlines = MutableStateFlow(
@@ -300,10 +330,12 @@ class Repository(context: Context) {
             val feed = json.decodeFromString<Feed>(raw)
             val radar = fetchRadar() ?: _radar.value
             fetchDeadlines()?.let { _deadlines.value = it }
+            fetchDiplomacy()?.let { _diplomacy.value = it }
             recordVigil(feed, radar)
             val texts = feedTexts(feed) + textsOf(_saved.value) + textsOf(_archive.value.orEmpty().map { it.top }) +
                 _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty() +
                 _dossiers.value.flatMap { d -> d.entries.filter { it.lang != "pt" }.map { it.title } } +
+                _diplomacy.value?.regions?.values.orEmpty().flatMap { r -> r.events.filter { it.lang != "pt" }.map { it.title } } +
                 _deadlines.value.flatMap { d -> listOfNotNull(d.title.takeIf { d.lang != "pt" }, d.after?.takeIf { it.lang != "pt" }?.title) } +
                 radar?.quakes?.items.orEmpty().map { it.place }.filter { it.isNotBlank() }
             translator.translateAll(texts)
@@ -338,6 +370,40 @@ class Repository(context: Context) {
         _feed.value?.clusters?.firstOrNull { it.id == id }
             ?: _saved.value.firstOrNull { it.id == id }
             ?: _archive.value?.firstOrNull { it.top.id == id }?.top
+
+    /**
+     * Compartilhar para o Argos: acha a história de um link (ou título) vindo de outro app.
+     * Primeiro pelo endereço; depois pelas palavras do título (o do texto compartilhado ou o da página).
+     */
+    suspend fun findShared(text: String): Cluster? = withContext(Dispatchers.IO) {
+        if (_archive.value == null) runCatching { loadArchive() }
+        val pool = (_feed.value?.clusters.orEmpty() + _saved.value + _archive.value.orEmpty().map { it.top }).distinctBy { it.id }
+        val url = Regex("https?://\\S+").find(text)?.value?.trimEnd('.', ',', ')', ']')
+        if (url != null) {
+            val key = sharedUrlKey(url)
+            pool.firstOrNull { c -> sharedUrlKey(c.url) == key || c.articles.any { sharedUrlKey(it.url) == key } }?.let { return@withContext it }
+        }
+        val titles = buildList {
+            text.replace(Regex("https?://\\S+"), " ").trim().takeIf { it.length >= 15 }?.let { add(it) }
+            if (url != null) runCatching {
+                val doc = Jsoup.parse(get(url))
+                (doc.select("meta[property=og:title]").attr("content").ifBlank { doc.title() }).takeIf { it.isNotBlank() }?.let { add(it) }
+            }
+        }
+        titles.firstNotNullOfOrNull { t -> bestTitleMatch(t, pool) }
+    }
+
+    private fun bestTitleMatch(title: String, pool: List<Cluster>): Cluster? {
+        val words = sharedWords(title)
+        if (words.size < 3) return null
+        return pool.map { c ->
+            val cw = sharedWords(buildString {
+                append(c.title).append(' ').append(translator.cached(c.title)).append(' ')
+                c.articles.forEach { append(it.title).append(' ').append(translator.cached(it.title)).append(' ') }
+            })
+            c to words.count { it in cw }
+        }.filter { (_, n) -> n >= 3 && n * 2 >= words.size }.maxByOrNull { it.second }?.first
+    }
 
     /** Todos os veículos que aparecem no feed (para a tela de escolher fontes). */
     fun knownSources(): List<String> =
@@ -623,3 +689,12 @@ fun applySourcePrefs(feed: Feed?, s: Settings): Feed? {
         ?: clusters.maxByOrNull { it.dayScore }
     return feed.copy(clusters = clusters, topOfDay = top)
 }
+
+/** Endereço sem esquema, www, parâmetros e barra final (para comparar links do mesmo artigo). */
+fun sharedUrlKey(url: String): String =
+    url.lowercase().substringBefore('#').substringBefore('?').removePrefix("https://").removePrefix("http://")
+        .removePrefix("www.").removePrefix("m.").trimEnd('/')
+
+/** Palavras de 4+ letras, sem acento, para comparar títulos. */
+fun sharedWords(text: String): Set<String> =
+    normalize(text).split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length >= 4 }.toSet()

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Argos · Status</title>
+<meta name="description" content="Quais fontes e sensores do Argos estão funcionando agora.">
+<link rel="icon" href="icon.svg">
+<style>
+  :root { --ink: #050505; --gold: #C9A227; --bone: #E8E2D0; --ash: #8A8578; --blood: #B3122E; --ok: #6E8B6A; --card: #121110; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--bone); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-family: Georgia, serif; color: var(--gold); letter-spacing: .12em; margin: 0 0 4px; }
+  h2 { font-family: Georgia, serif; color: var(--gold); font-size: 17px; margin: 28px 0 8px; }
+  .muted { color: var(--ash); font-size: 13px; }
+  .summary { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .pill { background: var(--card); border: 1px solid #2a2720; border-radius: 10px; padding: 10px 14px; }
+  .pill b { font-size: 22px; display: block; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 7px 6px; border-bottom: 1px solid #1f1d19; vertical-align: top; }
+  td.s { width: 22px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+  .ok { background: var(--ok); } .bad { background: var(--blood); }
+  .err { color: var(--ash); font-size: 12px; word-break: break-word; }
+  a { color: var(--gold); }
+</style>
+</head>
+<body>
+<main>
+  <h1>ARGOS · STATUS</h1>
+  <div class="muted">Fontes de notícias e sensores do Radar na última coleta. Uma fonte fora do ar não derruba as outras.</div>
+  <div class="summary" id="summary"></div>
+  <h2>Veículos</h2>
+  <table id="sources"><tr><td class="muted">Carregando…</td></tr></table>
+  <h2>Radar</h2>
+  <table id="radar"><tr><td class="muted">Carregando…</td></tr></table>
+  <p class="muted" style="margin-top:28px"><a href="./">Baixar o app</a> · <a href="painel/">Painel</a></p>
+</main>
+<script>
+const NAMES = { internet: 'Internet (IODA)', airspace: 'Espaço aéreo (OpenSky)', fires: 'Focos de calor (NASA)', straits: 'Navios nos estreitos (PortWatch)',
+  markets: 'Mercados', humanitarian: 'Números humanitários', losses: 'Perdas russas', official: 'Fontes oficiais', sanctions: 'Sanções',
+  analysis: 'Análises', crisiswatch: 'CrisisWatch', factcheck: 'Checagens', predictions: 'Polymarket', military: 'Aviões militares (adsb.lol)',
+  carriers: 'Porta-aviões (USNI)', frontline: 'Linha de frente (DeepStateMap)', sirens: 'Sirenes (Tzeva Adom)', quakes: 'Sismos (USGS)', travel: 'Alertas de viagem (EUA)' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return isNaN(m) ? '' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.floor(m / 60)} h` : `há ${Math.floor(m / 1440)} d`; };
+const row = (ok, name, detail, err) => `<tr><td class="s"><span class="dot ${ok ? 'ok' : 'bad'}"></span></td><td>${esc(name)}${err ? `<div class="err">${esc(err)}</div>` : ''}</td><td class="muted" style="text-align:right">${esc(detail)}</td></tr>`;
+Promise.all([
+  fetch('sources_status.json', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+  fetch('radar.json', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+]).then(([src, radar]) => {
+  const sources = Object.entries(src?.sources || {}).sort((a, b) => a[1].ok - b[1].ok || a[0].localeCompare(b[0]));
+  document.getElementById('sources').innerHTML = sources.map(([n, s]) => row(s.ok, n, s.ok ? `${s.items} itens` : 'falhou', s.ok ? '' : s.error)).join('') || '<tr><td>Sem dados.</td></tr>';
+  const st = Object.entries(radar?.status || {}).sort((a, b) => a[1].ok - b[1].ok);
+  document.getElementById('radar').innerHTML = st.map(([k, s]) => row(s.ok, NAMES[k] || k, ago(s.checked), s.ok ? '' : s.error)).join('') || '<tr><td>Sem dados.</td></tr>';
+  const okS = sources.filter(([, s]) => s.ok).length, okR = st.filter(([, s]) => s.ok).length;
+  document.getElementById('summary').innerHTML =
+    `<div class="pill"><b>${okS}/${sources.length}</b>veículos funcionando</div><div class="pill"><b>${okR}/${st.length}</b>sensores funcionando</div>` +
+    `<div class="pill"><b>${esc(ago(src?.generated_at))}</b>última coleta</div>`;
+});
+</script>
+</body>
+</html>

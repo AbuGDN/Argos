@@ -177,12 +177,18 @@ fun HomeScreen(
         ) {
             val data = feed
             val searching = searchOpen && query.isNotBlank()
+            // A busca também olha o Arquivo (a principal de cada dia), baixado na primeira busca.
+            val archiveState by repo.archive.collectAsStateWithLifecycle()
+            LaunchedEffect(searching) { if (searching && repo.archive.value == null) runCatching { repo.loadArchive() } }
+            val archiveTops = archiveState.orEmpty().map { it.top }
             // Notícias já abertas vão para a aba "Lidas".
             val inFilter = data?.clusters.orEmpty().filter { tag == null || tag in it.tags }
             val unreadList = inFilter.filter { it.id !in readIds }
             val readList = inFilter.filter { it.id in readIds }
             val clusters = when {
-                searching -> search((data?.clusters.orEmpty() + saved).distinctBy { it.id }, query, repo.translator::cached)
+                searching -> search(
+                    (data?.clusters.orEmpty() + saved + archiveTops).distinctBy { it.id }, query, repo.translator::cached,
+                )
                 showRead -> readList
                 else -> unreadList
             }
@@ -216,6 +222,14 @@ fun HomeScreen(
                             )
                         }
                         items(tools, key = { "tool-" + it.route }) { ToolRow(it, onRoute) }
+                    }
+                    item {
+                        Text(
+                            "Filtros: região:irã · fonte:g1 · lado:árabe · depois:01/09 · antes:15/09 · tipo:urgente, conflito, confirmado, umlado, alterada",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp, 4.dp, 16.dp, 0.dp),
+                        )
                     }
                     item {
                         Text(
@@ -423,11 +437,98 @@ fun isNewSinceLastVisit(c: Cluster, previousVisit: Long): Boolean {
     return start > previousVisit
 }
 
-/** Busca sem acento no título, resumo, tradução e títulos de todos os veículos do grupo. */
+/** Busca com filtros: região:irã, fonte:g1, lado:árabe, depois:01/09, antes:15/09, tipo:urgente. */
+data class SearchQuery(
+    val terms: List<String> = emptyList(),
+    val regions: Set<String> = emptySet(),
+    val sources: List<String> = emptyList(),
+    val sides: Set<String> = emptySet(),
+    val after: java.time.LocalDate? = null,
+    val before: java.time.LocalDate? = null,
+    val types: Set<String> = emptySet(),
+) {
+    val isEmpty get() = terms.isEmpty() && regions.isEmpty() && sources.isEmpty() && sides.isEmpty() && after == null && before == null && types.isEmpty()
+}
+
+private val SIDE_ALIASES = mapOf(
+    "israel" to "israel", "israelense" to "israel", "arabe" to "arabe", "arabes" to "arabe", "eua" to "eua", "americana" to "eua",
+    "americano" to "eua", "brasil" to "brasil", "brasileira" to "brasil", "internacional" to "internacional", "mundo" to "internacional",
+)
+val SEARCH_TYPES = mapOf(
+    "urgente" to "urgentes", "conflito" to "informações conflitantes", "confirmado" to "várias fontes independentes",
+    "umlado" to "só um lado noticiou", "alterada" to "manchete alterada", "tregua" to "violação de trégua",
+)
+
+/** Data "15/09", "15/09/2026" ou "2026-09-15"; sem ano, o mais recente que não está no futuro. */
+fun parseSearchDate(raw: String, today: java.time.LocalDate = java.time.LocalDate.now()): java.time.LocalDate? {
+    runCatching { return java.time.LocalDate.parse(raw) }
+    val parts = raw.split('/', '-', '.').mapNotNull { it.toIntOrNull() }
+    if (parts.size < 2) return null
+    return runCatching {
+        if (parts.size >= 3) {
+            val y = if (parts[2] < 100) 2000 + parts[2] else parts[2]
+            java.time.LocalDate.of(y, parts[1], parts[0])
+        } else {
+            val d = java.time.LocalDate.of(today.year, parts[1], parts[0])
+            if (d.isAfter(today)) d.minusYears(1) else d
+        }
+    }.getOrNull()
+}
+
+fun parseSearch(query: String): SearchQuery {
+    var q = SearchQuery()
+    val free = mutableListOf<String>()
+    for (raw in query.trim().split(Regex("\\s+")).filter { it.isNotBlank() }) {
+        val key = normalize(raw.substringBefore(':', ""))
+        val value = normalize(raw.substringAfter(':', "")).trim()
+        if (value.isEmpty()) { free += normalize(raw); continue }
+        when (key) {
+            "regiao", "region", "r" -> {
+                // Nome exato primeiro ("irã" não pega "Iraque"); se não houver, o começo do nome.
+                val words = { label: String -> normalize(label).split(' ', '/', '(', ')').filter { it.isNotBlank() } }
+                val exact = TAG_LABELS.filter { (k, label) -> k == value || normalize(label) == value || value in words(label) }.keys
+                val tags = exact.ifEmpty {
+                    TAG_LABELS.filter { (k, label) -> k.startsWith(value) || words(label).any { w -> w.startsWith(value) } }.keys
+                }
+                q = q.copy(regions = q.regions + tags.ifEmpty { setOf(value) })
+            }
+            "fonte", "source", "f", "veiculo" -> q = q.copy(sources = q.sources + value)
+            "lado", "origem", "imprensa" -> q = q.copy(sides = q.sides + (SIDE_ALIASES[value] ?: value))
+            "depois", "desde", "after", "de" -> q = q.copy(after = parseSearchDate(value))
+            "antes", "ate", "before" -> q = q.copy(before = parseSearchDate(value))
+            "tipo", "type" -> q = q.copy(types = q.types + value.replace("-", "").replace("_", ""))
+            else -> free += normalize(raw)
+        }
+    }
+    return q.copy(terms = free)
+}
+
+private fun Cluster.matchesType(type: String): Boolean = when (type) {
+    "urgente" -> urgent
+    "conflito" -> confidence?.level == "conflito" || figures.values.any { it.divergent }
+    "confirmado" -> confidence?.level == "alta"
+    "umlado" -> sides == "um_lado"
+    "alterada" -> articles.any { it.edits.isNotEmpty() }
+    "tregua" -> truceViolation
+    else -> true
+}
+
+/** Busca sem acento no título, resumo, tradução e títulos de todos os veículos do grupo, com os filtros. */
 fun search(clusters: List<Cluster>, query: String, translated: (String) -> String): List<Cluster> {
-    val terms = normalize(query).split(Regex("\\s+")).filter { it.isNotBlank() }
-    if (terms.isEmpty()) return emptyList()
+    val q = parseSearch(query)
+    if (q.isEmpty) return emptyList()
+    val zone = java.time.ZoneId.systemDefault()
     return clusters.filter { c ->
+        if (q.regions.isNotEmpty() && c.tags.none { it in q.regions }) return@filter false
+        if (q.sources.isNotEmpty() && q.sources.none { s -> c.articles.any { normalize(it.source).contains(s) } || normalize(c.source).contains(s) }) return@filter false
+        if (q.sides.isNotEmpty() && c.articles.none { it.origin in q.sides }) return@filter false
+        if (q.after != null || q.before != null) {
+            val day = runCatching { java.time.Instant.parse(c.published).atZone(zone).toLocalDate() }.getOrNull() ?: return@filter false
+            if (q.after != null && day.isBefore(q.after)) return@filter false
+            if (q.before != null && day.isAfter(q.before)) return@filter false
+        }
+        if (!q.types.all { c.matchesType(it) }) return@filter false
+        if (q.terms.isEmpty()) return@filter true
         val text = normalize(
             buildString {
                 append(c.title).append(' ').append(translated(c.title)).append(' ')
@@ -435,7 +536,7 @@ fun search(clusters: List<Cluster>, query: String, translated: (String) -> Strin
                 c.articles.forEach { append(it.title).append(' ').append(translated(it.title)).append(' ') }
             }
         )
-        terms.all { it in text }
+        q.terms.all { it in text }
     }.sortedByDescending { it.updated }
 }
 

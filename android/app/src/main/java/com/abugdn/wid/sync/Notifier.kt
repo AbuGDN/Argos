@@ -18,6 +18,8 @@ import com.abugdn.wid.data.Cluster
 import com.abugdn.wid.data.Feed
 import com.abugdn.wid.data.HistoryDay
 import com.abugdn.wid.data.RadarData
+import com.abugdn.wid.data.describe
+import com.abugdn.wid.data.holds
 import com.abugdn.wid.data.weekTop
 import com.abugdn.wid.data.matchWatchWord
 import com.abugdn.wid.repository
@@ -86,7 +88,9 @@ object Notifier {
         val urgent = feed.clusters.filter { it.urgent && it.id !in notified }
 
         if (!silent && settings.notifyUrgent) {
+            // Um aviso só por assunto: a mesma saga não toca de novo em 3 h.
             urgent.filter { settings.matchesRegion(it.tags) }
+                .filter { c -> c.saga?.id?.let { cooldownOk(prefs, "saga:$it", SAGA_COOLDOWN_H) } ?: true }
                 .forEach { notify(context, CHANNEL_URGENT, "Urgente", it) }
         }
         notified += urgent.map { it.id }
@@ -248,6 +252,35 @@ object Notifier {
         NotificationManagerCompat.from(context).notify(RADAR_ID, notification)
     }
 
+    private const val RULES_ID = 8_008
+
+    /** Regras da pessoa (Ajustes → Regras de alerta): avisa quando uma passa a valer. */
+    @SuppressLint("MissingPermission") // checado em canNotify
+    fun rules(context: Context, feed: Feed, radar: RadarData?) {
+        val repo = context.repository
+        val list = repo.rules.value
+        if (list.isEmpty()) return
+        val translate = { t: String -> repo.translator.cached(t) }
+        val fired = mutableListOf<com.abugdn.wid.data.AlertRule>()
+        val next = list.map { r ->
+            val now = r.holds(feed, radar, translate)
+            if (now && !r.active) fired += r
+            r.copy(active = now)
+        }
+        if (next != list) repo.setRules(next)
+        if (fired.isEmpty() || !canNotify(context) || repo.settings.value.isQuiet()) return
+        val text = fired.joinToString("\n") { "• ${it.name}: ${it.describe(radar)}" }
+        val notification = NotificationCompat.Builder(context, CHANNEL_WATCH)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(if (fired.size == 1) "🔔 Sua regra disparou: ${fired.first().name}" else "🔔 ${fired.size} regras suas dispararam")
+            .setContentText(fired.first().describe(radar))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(shortcutIntent(context, "rules"))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(RULES_ID, notification)
+    }
+
     private const val SIRENS_ID = 8_007
 
     /** Resumo das sirenes novas desde a última sincronização (Tzeva Adom, pelo radar.json). */
@@ -300,9 +333,28 @@ object Notifier {
     /** História seguida ganhou veículos. Toca mesmo fora das regiões escolhidas (o usuário pediu). */
     fun followed(context: Context, updates: List<Pair<Cluster, Int>>) {
         if (context.repository.settings.value.isQuiet()) return
+        val prefs = context.repository.storage.prefs
+        // História seguida: no máximo um aviso a cada 3 h por história (ou saga), com o total de veículos novos.
         updates.forEach { (c, added) ->
-            notify(context, CHANNEL_FOLLOW, "Seguindo · +$added ${if (added == 1) "veículo" else "veículos"}", c)
+            val pending = prefs.getInt("follow_pending:${c.id}", 0) + added
+            if (cooldownOk(prefs, "follow:${c.saga?.id ?: c.id}", SAGA_COOLDOWN_H)) {
+                prefs.edit().remove("follow_pending:${c.id}").apply()
+                notify(context, CHANNEL_FOLLOW, "Seguindo · +$pending ${if (pending == 1) "veículo" else "veículos"}", c)
+            } else {
+                prefs.edit().putInt("follow_pending:${c.id}", pending).apply()
+            }
         }
+    }
+
+    private const val SAGA_COOLDOWN_H = 3L
+
+    /** true (e marca a hora) se a chave não avisou nas últimas [hours] horas. */
+    private fun cooldownOk(prefs: android.content.SharedPreferences, key: String, hours: Long): Boolean {
+        val now = System.currentTimeMillis()
+        val last = prefs.getLong("cool:$key", 0)
+        if (now - last < hours * 3_600_000) return false
+        prefs.edit().putLong("cool:$key", now).apply()
+        return true
     }
 
     /** Resumo da semana: as 5 principais dos últimos 7 dias; tocar abre o boletim em imagem. */

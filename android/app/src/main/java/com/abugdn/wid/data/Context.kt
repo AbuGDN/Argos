@@ -252,6 +252,84 @@ val GLOSSARY = listOf(
     ),
 )
 
+/** Termos que a tradução não dá conta: o sentido e o peso de cada palavra para cada lado. */
+val TERMS = listOf(
+    Actor(
+        "t_intifada", "Intifada", listOf("intifada", "intifadas", "انتفاضة", "אינתיפאדה"),
+        "Em árabe, \u201csacudida\u201d ou \u201clevante\u201d. Nome das revoltas palestinas contra a ocupação israelense: a Primeira " +
+            "(1987–1993), de protestos e pedras, e a Segunda (2000–2005), com atentados suicidas e operações militares. " +
+            "Chamar algo de intifada tem peso político para os dois lados.",
+    ),
+    Actor(
+        "t_nakba", "Nakba", listOf("nakba", "نكبة", "النكبة", "נכבה"),
+        "Em árabe, \u201ccatástrofe\u201d. É como os palestinos chamam a fuga e a expulsão de cerca de 700 mil pessoas na guerra de " +
+            "1948, lembrada todo 15 de maio. Para Israel, a mesma guerra é a Guerra de Independência.",
+    ),
+    Actor(
+        "t_shahid", "Shahid (mártir)", listOf("shahid", "shaheed", "shuhada", "شهيد", "شهداء"),
+        "Em árabe, \u201cmártir\u201d. Na imprensa palestina e árabe vale para qualquer pessoa morta no conflito, civil ou combatente, " +
+            "sem querer dizer que ela lutou. Traduzido como \u201cmártir\u201d, pode soar como elogio a combatentes quando não é.",
+    ),
+    Actor(
+        "t_sumud", "Sumud", listOf("sumud", "صمود"),
+        "Em árabe, \u201cfirmeza\u201d ou \u201cperseverança\u201d. Ideia central para os palestinos: continuar na terra e levar a vida " +
+            "apesar da ocupação e da guerra. Deu nome a flotilhas para Gaza.",
+    ),
+    Actor(
+        "t_hasbara", "Hasbara", listOf("hasbara", "הסברה"),
+        "Em hebraico, \u201cexplicação\u201d. É a diplomacia pública de Israel, o esforço de apresentar a posição do país no exterior. " +
+            "Críticos usam a palavra como sinônimo de propaganda.",
+    ),
+    Actor(
+        "t_hudna", "Hudna e tahdia", listOf("hudna", "tahdia", "tahdiya", "هدنة", "تهدئة"),
+        "Duas palavras árabes para trégua. Hudna é uma trégua longa, que pode durar anos, sem reconhecer o outro lado; tahdia é uma " +
+            "\u201ccalmaria\u201d mais curta e informal. A escolha da palavra diz quanto cada lado se compromete.",
+    ),
+    Actor(
+        "t_aliyah", "Aliá", listOf("aliyah", "aliá", "aliya", "עלייה"),
+        "Em hebraico, \u201csubida\u201d. É a imigração de judeus para Israel, que dá cidadania pela Lei do Retorno (1950).",
+    ),
+    Actor(
+        "t_haredi", "Haredim (ultraortodoxos)", listOf("haredi", "haredim", "ultraortodoxo", "ultraortodoxos", "ultra-orthodox", "חרדים"),
+        "Judeus ultraortodoxos, cerca de 13% da população de Israel. A isenção do serviço militar para quem estuda nas yeshivas " +
+            "virou uma das maiores brigas políticas do país durante a guerra.",
+    ),
+    Actor(
+        "t_kibutz", "Kibutz", listOf("kibutz", "kibbutz", "kibutzim", "kibbutzim", "קיבוץ"),
+        "Comunidade agrícola coletiva israelense. Vários kibutzim perto de Gaza, como Be'eri, Kfar Aza e Nir Oz, foram atacados em " +
+            "7 de outubro de 2023.",
+    ),
+    Actor(
+        "t_tzav8", "Tzav 8", listOf("tzav 8", "tsav 8", "צו 8"),
+        "Ordem de convocação de emergência de reservistas em Israel. Quando o governo emite muitas, é sinal de operação grande.",
+    ),
+    Actor(
+        "t_svo", "\u201cOperação militar especial\u201d", listOf("operação militar especial", "special military operation", "сво"),
+        "Nome oficial que o governo russo dá à guerra na Ucrânia. Na Rússia, chamar de \u201cguerra\u201d em público pode dar processo " +
+            "por \u201cdesacreditar o exército\u201d.",
+    ),
+    Actor(
+        "t_eixo", "Eixo da Resistência", listOf("eixo da resistência", "axis of resistance", "محور المقاومة"),
+        "Nome que o Irã e seus aliados dão à própria rede: Hezbollah, Houthis, milícias no Iraque, Hamas e Jihad Islâmica. " +
+            "Israel e os EUA falam em \u201cprocuradores do Irã\u201d (proxies).",
+    ),
+    Actor(
+        "t_esplanada", "Esplanada das Mesquitas / Monte do Templo",
+        listOf("esplanada das mesquitas", "monte do templo", "temple mount", "haram al-sharif", "al-aqsa", "al aqsa", "הר הבית", "الأقصى", "الاقصى"),
+        "O mesmo lugar em Jerusalém tem dois nomes. Para judeus é o Monte do Templo, o lugar mais sagrado do judaísmo; para " +
+            "muçulmanos é o Nobre Santuário, com a mesquita de Al-Aqsa e a Cúpula da Rocha. Qualquer mudança nas regras de visita vira crise.",
+    ),
+    Actor(
+        "t_judeia", "Judeia e Samaria", listOf("judeia e samaria", "judea and samaria", "יהודה ושומרון"),
+        "Nome bíblico que o governo de Israel e os colonos usam para a Cisjordânia. Usar um ou outro nome indica de que lado se fala.",
+    ),
+    Actor(
+        "t_dahiyeh", "Dahiyeh", listOf("dahiyeh", "dahieh", "dahiya", "dahiye", "الضاحية"),
+        "\u201cSubúrbio\u201d em árabe: os bairros xiitas do sul de Beirute, reduto do Hezbollah, bombardeados várias vezes. " +
+            "\u201cDoutrina Dahiya\u201d é o nome dado à estratégia israelense de atingir com força a infraestrutura ligada ao inimigo.",
+    ),
+)
+
 /** Pessoas-chave. Texto fixo até 2025: cargos podem ter mudado depois. */
 val PEOPLE = listOf(
     Actor(
@@ -372,7 +450,7 @@ private fun Cluster.normText(translated: (String) -> String) =
 /** Atores e armas citados na notícia (título, resumo e tradução). */
 fun Cluster.actors(translated: (String) -> String): List<Actor> {
     val text = normText(translated)
-    return (PEOPLE + ACTORS + GLOSSARY).filter { it.mentionedIn(text) }
+    return (PEOPLE + ACTORS + GLOSSARY + TERMS).filter { it.mentionedIn(text) }
 }
 
 /** Histórias do feed que citam o ator/pessoa (para "notícias recentes"); para nas 5 primeiras. */

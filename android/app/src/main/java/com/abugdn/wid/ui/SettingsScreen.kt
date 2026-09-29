@@ -93,6 +93,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val store = context.repository.settings
     val s by store.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val goRoute = LocalGo.current
     var widgetMsg by remember { mutableStateOf<String?>(null) }
     var page by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     var query by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
@@ -164,6 +165,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Toggle("Radar", "Apagão de internet, espaço aéreo fechado, sismo suspeito, alerta de viagem nível 4 e prazos vencendo", s.notifyRadar) {
                         update { st -> st.copy(notifyRadar = it) }
                     }
+                    androidx.compose.material3.TextButton(
+                        onClick = { goRoute("rules") },
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    ) { Text("🔔 Regras de alerta suas (se isso e aquilo, me avise) →") }
                     Toggle("Sirenes em Israel", "Resumo dos alertas de foguete e drone (pode chegar até 30 min depois; ao vivo, abra a tela Sirenes)", s.notifySirens) {
                         update { st -> st.copy(notifySirens = it) }
                     }

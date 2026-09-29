@@ -112,6 +112,8 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit, onRo
                     }
                     TruceCards(tag)
                     RegionRadarCard(tag)
+                    DiplomacyCard(tag, onOpen)
+                    BrazilImpactCard(tag, radar)
                     if (com.abugdn.wid.data.POWER.any { it.tag == tag }) PowerCards(only = tag)
                     if (tag == "israel" || tag == "gaza") HostagesCard(onOpen)
                     val agenda = remember { com.abugdn.wid.data.upcomingAgenda().filter { it.tag == tag }.take(3) }

@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
         shortcut = intent.getStringExtra(EXTRA_SHORTCUT) ?: intent.getStringExtra(EXTRA_REGION)?.let { "region:$it" }
         if (Build.VERSION.SDK_INT >= 33) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         if (savedInstanceState == null) SyncWorker.runNow(this)
+        if (savedInstanceState == null) handleShare(intent)
 
         setContent {
             val settings by repository.settings.state.collectAsStateWithLifecycle()
@@ -132,8 +133,27 @@ class MainActivity : ComponentActivity() {
         repository.endVisit()
     }
 
+    /** Link ou texto compartilhado de outro app: abre a mesma história no Argos, se houver. */
+    private fun handleShare(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val text = listOfNotNull(intent.getStringExtra(Intent.EXTRA_SUBJECT), intent.getStringExtra(Intent.EXTRA_TEXT)).joinToString(" ")
+        if (text.isBlank()) return
+        android.widget.Toast.makeText(this, "Procurando essa notícia no Argos…", android.widget.Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val found = repository.findShared(text)
+            if (found != null) {
+                openCluster = found.id
+            } else {
+                android.widget.Toast.makeText(
+                    this@MainActivity, "Não achei essa notícia no Argos (pode não ser de guerra ou ser antiga).", android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleShare(intent)
         intent.getStringExtra(EXTRA_CLUSTER_ID)?.let { openCluster = it }
         intent.getStringExtra(EXTRA_SHORTCUT)?.let { openCluster = null; shortcut = it }
         intent.getStringExtra(EXTRA_REGION)?.let { openCluster = null; shortcut = "region:$it" }
@@ -196,7 +216,7 @@ private fun App(
             "vigil" -> { closeAll(); vigilOpen = true }
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
-            "sirens", "deadlines", "scale", "course", "contradictions", "method" -> { closeAll(); page = route.substringBefore(':') }
+            "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy" -> { closeAll(); page = route.substringBefore(':') }
             "settings" -> { closeAll(); settingsOpen = true }
             "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
             "region" -> { closeAll(); regionOpen = arg }
@@ -306,6 +326,11 @@ private fun App(
                         "scale" -> ScaleScreen(onBack = { page = null })
                         "contradictions" -> ContradictionsScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
                         "method" -> MethodScreen(onBack = { page = null })
+                        "rules" -> RulesScreen(onBack = { page = null })
+                        "compare" -> CompareScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        "sources" -> SourcesStatusScreen(onBack = { page = null })
+                        "alliances" -> AlliancesScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        "diplomacy" -> DiplomacyScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) }, onRegion = { page = null; regionOpen = it })
                         else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
                     }
                 }
