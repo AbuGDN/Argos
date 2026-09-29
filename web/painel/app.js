@@ -42,7 +42,7 @@ const S = {
   region: null, story: null, tab: 'regions',
   layers: {
     regions: true, cities: true, night: true, arcs: true, straits: true,
-    fires: false, aircraft: false, carriers: false, front: false, ranges: false,
+    fires: false, aircraft: false, carriers: false, front: false, ranges: false, sirens: true, quakes: false,
     ...store.get('argos_layers', {}),
   },
   base: store.get('argos_base', 'dark'),
@@ -188,6 +188,10 @@ function radarAlerts(r) {
     out.push({ text: `🔥 Focos de calor acima do normal: ${z.name} (${z.count} em 24 h)`, tag: z.tag, layer: 'fires' }));
   (r.straits?.items || []).filter((s) => s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6).forEach((s) =>
     out.push({ text: `🚢 Tráfego em queda: ${s.name}`, tag: s.tag }));
+  const lastSiren = Date.parse(r.sirens?.last || '');
+  if (lastSiren && Date.now() - lastSiren < 3 * 3600e3) out.push({ text: `🚨 Sirenes em Israel: ${r.sirens.count_24h} locais em 24 h`, tag: 'israel', layer: 'sirens' });
+  (r.quakes?.items || []).filter((q) => q.alert).forEach((q) =>
+    out.push({ text: `🌋 Sismo suspeito: M ${q.mag} em ${q.zone}${q.site ? ` (perto de ${q.site.name})` : ''}`, tag: q.tag, layer: 'quakes' }));
   (r.military?.zones || []).filter((z) => z.unusual).forEach((z) =>
     out.push({ text: `✈ Aviões militares acima do normal: ${z.name}`, tag: z.tag, layer: 'aircraft' }));
   return out;
@@ -287,7 +291,7 @@ const pt = (lon, lat, props) => ({ type: 'Feature', geometry: { type: 'Point', c
 
 function addDataLayers() {
   const empty = fc([]);
-  for (const id of ['night', 'arcs', 'straits', 'ranges', 'front', 'fires', 'aircraft', 'cities']) map.addSource(id, { type: 'geojson', data: empty });
+  for (const id of ['night', 'arcs', 'straits', 'ranges', 'front', 'fires', 'aircraft', 'cities', 'sirens', 'quakes']) map.addSource(id, { type: 'geojson', data: empty });
   map.addLayer({ id: 'night', type: 'fill', source: 'night', paint: { 'fill-color': '#000000', 'fill-opacity': 0.42 } });
   map.addLayer({ id: 'night-edge', type: 'line', source: 'night', paint: { 'line-color': '#C9A227', 'line-opacity': 0.18, 'line-width': 6, 'line-blur': 6 } });
   map.addLayer({ id: 'ranges-fill', type: 'fill', source: 'ranges', paint: { 'fill-color': ['case', ['get', 'defense'], '#6E8B6A', '#B3122E'], 'fill-opacity': 0.06 } });
@@ -295,6 +299,9 @@ function addDataLayers() {
   map.addLayer({ id: 'front-fill', type: 'fill', source: 'front', paint: { 'fill-color': ['case', ['==', ['get', 'kind'], 'grey'], '#8A8578', '#B3122E'], 'fill-opacity': 0.35 } });
   map.addLayer({ id: 'front-line', type: 'line', source: 'front', paint: { 'line-color': '#B3122E', 'line-width': 1 } });
   map.addLayer({ id: 'fires', type: 'circle', source: 'fires', paint: { 'circle-color': '#FF7A1A', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 1.6, 8, 4], 'circle-opacity': 0.85, 'circle-blur': 0.3 } });
+  // Sirenes das últimas 24 h (mais fortes as da última hora) e sismos nas zonas vigiadas.
+  map.addLayer({ id: 'sirens', type: 'circle', source: 'sirens', paint: { 'circle-color': '#B3122E', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 9, 7], 'circle-opacity': ['case', ['get', 'recent'], 0.95, 0.45], 'circle-stroke-color': '#E8E2D0', 'circle-stroke-width': ['case', ['get', 'recent'], 1, 0] } });
+  map.addLayer({ id: 'quakes', type: 'circle', source: 'quakes', paint: { 'circle-color': ['case', ['get', 'alert'], '#B3122E', '#8A8578'], 'circle-radius': ['*', 2.2, ['max', 1, ['-', ['get', 'mag'], 1.5]]], 'circle-opacity': 0.55, 'circle-stroke-color': ['case', ['get', 'alert'], '#E8E2D0', '#C9A227'], 'circle-stroke-width': 1.2 } });
   map.addLayer({
     id: 'cities', type: 'circle', source: 'cities',
     paint: {
@@ -316,6 +323,8 @@ function addDataLayers() {
   };
   hover('cities', (p) => `<b>${esc(p.name)}</b><br>${p.n} ${p.n == 1 ? 'notícia cita' : 'notícias citam'} · toque para ver`);
   hover('aircraft', (p) => `<b>${esc(MIL_ICONS[p.category] || '•')} ${esc(p.label)}</b><br>${esc(p.type)} ${esc(p.callsign)}<br><span class="muted">${p.alt ? `${fmt(p.alt)} pés · ` : ''}adsb.lol</span>`);
+  hover('sirens', (p) => `🚨 <b>${esc(p.name)}</b><br>${esc(p.threat)} · ${esc(p.when)}<br><span class="muted">Tzeva Adom</span>`);
+  hover('quakes', (p) => `🌋 <b>M ${p.mag} · ${esc(p.kind)}</b><br>${esc(p.zone)} · ${p.depth >= 0 ? `${Math.round(p.depth)} km de profundidade · ` : ''}${esc(p.when)}${p.site ? `<br><span class="alertline">a ${esc(p.site)}</span>` : ''}<br><span class="muted">USGS</span>`);
   hover('fires', (p) => `🔥 Foco de calor · ${esc(p.zone)}<br><span class="muted">NASA FIRMS, últimas 24 h</span>`);
   hover('ranges-line', (p) => `<b>${esc(p.label)}</b><br>${esc(p.detail)}`);
   hover('arcs-base', (p) => `<b>${esc(p.name)}</b><br>${p.n} notícias das últimas 36 h citam as duas · toque para ver`);
@@ -324,7 +333,7 @@ function addDataLayers() {
   map.on('click', 'straits', (e) => openStrait(e.features[0].properties.id));
   map.on('click', 'cities', (e) => openCity(e.features[0].properties.name));
   // Clique num país sem nada em cima: ficha do país.
-  const interactive = ['cities', 'aircraft', 'fires', 'straits', 'arcs-base', 'ranges-line'];
+  const interactive = ['cities', 'aircraft', 'fires', 'straits', 'arcs-base', 'ranges-line', 'sirens', 'quakes'];
   map.on('click', (e) => {
     if (map.queryRenderedFeatures(e.point, { layers: interactive }).length) return;
     const land = map.queryRenderedFeatures(e.point, { layers: ['land'] });
@@ -402,6 +411,23 @@ async function renderLayers() {
   const fires = [];
   if (L.fires) for (const z of S.radar?.fires?.zones || []) for (const p of z.points || []) fires.push(pt(p[1] ?? p.lon, p[0] ?? p.lat, { zone: z.name, seed: Math.random() }));
   map.getSource('fires').setData(fc(fires));
+  // Sirenes (24 h) e sismos (7 dias)
+  const sirens = [];
+  if (L.sirens) {
+    for (const e of S.radar?.sirens?.events || []) {
+      const recent = Date.now() - Date.parse(e.time) < 3600e3;
+      for (const c of e.cities || []) if (c.lat != null) sirens.push(pt(c.lon, c.lat, { name: c.name, threat: e.threat, when: rel(e.time), recent }));
+    }
+  }
+  map.getSource('sirens').setData(fc(sirens));
+  const QUAKE_KIND = { earthquake: 'terremoto', explosion: 'explosão', 'nuclear explosion': 'explosão nuclear', 'quarry blast': 'explosão em pedreira' };
+  const quakes = [];
+  if (L.quakes) {
+    for (const q of S.radar?.quakes?.items || []) {
+      quakes.push(pt(q.lon, q.lat, { mag: q.mag ?? 0, kind: QUAKE_KIND[q.type] || q.type, zone: q.zone, depth: q.depth ?? -1, when: rel(q.time), alert: !!q.alert, site: q.site ? `${q.site.km} km de ${q.site.name}` : '' }));
+    }
+  }
+  map.getSource('quakes').setData(fc(quakes));
   // Aviões militares
   const planes = [];
   const labels = S.radar?.military?.labels || {};
@@ -665,7 +691,7 @@ function openStory(id, fly) {
   `);
   if (fly) {
     // Região mais específica da notícia (EUA, OTAN, Ásia e África só quando não há outra).
-    const broad = ['eua', 'otan', 'asia', 'africa'];
+    const broad = ['eua', 'otan', 'asia', 'africa', 'ice', 'brasil', 'mediterraneo'];
     const tag = c.tags.find((t) => !broad.includes(t)) || c.tags[0];
     const target = place ? [place.lon, place.lat] : S.geo?.points?.[tag];
     if (target) flyCam({ center: target, zoom: place ? 6.5 : 4.5, speed: 0.9 });

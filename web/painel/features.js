@@ -6,7 +6,7 @@
 const RAD = Math.PI / 180;
 const COMPARE_COLORS = ['#C9A227', '#E8E2D0', '#C8662B', '#6E8B6A'];
 const STRAIT_POS = { hormuz: [56.3, 26.55], bab: [43.35, 12.6], suez: [32.35, 30.55], bosporus: [29.06, 41.12] };
-const BROAD = ['eua', 'otan', 'asia', 'africa'];
+const BROAD = ['eua', 'otan', 'asia', 'africa', 'ice', 'brasil', 'mediterraneo'];
 
 // ---------------------------------------------------------------------------
 // 1. Dia e noite: sombra onde é noite agora e relógios das capitais
@@ -210,6 +210,9 @@ function openStrait(id) {
 const COUNTRY_TAG = {
   Israel: 'israel', Palestine: 'gaza', Lebanon: 'libano', Iran: 'ira', Yemen: 'iemen', Syria: 'siria', Iraq: 'iraque',
   'United States of America': 'eua', Ukraine: 'ucrania_russia', Russia: 'ucrania_russia', Sudan: 'sudao',
+  Egypt: 'egito', Jordan: 'jordania', 'Saudi Arabia': 'arabia', 'United Arab Emirates': 'emirados', Qatar: 'golfo',
+  Bahrain: 'golfo', Kuwait: 'golfo', Oman: 'golfo', Turkey: 'turquia', Somalia: 'somalia', Somaliland: 'somalia',
+  Cyprus: 'mediterraneo', 'N. Cyprus': 'mediterraneo', Brazil: 'brasil',
 };
 const COUNTRY_ALIAS = {
   'United States of America': 'United States', 'Dem. Rep. Congo': 'Democratic Republic of the Congo',

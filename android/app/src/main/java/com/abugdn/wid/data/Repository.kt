@@ -126,6 +126,31 @@ class Repository(context: Context) {
         json.decodeFromString<RadarData>(raw).also { storage.saveRadar(raw) }
     }.getOrNull()
 
+    // --- Ultimatos e sirenes ------------------------------------------------------------
+
+    private val _deadlines = MutableStateFlow(
+        runCatching { json.decodeFromString<DeadlinesFile>(storage.prefs.getString("deadlines_raw", null)!!).deadlines }
+            .getOrDefault(emptyList())
+    )
+    /** Ultimatos e prazos achados nas manchetes (deadlines.json). */
+    val deadlines: StateFlow<List<Deadline>> = _deadlines.asStateFlow()
+
+    private fun fetchDeadlines(): List<Deadline>? = runCatching {
+        val raw = getData("deadlines.json?t=${System.currentTimeMillis() / 60_000}")
+        json.decodeFromString<DeadlinesFile>(raw).deadlines.also { storage.prefs.edit().putString("deadlines_raw", raw).apply() }
+    }.getOrNull()
+
+    @Volatile private var sirenCities: Map<String, List<kotlinx.serialization.json.JsonElement>>? = null
+
+    /** Alertas de sirene ativos agora (Tzeva Adom), para a tela Sirenes consultar a cada poucos segundos. */
+    suspend fun liveSirens(): Result<List<SirenEvent>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val cities = sirenCities ?: runCatching { parseSirenCities(json.parseToJsonElement(getData("sirens_cities.json"))) }
+                .getOrDefault(emptyMap()).also { if (it.isNotEmpty()) sirenCities = it }
+            parseLiveSirens(json.parseToJsonElement(get(LIVE_SIRENS_URL)), cities)
+        }
+    }
+
     private val _frontline = MutableStateFlow<FrontlineShapes?>(null)
     /** Polígonos da linha de frente (frontline.json), baixados só quando o mapa pede. */
     val frontline: StateFlow<FrontlineShapes?> = _frontline.asStateFlow()
@@ -263,10 +288,13 @@ class Repository(context: Context) {
             val raw = getData("feed.json?t=${System.currentTimeMillis() / 60_000}")
             val feed = json.decodeFromString<Feed>(raw)
             val radar = fetchRadar() ?: _radar.value
+            fetchDeadlines()?.let { _deadlines.value = it }
             recordVigil(feed, radar)
             val texts = feedTexts(feed) + textsOf(_saved.value) + textsOf(_archive.value.orEmpty().map { it.top }) +
                 _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty() +
-                _dossiers.value.flatMap { d -> d.entries.filter { it.lang != "pt" }.map { it.title } }
+                _dossiers.value.flatMap { d -> d.entries.filter { it.lang != "pt" }.map { it.title } } +
+                _deadlines.value.flatMap { d -> listOfNotNull(d.title.takeIf { d.lang != "pt" }, d.after?.takeIf { it.lang != "pt" }?.title) } +
+                radar?.quakes?.items.orEmpty().map { it.place }.filter { it.isNotBlank() }
             translator.translateAll(texts)
             storage.saveTranslations(keep = texts)
             _radar.value = radar

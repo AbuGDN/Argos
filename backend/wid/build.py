@@ -27,6 +27,7 @@ from .cluster import build_clusters, cluster_json, is_urgent
 from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
 from . import radar as radar_mod
+from .deadlines import update_deadlines
 from . import webgeo
 
 log = logging.getLogger("wid")
@@ -122,8 +123,9 @@ def write_stats(out: Path, today, started_today: list[dict]) -> list[dict]:
     return ordered
 
 
-def global_index(regions: dict) -> dict | None:
-    """Relógio do Argos: 60% a região mais tensa + 40% a média das 3 mais tensas."""
+def global_index(regions: dict, skip: frozenset = frozenset()) -> dict | None:
+    """Relógio do Argos: 60% a região mais tensa + 40% a média das 3 mais tensas (sem as de `skip`)."""
+    regions = {k: v for k, v in regions.items() if k not in skip}
     if not regions:
         return None
     ranked = sorted(regions.items(), key=lambda kv: kv[1]["tension"], reverse=True)
@@ -193,6 +195,7 @@ def build(
         if truce_violation(c):
             c["truce_violation"] = True
     update_sagas(out, items, now)
+    update_deadlines(out, items, now)
 
     # Principal de cada dia e estatística diária (fuso de Brasília), antes do feed, porque
     # a tensão por região compara o dia de hoje com a média dos anteriores.
@@ -211,7 +214,7 @@ def build(
                                                 "updated": front.get("updated", "")})
             radar["frontline"] = {k: v for k, v in front.items() if k not in ("occupied", "grey")}
         write_json(out / "radar.json", radar)
-    clock = global_index(regions)
+    clock = global_index(regions, kw.not_war)
     record_tension(out, stats_days, regions, clock)
     update_first(out, items, now)
 

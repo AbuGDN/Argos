@@ -57,8 +57,10 @@ data class Tool(val route: String, val icon: String, val name: String, val desc:
 val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     "Agora" to listOf(
         Tool("clock", "👁", "Relógio do Argos", "Tensão global e a região que mais puxa", "tensao indice global"),
-        Tool("radar:0", "📡", "Sensores do Radar", "Internet, espaço aéreo, focos de calor, navios e aviões militares", "apagao internet aviao navio fogo"),
+        Tool("radar:0", "📡", "Sensores do Radar", "Internet, espaço aéreo, focos de calor, navios, aviões militares, sirenes e sismos", "apagao internet aviao navio fogo terremoto sismo nuclear"),
         Tool("vigil", "📜", "Vigília", "Registro dos alertas com data e hora", "alertas registro historico"),
+        Tool("sirens", "🚨", "Sirenes em Israel", "Alertas de foguete e drone ao vivo, no mapa", "sirene alerta foguete tzeva adom"),
+        Tool("deadlines", "⏳", "Ultimatos e prazos", "Contagem regressiva dos prazos dados nas manchetes", "ultimato prazo contagem"),
     ),
     "Resumos" to listOf(
         Tool("story", "▶", "O dia em 1 minuto", "As 5 principais em tela cheia", "resumo stories"),
@@ -72,13 +74,17 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("map:carriers", "⚓", "Porta-aviões", "Onde está cada porta-aviões americano", "frota marinha eua navios"),
         Tool("map:military", "✈", "Aviões militares", "Reabastecedores, aviões-radar e drones no ar", "militar avioes adsb"),
         Tool("map:ranges", "🎯", "Alcance de mísseis", "Até onde chegam mísseis e defesas", "misseis defesa alcance armas"),
+        Tool("scale", "📏", "E se fosse no Brasil?", "Gaza, a frente na Ucrânia ou um míssil em cima da sua cidade", "escala tamanho comparar cidade"),
     ),
     "Radar" to listOf(
         Tool("radar:1", "🛢", "Mercados", "Petróleo, ouro, moedas e apostas sobre as guerras", "cotacao petroleo brent ouro polymarket"),
         Tool("radar:2", "🩸", "Números", "Gaza, deslocados, reféns e perdas russas", "mortos refens humanitario perdas"),
         Tool("radar:3", "🏛", "Vozes", "O que governos dizem nos próprios canais e sanções", "oficial governo sancoes"),
         Tool("radar:4", "🧠", "Análise", "CrisisWatch, checagens e institutos de análise", "crisiswatch checagem isw fatos"),
-        Tool("radar:5", "📅", "Contexto", "Agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres"),
+        Tool("radar:5", "📅", "Contexto", "Alertas de viagem, agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres viagem turismo"),
+    ),
+    "Aprender" to listOf(
+        Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
     ),
     "Seus" to listOf(
         Tool("library:0", "★", "Salvos", "Notícias guardadas, com pasta e nota", "favoritos estrela"),

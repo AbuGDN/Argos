@@ -26,6 +26,9 @@ data class RadarData(
     val military: MilitarySection? = null,
     val carriers: CarriersSection? = null,
     val frontline: FrontlineSection? = null,
+    val sirens: SirensSection? = null,
+    val quakes: QuakesSection? = null,
+    val travel: TravelSection? = null,
     val status: Map<String, SectionStatus> = emptyMap(),
 )
 

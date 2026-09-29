@@ -37,7 +37,9 @@ que publica JSON na branch `gh-pages`; app Kotlin/Compose que lê esse JSON.
 ```
 backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python -m wid.build --out ../site
   config/sources.yaml    ~33 veículos: url (ou lista de alternativas), lang pt|en|he|ar, origin, weight
-  config/keywords.yaml   termos de guerra, tags de região, boost, termos de urgência
+  config/keywords.yaml   termos de guerra, tags de região, boost, termos de urgência; standalone_tags (ICE entra
+                         sem termo de guerra) e weak_tags (Brasil não conta como região no filtro); nenhuma das
+                         duas entra no Relógio; "!TERMO" diferencia maiúsculas (ICE ≠ ice)
   wid/fetch.py           download/parse RSS, canonical_url, limpeza de resumos, Google News
   wid/text.py            tokens() com dicionário PT→EN (CANON/PHRASES) e hebraico/árabe→EN (CANON_RTL,
                          prefixos colados, normalize_rtl) para agrupar entre idiomas
@@ -49,12 +51,15 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
   wid/radar.py           Radar (radar.json): IODA, OpenSky, NASA FIRMS, PortWatch, cotações (Stooq →
                          Yahoo → câmbio aberto), Tech for Palestine + HDX HAPI, perdas (russianwarship.rip),
                          RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket, aviões
-                         militares (adsb.lol), porta-aviões (USNI Fleet Tracker), frente (DeepStateMap). Cada seção é
+                         militares (adsb.lol), porta-aviões (USNI Fleet Tracker), frente (DeepStateMap), sirenes
+                         (Tzeva Adom; oref.org.il dá 403 no GitHub; dicionário de cidades em sirens_cities.json),
+                         sismos (USGS) e alertas de viagem (Departamento de Estado dos EUA). Cada seção é
                          independente e guarda o último dado bom; baselines em stats/radar_state.json.
                          apply_signals() soma apagão/espaço aéreo fechado na tensão; link_factchecks()
   wid/build.py           orquestra; escreve feed.json (com "global" = Relógio do Argos), top.json,
                          history/, stats/daily.json (com pico de tensão do dia), sagas.json;
                          merge() guarda manchetes trocadas em article.edits
+  wid/deadlines.py       ultimatos ("48 horas para…") nas manchetes → deadlines.json, com "o que aconteceu depois"
   tests/                 pytest com fixtures; rode sempre antes do push
 android/app/src/main/java/com/abugdn/wid/
   WidApp.kt              Application: Repository, canais, agenda workers
@@ -75,6 +80,11 @@ android/app/src/main/java/com/abugdn/wid/
   data/Radar.kt          espelho do radar.json (+ military, carriers, frontline; polígonos em frontline.json); Agenda.kt (agenda, "neste dia", relógios das capitais,
                          nascer/pôr do sol); Power.kt (quem manda em cada lado, linha do tempo dos reféns)
   data/RadarChanges.kt   "o que mudou desde a última visita" no Radar (retrato salvo ao sair da aba)
+  data/Alerts.kt         sirenes (ao vivo: parseLiveSirens), sismos, alertas de viagem, ultimatos (Deadline)
+  data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
+  ui/AlertScreens.kt     telas Sirenes (consulta a cada 5 s só com o app na frente) e Ultimatos; ui/AlertCards.kt:
+                         cartões do Radar (sirenes, sismógrafo, viagem) e LocalGo (abre rotas de qualquer tela)
+  ui/ScaleScreen.kt      "E se fosse no Brasil?"; ui/SmallMap.kt: mapa osmdroid com as proteções do MapScreen
   ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto; em Sensores os
                          cartões em alerta sobem e os calmos vêm recolhidos
   ui/Cards.kt            ArgosCard: cartão padrão (título, "fonte · atualizado há X", ⓘ com a explicação,
@@ -93,7 +103,9 @@ web/                     página de download (index.html, icon.svg); build.py co
                          frente e alcances; lê os mesmos JSON do app. Tradução pela API Translator do
                          Chrome (no computador). geo.json é gerado por backend/wid/webgeo.py a partir dos
                          arquivos Kotlin do app (Models, Cities, Ranges, Context, Milestones, Conflicts,
-                         Images, MapScreen.REGION_POINTS, Agenda.CAPITALS, Power): mudou esses dados no
+                         Images, MapScreen.REGION_POINTS, Agenda.CAPITALS, Power): região nova no app (TAG_LABELS,
+                         REGION_POINTS, REGION_FLAGS, REGION_CONTEXT) aparece no painel; o mapa país→região é
+                         COUNTRY_TAG em features.js. Mudou esses dados no
                          app, o site acompanha. app.js = globo, painéis, busca; features.js = dia/noite,
                          arcos entre regiões, estreitos, ficha do país (Wikidata/Wikipédia no navegador),
                          comparar, arquivo, atalhos, mercados e imagem para compartilhar. Marcadores HTML

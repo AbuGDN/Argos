@@ -80,6 +80,30 @@ val CITIES = listOf(
     City("Cartum", 15.50, 32.56, "sudao", listOf("khartoum", "cartum", "الخرطوم")),
     City("El Fasher", 13.63, 25.35, "sudao", listOf("el fasher", "el-fasher", "al-fashir", "الفاشر")),
     City("Porto Sudão", 19.62, 37.22, "sudao", listOf("port sudan", "porto sudão", "بورتسودان")),
+    // Egito, Jordânia, Golfo e Turquia
+    City("Cairo", 30.04, 31.24, "egito", listOf("cairo", "القاهرة", "קהיר")),
+    City("Passagem de Rafah", 31.25, 34.26, "egito", listOf("rafah crossing", "passagem de rafah", "معبر رفح")),
+    City("Canal de Suez", 30.60, 32.33, "egito", listOf("suez canal", "canal de suez", "قناة السويس")),
+    City("Amã", 31.95, 35.93, "jordania", listOf("amman", "amã")),
+    City("Riad", 24.71, 46.68, "arabia", listOf("riyadh", "riad", "الرياض")),
+    City("Jidá", 21.49, 39.19, "arabia", listOf("jeddah", "jidá", "jidda", "جدة")),
+    City("Abu Dhabi", 24.45, 54.38, "emirados", listOf("abu dhabi", "abu dabi", "ابوظبي")),
+    City("Dubai", 25.20, 55.27, "emirados", listOf("dubai", "dubái", "دبي")),
+    City("Doha", 25.29, 51.53, "golfo", listOf("doha", "الدوحة")),
+    City("Base de Al Udeid", 25.12, 51.32, "golfo", listOf("al udeid", "al-udeid", "العديد")),
+    City("Manama", 26.23, 50.59, "golfo", listOf("manama", "المنامة")),
+    City("Mascate", 23.59, 58.41, "golfo", listOf("muscat", "mascate", "مسقط")),
+    City("Ancara", 39.93, 32.86, "turquia", listOf("ankara", "ancara", "انقرة")),
+    City("Istambul", 41.01, 28.98, "turquia", listOf("istanbul", "istambul", "اسطنبول")),
+    // Somália e Mediterrâneo
+    City("Mogadíscio", 2.05, 45.32, "somalia", listOf("mogadishu", "mogadíscio", "mogadiscio", "مقديشو")),
+    City("Chipre", 35.13, 33.43, "mediterraneo", listOf("cyprus", "chipre", "קפריסין", "قبرص")),
+    City("Lampedusa", 35.51, 12.61, "mediterraneo", listOf("lampedusa")),
+    City("Tartus", 34.89, 35.89, "mediterraneo", listOf("tartus", "طرطوس")),
+    // ICE e Brasil
+    City("Los Angeles", 34.05, -118.24, "ice", listOf("los angeles")),
+    City("Chicago", 41.88, -87.63, "ice", listOf("chicago")),
+    City("Brasília", -15.79, -47.88, "brasil", listOf("brasília", "brasilia", "itamaraty", "planalto")),
 )
 
 private val cityPatterns: List<Pair<City, List<Regex>>> by lazy {

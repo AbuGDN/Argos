@@ -205,6 +205,22 @@ object Notifier {
             radar.airspace?.zones.orEmpty()
                 .filter { it.status == "fechado" && settings.matchesRegion(listOf(it.tag)) }
                 .forEach { add("airspace:${it.id}:${it.since}" to "✈ Espaço aéreo fechado: ${it.name} (${it.flights} aviões no ar)") }
+            radar.quakes?.items.orEmpty()
+                .filter { it.alert && settings.matchesRegion(listOfNotNull(it.tag)) }
+                .forEach { q ->
+                    val kind = com.abugdn.wid.data.QUAKE_TYPES[q.type] ?: q.type
+                    add("quake:${q.id}" to "🌋 Sismo suspeito: $kind de magnitude ${q.mag ?: "?"} em ${q.zone}" + (q.site?.let { " (a ${it.km} km de ${it.name})" } ?: ""))
+                }
+            radar.travel?.changes.orEmpty()
+                .filter { it.to == 4 && it.from < 4 && settings.matchesRegion(listOfNotNull(it.tag)) }
+                .forEach { add("travel:${it.country}:${it.date}" to "✈ EUA: “não viaje” para ${it.name} (era nível ${it.from})") }
+            repo.deadlines.value
+                .filter { d ->
+                    val due = d.dueInstant() ?: return@filter false
+                    val left = java.time.Duration.between(java.time.Instant.now(), due)
+                    !left.isNegative && left.toHours() < 3 && settings.matchesRegion(d.tags)
+                }
+                .forEach { add("deadline:${it.id}" to "⏳ Prazo vence ${com.abugdn.wid.data.countdown(it.dueInstant()!!).removePrefix("faltam ").let { t -> "em $t" }}: ${repo.translator.cached(it.title)}") }
         }
         // A primeira leitura só registra o que já estava acontecendo, sem avisar.
         val first = !prefs.getBoolean("radar_initialized", false)
@@ -224,6 +240,37 @@ object Notifier {
             .setAutoCancel(true)
             .build()
         NotificationManagerCompat.from(context).notify(RADAR_ID, notification)
+    }
+
+    private const val SIRENS_ID = 8_007
+
+    /** Resumo das sirenes novas desde a última sincronização (Tzeva Adom, pelo radar.json). */
+    @SuppressLint("MissingPermission") // checado em canNotify
+    fun sirens(context: Context, radar: RadarData?) {
+        val section = radar?.sirens ?: return
+        if (!canNotify(context)) return
+        val repo = context.repository
+        val settings = repo.settings.value
+        if (!settings.notifySirens || settings.isQuiet()) return
+        val prefs = repo.storage.prefs
+        val lastSeen = prefs.getString("sirens_seen", null)
+        val newest = section.events.firstOrNull()?.time ?: return
+        prefs.edit().putString("sirens_seen", newest).apply()
+        if (lastSeen == null) return // primeira leitura: só registra
+        val fresh = section.events.filter { it.time > lastSeen }
+        if (fresh.isEmpty()) return
+        val places = fresh.flatMap { e -> e.cities.map { it.name } }.distinct()
+        val threats = fresh.map { it.threat }.distinct().joinToString(", ")
+        val text = places.take(12).joinToString(", ") + if (places.size > 12) " e mais ${places.size - 12}" else ""
+        val notification = NotificationCompat.Builder(context, CHANNEL_SPIKE)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("🚨 Sirenes em Israel: ${places.size} ${if (places.size == 1) "local" else "locais"} ($threats)")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(shortcutIntent(context, "sirens"))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(SIRENS_ID, notification)
     }
 
     private const val PREDICTION_ID = 8_006

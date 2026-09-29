@@ -169,7 +169,7 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
                     2 -> numbers(data, onOpen, onRegion)
                     3 -> data?.let { voices(it) }
                     4 -> data?.let { analysis(it, onOpen, onRegion) }
-                    else -> contextTab(onRegion)
+                    else -> contextTab(data, onRegion)
                 }
             }
         }
@@ -353,6 +353,10 @@ fun radarAlerts(radar: RadarData): List<String> = buildList {
     radar.straits?.items.orEmpty().filter { s -> s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6 }.forEach {
         add("🚢 Tráfego em queda: ${it.name}")
     }
+    if (sirensRecent(radar)) radar.sirens?.let { add("🚨 Sirenes em Israel: ${it.count24h} locais em 24 h") }
+    radar.quakes?.items.orEmpty().filter { it.alert }.forEach { q ->
+        add("🌋 Sismo suspeito: M ${q.mag ?: "?"} em ${q.zone}" + (q.site?.let { " (perto de ${it.name})" } ?: ""))
+    }
     radar.military?.zones.orEmpty().filter { it.unusual }.forEach {
         add("✈ Aviões militares acima do normal: ${it.name} (${it.key} reabastecedores/radar/espionagem)")
     }
@@ -400,6 +404,8 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
         "military" to radar.military?.zones.orEmpty().any { it.unusual },
         "carriers" to (radar.carriers?.ships.orEmpty().count { it.lat in 10.0..40.0 && it.lon in 25.0..65.0 } >= 2),
         "frontline" to ((radar.frontline?.change7dKm2 ?: 0L) > 50L),
+        "sirens" to sirensRecent(radar),
+        "quakes" to radar.quakes?.items.orEmpty().any { it.alert },
     ).sortedByDescending { it.second }
     order.forEach { (key, _) ->
         when (key) {
@@ -409,6 +415,8 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             "straits" -> straitsItem(radar, onRegion)
             "military" -> militaryItem(radar)
             "carriers" -> carriersItem(radar)
+            "sirens" -> sirensItem(radar)
+            "quakes" -> quakesItem(radar, onRegion)
             else -> frontlineItem(radar)
         }
     }
@@ -948,7 +956,9 @@ private fun CrisisWatchCard(cw: CrisisWatchSection, status: SectionStatus?, onRe
 
 private val agendaDay = DateTimeFormatter.ofPattern("EEE, dd/MM/yyyy", ptBR)
 
-private fun LazyListScope.contextTab(onRegion: (String) -> Unit) {
+private fun LazyListScope.contextTab(radar: RadarData?, onRegion: (String) -> Unit) {
+    val travel = radar?.travel
+    if (radar != null && travel != null) item { TravelCard(travel, radar, onRegion) }
     item {
         val today = LocalDate.now()
         val past = onThisDay(today)

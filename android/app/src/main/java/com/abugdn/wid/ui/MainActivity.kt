@@ -163,6 +163,8 @@ private fun App(
     var bulletinOpen by rememberSaveable { mutableStateOf(false) }
     var clockOpen by rememberSaveable { mutableStateOf(false) }
     var toolsOpen by rememberSaveable { mutableStateOf(false) }
+    // Telas avulsas: "sirens", "deadlines", "scale", "course".
+    var page by rememberSaveable { mutableStateOf<String?>(null) }
     var librarySub by rememberSaveable { mutableIntStateOf(0) }
     var radarTab by rememberSaveable { mutableIntStateOf(0) }
     // Mais de 24 h sem abrir: mostra o que a pessoa perdeu (uma vez por abertura).
@@ -174,7 +176,7 @@ private fun App(
     fun closeAll() {
         onOpenCluster(null)
         settingsOpen = false; storyOpen = false; regionOpen = null; missedOpen = false
-        vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false
+        vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false; page = null
     }
 
     /**
@@ -193,6 +195,7 @@ private fun App(
             "vigil" -> { closeAll(); vigilOpen = true }
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
+            "sirens", "deadlines", "scale", "course" -> { closeAll(); page = route.substringBefore(':') }
             "settings" -> { closeAll(); settingsOpen = true }
             "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
             "region" -> { closeAll(); regionOpen = arg }
@@ -238,7 +241,7 @@ private fun App(
     Box {
     Scaffold(
         bottomBar = {
-            val overlay = settingsOpen || storyOpen || regionOpen != null || missedOpen || vigilOpen || bulletinOpen || clockOpen || toolsOpen
+            val overlay = settingsOpen || storyOpen || regionOpen != null || missedOpen || vigilOpen || bulletinOpen || clockOpen || toolsOpen || page != null
             if (openCluster == null && !overlay) {
                 NavigationBar {
                     Tab.entries.forEach { t ->
@@ -258,11 +261,11 @@ private fun App(
             repo.mapFocus.value = id
             onOpenCluster(null)
             settingsOpen = false; storyOpen = false; regionOpen = null; missedOpen = false
-            vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false
+            vigilOpen = false; bulletinOpen = false; clockOpen = false; toolsOpen = false; page = null
             tab = Tab.MAP
         }
         // O "dia em 1 minuto" ocupa a tela inteira, inclusive atrás da barra de navegação.
-        CompositionLocalProvider(LocalOpenMap provides openMap) {
+        CompositionLocalProvider(LocalOpenMap provides openMap, LocalGo provides { r: String -> go(r) }) {
         Box(Modifier.padding(bottom = if (storyOpen) 0.dp else padding.calculateBottomPadding())) {
         // A notícia "abre" do cartão da lista: título e foto viajam até a tela da notícia.
         SharedTransitionLayout {
@@ -293,6 +296,15 @@ private fun App(
                 missedOpen -> {
                     BackHandler { missedOpen = false }
                     MissedScreen(since = missedSince, onClose = { missedOpen = false }, onOpen = { onOpenCluster(it) })
+                }
+                page != null -> {
+                    BackHandler { page = null }
+                    when (page) {
+                        "sirens" -> SirensScreen(onBack = { page = null })
+                        "deadlines" -> DeadlinesScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
+                        "scale" -> ScaleScreen(onBack = { page = null })
+                        else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                    }
                 }
                 regionOpen != null -> {
                     BackHandler { regionOpen = null }

@@ -89,6 +89,8 @@ sources:
   - {name: CNN, url: ["https://rss.cnn.com/rss/edition_world.rss", "http://rss.cnn.com/rss/edition_world.rss"], lang: en, origin: eua, weight: 1.0}
   - {name: Fox News, url: "https://moxie.foxnews.com/google-publisher/world.xml", lang: en, origin: eua, weight: 1.0}
   - {name: Washington Post, url: "https://feeds.washingtonpost.com/rss/world", lang: en, origin: eua, weight: 1.1}
+  # Seção nacional: cobertura do ICE (imigração); só entra o que passar no filtro de keywords.yaml.
+  - {name: NPR (EUA), url: "https://feeds.npr.org/1003/rss.xml", lang: en, origin: eua, weight: 0.9}
   - {name: Defense News, url: "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml", lang: en, origin: eua, weight: 0.9}
 
   # --- Em português ---
