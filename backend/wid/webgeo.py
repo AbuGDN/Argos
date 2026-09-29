@@ -127,6 +127,31 @@ def origins(app: Path = APP) -> dict[str, str]:
     return {k: _unescape(v) for k, v in re.findall(_STR + r"\s+to\s+" + _STR, body)}
 
 
+def capitals(app: Path = APP) -> list[dict]:
+    text = (app / "data" / "Agenda.kt").read_text(encoding="utf-8")
+    pattern = r"CapitalClock\(" + _STR + r",\s*" + _STR + r",\s*" + _NUM + r",\s*" + _NUM + r"\)"
+    return [{"city": _unescape(c), "zone": z, "lat": float(lat), "lon": float(lon)} for c, z, lat, lon in re.findall(pattern, text)]
+
+
+def power(app: Path = APP) -> list[dict]:
+    """Quem manda em cada lado: PowerSide("título", "tag", listOf(PowerRole(...), ...))."""
+    text = (app / "data" / "Power.kt").read_text(encoding="utf-8")
+    body = _block(text, "val POWER = listOf(")
+    sides = []
+    for m in re.finditer(r"PowerSide\(\s*" + _STR + r",\s*" + _STR + r",", body):
+        roles_src = _block(body[m.end():], "listOf(")
+        roles = []
+        for r in re.finditer(r"PowerRole\(\s*" + _STR + r",\s*" + _STR + r"(?:,\s*" + _STR + r")?\s*\)", roles_src):
+            roles.append({"role": _unescape(r.group(1)), "name": _unescape(r.group(2)), "person": r.group(3)})
+        sides.append({"title": _unescape(m.group(1)), "tag": m.group(2), "roles": roles})
+    return sides
+
+
+def wiki_titles(app: Path = APP) -> dict[str, str]:
+    body = _block((app / "data" / "Images.kt").read_text(encoding="utf-8"), "val WIKI_TITLES = mapOf(")
+    return {k: _unescape(v) for k, v in re.findall(_STR + r"\s+to\s+" + _STR, body)}
+
+
 def geo(app: Path = APP) -> dict | None:
     """Tudo junto; None se os arquivos do app não estiverem aqui (ex.: cópia só do backend)."""
     if not (app / "data" / "Models.kt").exists():
@@ -141,4 +166,7 @@ def geo(app: Path = APP) -> dict | None:
         "conflicts": conflicts(app),
         "flags": flags(app),
         "origins": origins(app),
+        "capitals": capitals(app),
+        "power": power(app),
+        "wiki": wiki_titles(app),
     }

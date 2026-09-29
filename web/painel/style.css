@@ -229,3 +229,15 @@ body.far .rm.minor:not(.sel) .lbl { display: none; }
   .popover { right: 8px; }
   .hud { display: none; }
 }
+
+/* ---------- extras ---------- */
+.cap { font: 600 10.5px var(--sans); color: var(--ash); white-space: nowrap; text-shadow: 0 1px 3px #000, 0 0 6px #000; pointer-events: none; }
+.cap b { font-family: var(--mono); color: var(--bone); margin-left: 3px; }
+body.far .cap { display: none; }
+.person { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.person img, .person .ph { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #1d1b16; flex: none; border: 1px solid var(--line); }
+.quote { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(42,39,31,.6); }
+.quote svg.chart { width: 120px; margin: 0; }
+kbd { display: inline-block; min-width: 1.6em; text-align: center; font: 600 11px var(--mono); padding: 2px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: #14130f; color: var(--bone); margin-right: 6px; }
+.hud-help { background: none; border: 0; color: var(--gold); cursor: pointer; font: inherit; padding: 0; }
+.tabs button { font-size: 13px; }

@@ -93,7 +93,11 @@ web/                     página de download (index.html, icon.svg); build.py co
                          frente e alcances; lê os mesmos JSON do app. Tradução pela API Translator do
                          Chrome (no computador). geo.json é gerado por backend/wid/webgeo.py a partir dos
                          arquivos Kotlin do app (Models, Cities, Ranges, Context, Milestones, Conflicts,
-                         Images, MapScreen.REGION_POINTS): mudou esses dados no app, o site acompanha
+                         Images, MapScreen.REGION_POINTS, Agenda.CAPITALS, Power): mudou esses dados no
+                         app, o site acompanha. app.js = globo, painéis, busca; features.js = dia/noite,
+                         arcos entre regiões, estreitos, ficha do país (Wikidata/Wikipédia no navegador),
+                         comparar, arquivo, atalhos, mercados e imagem para compartilhar. Marcadores HTML
+                         atrás do globo são escondidos à mão (hideBackside), o MapLibre só os esmaece
 .github/workflows/
   update-feed.yml        coleta; ciclos de ~5 h (11 rodadas × 30 min); cada rodada pega o backend novo
   build-android.yml      compila e publica release v1.0.<run_number> a cada push em android/

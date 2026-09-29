@@ -40,7 +40,11 @@ function dayClock(iso) {
 const S = {
   feed: null, radar: null, geo: null, stats: null, front: null,
   region: null, story: null, tab: 'regions',
-  layers: store.get('argos_layers', { regions: true, cities: true, fires: false, aircraft: false, carriers: false, front: false, ranges: false }),
+  layers: {
+    regions: true, cities: true, night: true, arcs: true, straits: true,
+    fires: false, aircraft: false, carriers: false, front: false, ranges: false,
+    ...store.get('argos_layers', {}),
+  },
   base: store.get('argos_base', 'dark'),
   rotate: store.get('argos_rotate', true),
   cityHits: new Map(),
@@ -282,7 +286,9 @@ const pt = (lon, lat, props) => ({ type: 'Feature', geometry: { type: 'Point', c
 
 function addDataLayers() {
   const empty = fc([]);
-  for (const id of ['ranges', 'front', 'fires', 'aircraft', 'cities']) map.addSource(id, { type: 'geojson', data: empty });
+  for (const id of ['night', 'arcs', 'straits', 'ranges', 'front', 'fires', 'aircraft', 'cities']) map.addSource(id, { type: 'geojson', data: empty });
+  map.addLayer({ id: 'night', type: 'fill', source: 'night', paint: { 'fill-color': '#000000', 'fill-opacity': 0.42 } });
+  map.addLayer({ id: 'night-edge', type: 'line', source: 'night', paint: { 'line-color': '#C9A227', 'line-opacity': 0.18, 'line-width': 6, 'line-blur': 6 } });
   map.addLayer({ id: 'ranges-fill', type: 'fill', source: 'ranges', paint: { 'fill-color': ['case', ['get', 'defense'], '#6E8B6A', '#B3122E'], 'fill-opacity': 0.06 } });
   map.addLayer({ id: 'ranges-line', type: 'line', source: 'ranges', paint: { 'line-color': ['case', ['get', 'defense'], '#6E8B6A', '#B3122E'], 'line-width': 1.4, 'line-dasharray': [3, 2] } });
   map.addLayer({ id: 'front-fill', type: 'fill', source: 'front', paint: { 'fill-color': ['case', ['==', ['get', 'kind'], 'grey'], '#8A8578', '#B3122E'], 'fill-opacity': 0.35 } });
@@ -295,6 +301,10 @@ function addDataLayers() {
       'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, ['+', 1.5, ['*', 0.6, ['sqrt', ['get', 'n']]]], 7, ['+', 4, ['*', 1.6, ['sqrt', ['get', 'n']]]]],
     },
   });
+  map.addLayer({ id: 'arcs-base', type: 'line', source: 'arcs', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#C9A227', 'line-opacity': 0.22, 'line-width': ['+', 1, ['*', 1.3, ['ln', ['get', 'n']]]] } });
+  map.addLayer({ id: 'arcs-flow', type: 'line', source: 'arcs', paint: { 'line-color': '#E8C766', 'line-opacity': 0.85, 'line-width': ['+', 1, ['*', 1.3, ['ln', ['get', 'n']]]], 'line-dasharray': [0, 4, 3] } });
+  map.addLayer({ id: 'straits-halo', type: 'circle', source: 'straits', paint: { 'circle-radius': 16, 'circle-color': ['match', ['get', 'status'], 'queda', '#B3122E', 'normal', '#6E8B6A', '#8A8578'], 'circle-opacity': 0.18, 'circle-blur': 0.6 } });
+  map.addLayer({ id: 'straits', type: 'circle', source: 'straits', paint: { 'circle-radius': 6, 'circle-color': ['match', ['get', 'status'], 'queda', '#B3122E', 'normal', '#6E8B6A', '#8A8578'], 'circle-stroke-color': '#E8E2D0', 'circle-stroke-width': 1.5 } });
   map.addLayer({ id: 'aircraft', type: 'circle', source: 'aircraft', paint: { 'circle-color': '#C9A227', 'circle-radius': 4, 'circle-stroke-color': '#050505', 'circle-stroke-width': 1.5 } });
 
   const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
@@ -307,7 +317,18 @@ function addDataLayers() {
   hover('aircraft', (p) => `<b>${esc(MIL_ICONS[p.category] || '•')} ${esc(p.label)}</b><br>${esc(p.type)} ${esc(p.callsign)}<br><span class="muted">${p.alt ? `${fmt(p.alt)} pés · ` : ''}adsb.lol</span>`);
   hover('fires', (p) => `🔥 Foco de calor · ${esc(p.zone)}<br><span class="muted">NASA FIRMS, últimas 24 h</span>`);
   hover('ranges-line', (p) => `<b>${esc(p.label)}</b><br>${esc(p.detail)}`);
+  hover('arcs-base', (p) => `<b>${esc(p.name)}</b><br>${p.n} notícias das últimas 36 h citam as duas · toque para ver`);
+  hover('straits', (p) => `🚢 <b>${esc(p.name)}</b><br>${p.avg7 >= 0 ? `${Math.round(p.avg7)} navios por dia` : 'sem dados'}${p.avg90 >= 0 ? ` · antes ${Math.round(p.avg90)}` : ''}${p.status === 'queda' ? '<br><span class="alertline">tráfego em queda</span>' : ''}`);
+  map.on('click', 'arcs-base', (e) => openPair(e.features[0].properties.a, e.features[0].properties.b));
+  map.on('click', 'straits', (e) => openStrait(e.features[0].properties.id));
   map.on('click', 'cities', (e) => openCity(e.features[0].properties.name));
+  // Clique num país sem nada em cima: ficha do país.
+  const interactive = ['cities', 'aircraft', 'fires', 'straits', 'arcs-base', 'ranges-line'];
+  map.on('click', (e) => {
+    if (map.queryRenderedFeatures(e.point, { layers: interactive }).length) return;
+    const land = map.queryRenderedFeatures(e.point, { layers: ['land'] });
+    if (land.length) openCountry(land[0].properties.name, e.lngLat);
+  });
 }
 
 // Marcadores das regiões (HTML: anel de sonar, número e nome).
@@ -411,6 +432,10 @@ async function renderLayers() {
   map.getSource('front').setData(fc(front));
   renderRegionMarkers();
   renderCarriers();
+  renderNight();
+  renderArcs();
+  renderStraits();
+  hideBackside();
 }
 
 const markFar = () => document.body.classList.toggle('far', map.getZoom() < 3.4);
@@ -438,12 +463,13 @@ function renderLeft() {
   document.querySelector('[data-tab="radar"]').innerHTML = `Radar${alerts.length ? ' <span class="dot">●</span>' : ''}`;
   if (S.tab === 'regions') body.innerHTML = regionsList();
   else if (S.tab === 'news') body.innerHTML = newsList();
+  else if (S.tab === 'archive') body.innerHTML = archiveList();
   else body.innerHTML = radarList(alerts);
 }
 
 function regionsList() {
   const regions = Object.entries(S.feed.regions || {}).sort((a, b) => b[1].tension - a[1].tension);
-  return regions.map(([tag, r]) => {
+  return '<div class="filter"><button class="chip" data-compare="open">📊 Comparar regiões</button></div>' + regions.map(([tag, r]) => {
     const color = LEVEL_COLOR[r.level] || LEVEL_COLOR.baixa;
     const warn = r.spike ? ` · <span class="alertline">⚠ ${r.spike_ratio?.toFixed?.(1) || ''}× o normal</span>` : '';
     const sig = (r.signals || []).length ? ' · <span class="alertline">📡 sinal do Radar</span>' : '';
@@ -503,13 +529,7 @@ function radarList(alerts) {
       <p>Ocupado pela Rússia: <b>${fmt(fl.occupied_km2)} km²</b><br>${change}</p>
       <button class="chip" data-layer-on="front" data-fly="36.5,47.8,5.2">Mostrar no globo</button></div>`);
   }
-  const mk = r.markets;
-  if (mk) {
-    parts.push(`<div class="card"><h4>🛢 Termômetro do mercado<small>${rel(mk.updated)}</small></h4>${(mk.items || []).filter((q) => q.price != null).map((q) => {
-      const ch = q.change_pct;
-      return `<p class="small">${esc(q.name)}: <b>${Number(q.price).toLocaleString('pt-BR', { maximumFractionDigits: q.digits ?? 2 })}</b> ${esc(q.unit || '')}${ch != null ? ` <span style="color:${ch >= 0 ? '#C9A227' : '#8A8578'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(2)}%</span>` : ''}</p>`;
-    }).join('')}</div>`);
-  }
+  parts.push(marketsCards());
   const cw = r.crisiswatch;
   if (cw) {
     const g = (lab, list) => (list || []).length ? `<p class="small"><b>${lab}:</b> ${list.map((c) => esc(label(c.tag) !== c.tag && c.tag ? label(c.tag) : c.name)).join(', ')}</p>` : '';
@@ -599,7 +619,7 @@ function storyPlace(c) {
 }
 
 function openStory(id, fly) {
-  const c = S.feed?.clusters.find((x) => x.id === id);
+  const c = findCluster(id);
   if (!c) return;
   S.story = id;
   history.replaceState(null, '', `#noticia=${id}`);
@@ -726,7 +746,7 @@ function setLayer(id, on) {
 
 // Um só ouvinte de cliques para tudo que tem data-*.
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-region],[data-story],[data-city],[data-layer-on],[data-fly],[data-clear-region],[data-tab]');
+  const t = e.target.closest('[data-region],[data-story],[data-city],[data-layer-on],[data-fly],[data-clear-region],[data-tab],[data-compare],[data-action]');
   if (!t) {
     if (!e.target.closest('.search')) $('#results').hidden = true;
     if (!e.target.closest('#layers') && !e.target.closest('#btn-layers')) { $('#layers').hidden = true; $('#btn-layers').setAttribute('aria-expanded', 'false'); }
@@ -734,12 +754,10 @@ document.addEventListener('click', (e) => {
   }
   $('#results').hidden = true;
   const d = t.dataset;
-  if (d.tab) {
-    S.tab = d.tab;
-    document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
-    renderLeft();
-    return;
-  }
+  if (d.tab) { switchTab(d.tab); return; }
+  if (d.compare) { if (d.compare === 'open') openCompare(); else toggleCompare(d.compare); return; }
+  if (d.action === 'share') { shareImage(); return; }
+  if (d.action === 'help') { openHelp(); return; }
   if (d.layerOn) setLayer(d.layerOn, true);
   if (d.fly) { const [lon, lat, z] = d.fly.split(',').map(Number); map.flyTo({ center: [lon, lat], zoom: z, speed: 0.9 }); }
   if (d.clearRegion !== undefined) { S.region = null; renderAll(); return; }
