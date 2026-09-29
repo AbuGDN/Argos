@@ -62,6 +62,7 @@ class Keywords:
         self.tags = {tag: _compile(terms) for tag, terms in config["tags"].items()}
         self.boost: dict[str, float] = config.get("boost", {})
         self.urgent = _compile(config.get("urgent_terms", []))
+        self.topics = {name: _compile(terms) for name, terms in (config.get("topics") or {}).items()}
         self.standalone = frozenset(config.get("standalone_tags", []))
         self.weak = frozenset(config.get("weak_tags", []))
         # Fora do Relógio do Argos: não são frentes de guerra.
@@ -84,6 +85,11 @@ class Keywords:
         lowered_title = normalize_rtl(title.lower())
         m.urgent = any(rx.search(lowered_title) for _, rx in self.urgent)
         return m
+
+    def topics_for(self, text: str) -> set[str]:
+        """Temas citados no texto (título, resumo, títulos dos veículos)."""
+        low = normalize_rtl(text.lower())
+        return {name for name, terms in self.topics.items() if any(rx.search(low) for _, rx in terms)}
 
     def boost_for(self, tags) -> float:
         return max((self.boost.get(t, 1.0) for t in tags), default=1.0)

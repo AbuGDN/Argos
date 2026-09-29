@@ -16,6 +16,10 @@
     <string name="widget_compact_description">A principal do dia em uma linha</string>
     <string name="widget_clock_name">Argos · Relógio</string>
     <string name="widget_clock_description">Tensão global de 0 a 100</string>
+    <string name="widget_deadline_name">Argos · Próximo prazo</string>
+    <string name="widget_deadline_description">Contagem regressiva do próximo ultimato nas manchetes</string>
+    <string name="widget_sirens_name">Argos · Sirenes</string>
+    <string name="widget_sirens_description">Último alerta de sirene em Israel e quantos locais em 24 h</string>
     <string name="shortcut_story">O dia em 1 minuto</string>
     <string name="shortcut_search">Buscar</string>
     <string name="shortcut_saved">Salvos</string>

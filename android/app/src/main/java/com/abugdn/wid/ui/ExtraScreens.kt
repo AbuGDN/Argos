@@ -538,3 +538,54 @@ fun BrazilImpactCard(tag: String, radar: RadarData?) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Página de um tema (nuclear, drones, mísseis, reféns, humanitário, navios, ciber)
+// ---------------------------------------------------------------------------
+
+@Composable
+fun TopicScreen(topic: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val repo = LocalContext.current.repository
+    val feed by repo.feed.collectAsStateWithLifecycle()
+    val archive by repo.archive.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { if (repo.archive.value == null) repo.loadArchive() }
+    val label = com.abugdn.wid.data.TOPIC_LABELS[topic] ?: topic
+    val now = feed?.clusters.orEmpty().filter { topic in it.topics }.sortedByDescending { it.updated }
+    val past = archive.orEmpty().map { it.top }.filter { c -> topic in c.topics && now.none { it.id == c.id } }
+    val byRegion = now.flatMap { it.tags }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(5)
+    androidx.compose.material3.Scaffold(contentWindowInsets = NoInsets, topBar = { BackBar(label, onBack) }) { padding ->
+        LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 24.dp)) {
+            item {
+                Hint("Histórias das últimas 48 h sobre este tema, em qualquer região, e as principais de dias anteriores no Arquivo.")
+                if (byRegion.isNotEmpty()) {
+                    Text(
+                        "Onde: " + byRegion.joinToString(" · ") { (t, n) -> "${TAG_LABELS[t] ?: t} ($n)" },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Accent,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                Text("AGORA · ${now.size}", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+            }
+            if (now.isEmpty()) item { Text("Nenhuma história deste tema agora.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp)) }
+            items(now, key = { it.id }) { c -> TopicRow(c, onOpen) }
+            if (past.isNotEmpty()) {
+                item { Text("NO ARQUIVO", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp)) }
+                items(past, key = { "p" + it.id }) { c -> TopicRow(c, onOpen) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopicRow(c: com.abugdn.wid.data.Cluster, onOpen: (String) -> Unit) {
+    val repo = LocalContext.current.repository
+    Column(Modifier.fillMaxWidth().clickable { onOpen(c.id) }.padding(vertical = 8.dp)) {
+        Text(
+            c.tags.mapNotNull { TAG_LABELS[it] }.take(2).joinToString(" · ") + " · ${c.sourcesCount} veículos · ${relativeTime(c.updated)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(repo.translator.display(c.title, c.lang), style = MaterialTheme.typography.bodyLarge)
+    }
+}

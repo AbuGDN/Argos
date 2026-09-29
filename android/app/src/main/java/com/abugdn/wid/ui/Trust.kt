@@ -285,3 +285,30 @@ fun IncidentsCard(radar: RadarData, onRegion: (String) -> Unit) {
         }
     }
 }
+
+/** "Entenda o contexto": lições do Curso e marcos históricos das regiões da notícia. */
+@Composable
+fun UnderstandCard(cluster: Cluster, onRegion: (String) -> Unit) {
+    val go = LocalGo.current
+    val lessons = com.abugdn.wid.data.COURSE.filter { l -> l.tags.any { it in cluster.tags } }.take(2)
+    val milestones = cluster.tags.mapNotNull { t -> com.abugdn.wid.data.MILESTONES[t]?.takeLast(2)?.let { t to it } }.take(2)
+    if (lessons.isEmpty() && milestones.isEmpty()) return
+    ArgosCard(
+        "🎓 ENTENDA O CONTEXTO",
+        info = "Atalhos para entender a história desde o começo: as lições do Curso rápido e os marcos mais recentes das regiões da notícia.",
+    ) {
+        lessons.forEach { l ->
+            TextButton(onClick = { go("course:${l.id}") }) { Text("${l.icon} ${l.title} · ${l.minutes} min →") }
+        }
+        milestones.forEach { (tag, list) ->
+            Text(
+                (TAG_LABELS[tag] ?: tag).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = Accent,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 6.dp).clickable { onRegion(tag) },
+            )
+            list.forEach { m -> Text("${m.date} · ${m.text}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp)) }
+        }
+    }
+}

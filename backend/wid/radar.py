@@ -1286,6 +1286,7 @@ def siren_cities(payload: dict) -> dict[str, list]:
 def siren_summary(history: list[dict], cities: dict[str, list], now: datetime, max_events: int = 60) -> dict:
     """Alertas das últimas 24 h (sem simulados), do mais novo ao mais velho, e contagem por dia (7 dias)."""
     events, days = [], {}
+    hours = [0] * 24  # locais com sirene por hora do dia (horário de Israel), 7 dias
     day_ago, week_ago = now - timedelta(hours=24), now - timedelta(days=7)
     for group in history or []:
         for a in group.get("alerts") or []:
@@ -1295,8 +1296,10 @@ def siren_summary(history: list[dict], cities: dict[str, list], now: datetime, m
             if t < week_ago:
                 continue
             names = a.get("cities") or []
-            key = t.astimezone(IL_TZ).date().isoformat()
+            local = t.astimezone(IL_TZ)
+            key = local.date().isoformat()
             days[key] = days.get(key, 0) + len(names)
+            hours[local.hour] += len(names)
             if t < day_ago:
                 continue
             places = []
@@ -1310,6 +1313,7 @@ def siren_summary(history: list[dict], cities: dict[str, list], now: datetime, m
         "events": events[:max_events],
         "last": events[0]["time"] if events else None,
         "days": [{"date": d, "count": n} for d, n in sorted(days.items())],
+        "hours": hours,
     }
 
 
@@ -1441,6 +1445,139 @@ def collect_travel(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Conselho de Segurança da ONU: reuniões, resoluções aprovadas e vetos (press.un.org), mais as
+# votações previstas (Security Council Report, "What's in Blue"). Guarda 30 dias no estado.
+# ---------------------------------------------------------------------------
+
+UNSC_FEEDS = ["https://press.un.org/en/rss.xml", "https://www.securitycouncilreport.org/whatsinblue/feed"]
+UNSC_KEEP = timedelta(days=30)
+_VETO_BY = {
+    "Russian Federation": "Rússia", "Russia": "Rússia", "China": "China", "United States": "EUA",
+    "France": "França", "United Kingdom": "Reino Unido",
+}
+_UNSC_KINDS = [
+    ("veto", re.compile(r"\bveto|fails? to adopt|failed to adopt|not adopted|rejects? draft", re.I)),
+    ("aprovada", re.compile(r"adopts?\b.{0,40}resolution|unanimously adopt|adopting resolution|extends? mandate", re.I)),
+    ("votacao", re.compile(r"vote on (?:a |the )?draft resolution", re.I)),
+    ("declaracao", re.compile(r"(?:press|presidential) statement", re.I)),
+    ("reuniao", re.compile(r"\b\d+(?:st|nd|rd|th) meeting\b|briefing|debate|consultations", re.I)),
+]
+
+
+def unsc_item(entry: dict, source: str, kw: Keywords) -> dict | None:
+    title = (entry.get("title") or "").strip()
+    summary = clean_html(entry.get("summary") or "")
+    text = f"{title} {summary}"
+    if source == "press.un.org" and "security council" not in text.lower():
+        return None
+    kind = next((k for k, rx in _UNSC_KINDS if rx.search(text)), None)
+    if kind is None:
+        return None
+    vetoes = []
+    if kind == "veto":
+        for m in re.finditer(r"(?:negative vote|veto(?:ed)?|vetoes?)\s+(?:cast\s+)?(?:of|by)\s+([^.;]{3,120})", text, re.I):
+            vetoes += [pt for en, pt in _VETO_BY.items() if en in m.group(1)]
+    published = entry.get("published_parsed") or entry.get("updated_parsed")
+    when = datetime(*published[:6], tzinfo=timezone.utc) if published else None
+    return {
+        "title": title, "url": entry.get("link", ""), "date": iso(when) if when else "", "kind": kind,
+        "source": source, "tags": sorted(kw.match(title, summary).tags), "veto_by": sorted(set(vetoes)),
+        "summary": truncate(summary, 280),
+    }
+
+
+def collect_unsc(ctx: Ctx) -> dict:
+    import feedparser  # já é dependência do fetch
+
+    known = {i["url"]: i for i in ctx.state.get("items", [])}
+    ok = 0
+    for url in ctx.conf.get("feeds", UNSC_FEEDS):
+        try:
+            resp = ctx.client.get(url)
+            resp.raise_for_status()
+        except Exception as exc:
+            log.info("radar/unsc: %s: %s", url, exc)
+            continue
+        ok += 1
+        source = "press.un.org" if "press.un.org" in url else "Security Council Report"
+        for entry in feedparser.parse(resp.content).entries:
+            item = unsc_item(entry, source, ctx.kw)
+            if item and item["url"]:
+                known[item["url"]] = item
+    if ok == 0:
+        raise RuntimeError("nenhum feed da ONU respondeu")
+    items = [i for i in known.values() if i["date"] and ctx.now - parse_iso(i["date"]) <= UNSC_KEEP]
+    items.sort(key=lambda i: i["date"], reverse=True)
+    ctx.state["items"] = items
+    counts = {k: sum(1 for i in items if i["kind"] == k) for k, _ in _UNSC_KINDS}
+    return {"items": items[:40], "counts": counts}
+
+
+# ---------------------------------------------------------------------------
+# Tempo nas zonas de conflito (Open-Meteo, grátis e sem chave): vento, chuva, neve, visibilidade e poeira
+# ---------------------------------------------------------------------------
+
+WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+DUST_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+WMO = {
+    0: "céu limpo", 1: "quase limpo", 2: "parcialmente nublado", 3: "nublado", 45: "neblina", 48: "neblina com geada",
+    51: "garoa fraca", 53: "garoa", 55: "garoa forte", 61: "chuva fraca", 63: "chuva", 65: "chuva forte",
+    66: "chuva congelante", 67: "chuva congelante forte", 71: "neve fraca", 73: "neve", 75: "neve forte", 77: "grãos de neve",
+    80: "pancadas de chuva", 81: "pancadas fortes", 82: "tempestade de chuva", 85: "pancadas de neve", 86: "nevasca",
+    95: "trovoada", 96: "trovoada com granizo", 99: "trovoada com granizo forte",
+}
+
+
+def weather_flags(cur: dict, dust: float | None) -> list[str]:
+    flags = []
+    code = int(cur.get("weather_code") or 0)
+    if (cur.get("wind_gusts_10m") or 0) >= 50:
+        flags.append("vento forte")
+    if code >= 95:
+        flags.append("trovoada")
+    elif code in (71, 73, 75, 77, 85, 86):
+        flags.append("neve")
+    elif code in (63, 65, 67, 81, 82):
+        flags.append("chuva forte")
+    if code in (45, 48) or (cur.get("visibility") is not None and cur["visibility"] < 2000):
+        flags.append("baixa visibilidade")
+    if dust is not None and dust >= 300:
+        flags.append("tempestade de areia" if dust >= 800 else "poeira no ar")
+    return flags
+
+
+def collect_weather(ctx: Ctx) -> dict:
+    places = ctx.conf["places"]
+    lat = ",".join(str(p["lat"]) for p in places)
+    lon = ",".join(str(p["lon"]) for p in places)
+    cur_fields = "temperature_2m,wind_speed_10m,wind_gusts_10m,weather_code,precipitation,visibility,cloud_cover"
+    data = _get_json(ctx.client, WEATHER_URL, params={"latitude": lat, "longitude": lon, "current": cur_fields, "timezone": "UTC"})
+    data = data if isinstance(data, list) else [data]
+    dust_list: list = []
+    try:
+        d = _get_json(ctx.client, DUST_URL, params={"latitude": lat, "longitude": lon, "current": "dust"})
+        dust_list = d if isinstance(d, list) else [d]
+    except Exception as exc:  # poeira é bônus
+        log.info("radar/weather: poeira: %s", exc)
+    out = []
+    for i, p in enumerate(places):
+        cur = (data[i] if i < len(data) else {}).get("current") or {}
+        if not cur:
+            continue
+        dust = ((dust_list[i] if i < len(dust_list) else {}).get("current") or {}).get("dust")
+        code = int(cur.get("weather_code") or 0)
+        out.append({
+            "name": p["name"], "tag": p.get("tag"), "lat": p["lat"], "lon": p["lon"],
+            "temp": cur.get("temperature_2m"), "wind": cur.get("wind_speed_10m"), "gusts": cur.get("wind_gusts_10m"),
+            "code": code, "desc": WMO.get(code, ""), "rain": cur.get("precipitation"), "visibility": cur.get("visibility"),
+            "cloud": cur.get("cloud_cover"), "dust": dust, "flags": weather_flags(cur, dust),
+        })
+    if not out:
+        raise RuntimeError("Open-Meteo sem dados")
+    return {"places": out}
+
+
+# ---------------------------------------------------------------------------
 # Orquestração
 # ---------------------------------------------------------------------------
 
@@ -1467,6 +1604,8 @@ COLLECTORS = {
     "sirens": collect_sirens,
     "quakes": collect_quakes,
     "travel": collect_travel,
+    "unsc": collect_unsc,
+    "weather": collect_weather,
 }
 
 

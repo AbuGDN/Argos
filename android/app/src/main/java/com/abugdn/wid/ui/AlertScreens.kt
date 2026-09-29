@@ -133,6 +133,7 @@ fun SirensScreen(onBack: () -> Unit) {
                     live.flatMap { it.cities }.forEach { c -> if (c.lat != null && c.lon != null) m.overlays.add(dot(c.lat, c.lon, true)) }
                 }
             }
+            if (section != null) item { SirenHoursCard(section.hours) }
             if (section != null && section.days.isNotEmpty()) {
                 item {
                     ArgosCard("📊 LOCAIS COM SIRENE POR DIA · 7 DIAS", source = "Tzeva Adom", updated = section.updated) {

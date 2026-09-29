@@ -46,10 +46,10 @@ private const val DONE_KEY = "course_done"
 /** Curso rápido: lista de lições; cada lição abre página por página e fica marcada como lida. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CourseScreen(onBack: () -> Unit, onRegion: (String) -> Unit) {
+fun CourseScreen(onBack: () -> Unit, initial: String? = null, onRegion: (String) -> Unit) {
     val prefs = LocalContext.current.repository.storage.prefs
     var done by remember { mutableStateOf(prefs.getStringSet(DONE_KEY, emptySet())!!.toSet()) }
-    var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    var openId by rememberSaveable { mutableStateOf(initial) }
     val lesson = COURSE.firstOrNull { it.id == openId }
 
     if (lesson != null) {

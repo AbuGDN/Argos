@@ -138,6 +138,17 @@ class Repository(context: Context) {
         json.decodeFromString<DiplomacyFile>(raw).also { storage.prefs.edit().putString("diplomacy_raw", raw).apply() }
     }.getOrNull()
 
+    private val _airwar = MutableStateFlow(
+        runCatching { json.decodeFromString<AirwarFile>(storage.prefs.getString("airwar_raw", null)!!).days }.getOrDefault(emptyList())
+    )
+    /** Placar aéreo da Ucrânia: drones e mísseis por noite (airwar.json). */
+    val airwar: StateFlow<List<AirwarDay>> = _airwar.asStateFlow()
+
+    private fun fetchAirwar(): List<AirwarDay>? = runCatching {
+        val raw = getData("airwar.json?t=${System.currentTimeMillis() / 60_000}")
+        json.decodeFromString<AirwarFile>(raw).days.also { storage.prefs.edit().putString("airwar_raw", raw).apply() }
+    }.getOrNull()
+
     /** Veículos e se a última coleta deu certo (sources_status.json), para a tela Status das fontes. */
     suspend fun loadSourcesStatus(): Result<SourcesStatus> = withContext(Dispatchers.IO) {
         runCatching { json.decodeFromString<SourcesStatus>(getData("sources_status.json?t=${System.currentTimeMillis() / 60_000}")) }
@@ -331,10 +342,12 @@ class Repository(context: Context) {
             val radar = fetchRadar() ?: _radar.value
             fetchDeadlines()?.let { _deadlines.value = it }
             fetchDiplomacy()?.let { _diplomacy.value = it }
+            fetchAirwar()?.let { _airwar.value = it }
             recordVigil(feed, radar)
             val texts = feedTexts(feed) + textsOf(_saved.value) + textsOf(_archive.value.orEmpty().map { it.top }) +
                 _vigil.value.filter { it.lang != "pt" }.map { it.title } + radar?.foreignTexts().orEmpty() +
                 _dossiers.value.flatMap { d -> d.entries.filter { it.lang != "pt" }.map { it.title } } +
+                radar?.unsc?.items.orEmpty().map { it.title } +
                 _diplomacy.value?.regions?.values.orEmpty().flatMap { r -> r.events.filter { it.lang != "pt" }.map { it.title } } +
                 _deadlines.value.flatMap { d -> listOfNotNull(d.title.takeIf { d.lang != "pt" }, d.after?.takeIf { it.lang != "pt" }?.title) } +
                 radar?.quakes?.items.orEmpty().map { it.place }.filter { it.isNotBlank() }

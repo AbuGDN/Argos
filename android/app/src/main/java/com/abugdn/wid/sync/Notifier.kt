@@ -331,6 +331,31 @@ object Notifier {
     }
 
     /** História seguida ganhou veículos. Toca mesmo fora das regiões escolhidas (o usuário pediu). */
+    /**
+     * Histórias seguidas cujo nível de confiança mudou: passou a ter várias fontes independentes
+     * (confirmada) ou os números deixaram de bater (contestada). Um aviso por mudança.
+     */
+    fun trustChanges(context: Context, feed: Feed) {
+        val repo = context.repository
+        val followed = repo.followed.value.keys
+        if (followed.isEmpty()) return
+        val prefs = repo.storage.prefs
+        val quiet = repo.settings.value.isQuiet()
+        feed.clusters.filter { it.id in followed }.forEach { c ->
+            val level = c.confidence?.level ?: return@forEach
+            val key = "trust:${c.id}"
+            val before = prefs.getString(key, null)
+            prefs.edit().putString(key, level).apply()
+            if (before == null || before == level || quiet) return@forEach
+            val label = when (level) {
+                "alta" -> "✔ Confirmada por várias fontes"
+                "conflito" -> "⚖ Informações conflitantes"
+                else -> return@forEach
+            }
+            notify(context, CHANNEL_FOLLOW, label, c)
+        }
+    }
+
     fun followed(context: Context, updates: List<Pair<Cluster, Int>>) {
         if (context.repository.settings.value.isQuiet()) return
         val prefs = context.repository.storage.prefs

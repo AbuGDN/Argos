@@ -23,6 +23,8 @@ data class SirensSection(
     val events: List<SirenEvent> = emptyList(),
     val last: String? = null,
     val days: List<SirenDay> = emptyList(),
+    /** Locais com sirene por hora do dia (horário de Israel), 7 dias. */
+    val hours: List<Int> = emptyList(),
 )
 
 @Serializable
@@ -216,3 +218,63 @@ data class SourcesStatus(@SerialName("generated_at") val generatedAt: String = "
 
 @Serializable
 data class SourceStatus(val ok: Boolean = false, val items: Int = 0, val error: String? = null)
+
+// --- Conselho de Segurança da ONU (radar.json -> unsc) -----------------------------------
+
+@Serializable
+data class UnscSection(val updated: String = "", val items: List<UnscItem> = emptyList(), val counts: Map<String, Int> = emptyMap())
+
+@Serializable
+data class UnscItem(
+    val title: String,
+    val url: String = "",
+    val date: String = "",
+    /** "veto", "aprovada", "votacao", "declaracao" ou "reuniao". */
+    val kind: String = "reuniao",
+    val source: String = "",
+    val tags: List<String> = emptyList(),
+    @SerialName("veto_by") val vetoBy: List<String> = emptyList(),
+    val summary: String = "",
+)
+
+val UNSC_KINDS = linkedMapOf(
+    "veto" to "🚫 Veto ou rejeitada", "aprovada" to "✅ Resolução aprovada", "votacao" to "🗳 Votação prevista",
+    "declaracao" to "📜 Declaração", "reuniao" to "🏛 Reunião",
+)
+
+// --- Tempo nas zonas de conflito (radar.json -> weather) ------------------------------------
+
+@Serializable
+data class WeatherSection(val updated: String = "", val places: List<WeatherPlace> = emptyList())
+
+@Serializable
+data class WeatherPlace(
+    val name: String,
+    val tag: String? = null,
+    val temp: Double? = null,
+    val wind: Double? = null,
+    val gusts: Double? = null,
+    val code: Int = 0,
+    val desc: String = "",
+    val rain: Double? = null,
+    val visibility: Double? = null,
+    val cloud: Double? = null,
+    val dust: Double? = null,
+    val flags: List<String> = emptyList(),
+)
+
+// --- Placar aéreo da Ucrânia (airwar.json) -------------------------------------------------
+
+@Serializable
+data class AirwarFile(val days: List<AirwarDay> = emptyList())
+
+@Serializable
+data class AirwarDay(
+    val date: String,
+    val drones: Int = 0,
+    val missiles: Int = 0,
+    val downed: Int? = null,
+    @SerialName("cluster_id") val clusterId: String? = null,
+    val title: String = "",
+    val lang: String = "en",
+)

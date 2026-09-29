@@ -31,6 +31,8 @@ data class RadarData(
     val travel: TravelSection? = null,
     /** Sinais de tipos diferentes na mesma região ao mesmo tempo (correlação do Radar). */
     val incidents: List<Incident> = emptyList(),
+    val unsc: UnscSection? = null,
+    val weather: WeatherSection? = null,
     val status: Map<String, SectionStatus> = emptyMap(),
 )
 

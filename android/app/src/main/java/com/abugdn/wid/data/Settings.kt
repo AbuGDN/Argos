@@ -42,6 +42,8 @@ data class Settings(
     val notifySirens: Boolean = false,
     /** Contagem anônima de uso (GoatCounter). */
     val shareUsage: Boolean = true,
+    /** Modo manchetes: a lista mostra só os títulos. */
+    val headlinesOnly: Boolean = false,
     /** Blocos da tela Hoje na ordem escolhida (ids de [HOME_BLOCKS]) e os escondidos. */
     val homeOrder: List<String> = HOME_BLOCKS.keys.toList(),
     val homeHidden: Set<String> = emptySet(),
@@ -92,6 +94,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("s_notify_radar", next.notifyRadar)
             .putBoolean("s_notify_sirens", next.notifySirens)
             .putBoolean("s_share_usage", next.shareUsage)
+            .putBoolean("s_headlines", next.headlinesOnly)
             .putString("s_home_order", next.homeOrder.joinToString(","))
             .putStringSet("s_home_hidden", next.homeHidden)
             .putString("s_panel_order", next.panelOrder.joinToString(","))
@@ -127,6 +130,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         notifyRadar = prefs.getBoolean("s_notify_radar", true),
         notifySirens = prefs.getBoolean("s_notify_sirens", false),
         shareUsage = prefs.getBoolean("s_share_usage", true),
+        headlinesOnly = prefs.getBoolean("s_headlines", false),
         homeOrder = orderOf(prefs.getString("s_home_order", null), HOME_BLOCKS.keys),
         // Quem desligou a faixa de manchetes antes (ajuste antigo) continua sem ela.
         homeHidden = prefs.getStringSet("s_home_hidden", null)?.toSet()
