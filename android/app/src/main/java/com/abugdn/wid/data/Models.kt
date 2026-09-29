@@ -26,6 +26,11 @@ data class RegionStat(
     @SerialName("spike_ratio") val spikeRatio: Double = 0.0,
     /** Sinais do Radar (apagão de internet, espaço aéreo fechado) que somaram na tensão. */
     val signals: List<RegionSignal> = emptyList(),
+    /** Partes do índice: volume, escalada, urgencia, cobertura e sensores (pontos). */
+    val parts: Map<String, Double> = emptyMap(),
+    /** Os números por trás de cada parte, em frases curtas. */
+    val why: List<String> = emptyList(),
+    val last6: Int = 0,
 )
 
 /** Números de mortos/feridos citados por veículo. */
@@ -103,6 +108,38 @@ data class Cluster(
     val sides: String? = null,
     /** Algum veículo relata violação de cessar-fogo/trégua. */
     @SerialName("truce_violation") val truceViolation: Boolean = false,
+    /** Árvore de fontes: veículos que só repetem uma agência (Reuters, AP, AFP...). */
+    val wires: WireTree? = null,
+    /** Nível de confiança com os motivos (fontes independentes, lados, números em conflito...). */
+    val confidence: Confidence? = null,
+    /** Primeira aparição em cada imprensa, em ordem. */
+    val spread: List<SpreadStep> = emptyList(),
+)
+
+@Serializable
+data class WireTree(
+    val agencies: Map<String, List<String>> = emptyMap(),
+    val independent: Int = 0,
+    val total: Int = 0,
+)
+
+@Serializable
+data class Confidence(
+    /** "alta", "media", "baixa" ou "conflito". */
+    val level: String = "baixa",
+    val label: String = "",
+    val independent: Int = 1,
+    val reasons: List<String> = emptyList(),
+)
+
+@Serializable
+data class SpreadStep(
+    val origin: String,
+    val label: String = origin,
+    val source: String = "",
+    val lang: String = "",
+    val time: String = "",
+    @SerialName("after_min") val afterMin: Int = 0,
 )
 
 @Serializable

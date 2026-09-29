@@ -61,6 +61,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("vigil", "📜", "Vigília", "Registro dos alertas com data e hora", "alertas registro historico"),
         Tool("sirens", "🚨", "Sirenes em Israel", "Alertas de foguete e drone ao vivo, no mapa", "sirene alerta foguete tzeva adom"),
         Tool("deadlines", "⏳", "Ultimatos e prazos", "Contagem regressiva dos prazos dados nas manchetes", "ultimato prazo contagem"),
+        Tool("contradictions", "⚖", "Contradições ao vivo", "Números, palavras e versões que não batem entre os veículos", "contradicao divergente numeros versoes conflito"),
     ),
     "Resumos" to listOf(
         Tool("story", "▶", "O dia em 1 minuto", "As 5 principais em tela cheia", "resumo stories"),
@@ -85,6 +86,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     ),
     "Aprender" to listOf(
         Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
+        Tool("method", "🔬", "Como sabemos?", "Como o Argos junta notícias, mede confiança e calcula a tensão", "metodologia confianca calculo transparencia fontes"),
     ),
     "Seus" to listOf(
         Tool("library:0", "★", "Salvos", "Notícias guardadas, com pasta e nota", "favoritos estrela"),

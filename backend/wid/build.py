@@ -28,6 +28,7 @@ from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
 from . import radar as radar_mod
 from .deadlines import update_deadlines
+from .trust import annotate as annotate_trust
 from . import webgeo
 
 log = logging.getLogger("wid")
@@ -194,6 +195,7 @@ def build(
             c["sides"] = sides
         if truce_violation(c):
             c["truce_violation"] = True
+        annotate_trust(c)
     update_sagas(out, items, now)
     update_deadlines(out, items, now)
 
@@ -206,6 +208,8 @@ def build(
     if radar is not None:
         # Radar (radar.json): sensores sobem a tensão; checagens se ligam às histórias.
         radar_mod.apply_signals(regions, radar, now)
+        # Sinais de tipos diferentes na mesma região ao mesmo tempo: um incidente só.
+        radar["incidents"] = radar_mod.correlate(regions, radar, now)
         radar_mod.link_factchecks(radar, items)
         # Polígonos da frente (pesados) vão para frontline.json, baixado só quando o mapa pede.
         front = radar.get("frontline")

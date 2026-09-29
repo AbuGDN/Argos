@@ -230,13 +230,14 @@ def region_tension(items: list[dict], stats_days: list[dict], today: str, now: d
         urgent = sum(1 for c in last24 if c.get("urgent"))
         coverage = sum(c["sources_count"] for c in last24) / len(last24) if last24 else 0
 
-        score = (
-            min(ratio / 3, 1) * 40
-            + min(heavy / 5, 1) * 25
-            + min(urgent / 2, 1) * 20
-            + min(coverage / 6, 1) * 15
-        )
-        score = int(round(score))
+        # Partes do índice (mostradas no app em "de onde vem a tensão").
+        parts = {
+            "volume": round(min(ratio / 3, 1) * 40, 1),
+            "escalada": round(min(heavy / 5, 1) * 25, 1),
+            "urgencia": round(min(urgent / 2, 1) * 20, 1),
+            "cobertura": round(min(coverage / 6, 1) * 15, 1),
+        }
+        score = int(round(sum(parts.values())))
         # Anomalia: o ritmo das últimas 6 h, projetado para 24 h, passa de 3× o normal.
         spike_ratio = (len(last6) * 4) / max(normal, 1.0) if history else 0.0
         result[tag] = {
@@ -246,6 +247,14 @@ def region_tension(items: list[dict], stats_days: list[dict], today: str, now: d
             "baseline": round(baseline, 1),
             "spike": bool(history) and len(last6) >= 3 and spike_ratio >= 3,
             "spike_ratio": round(spike_ratio, 1),
+            "parts": parts,
+            "why": [
+                f"{len(last24)} histórias em 24 h" + (f" ({ratio:.1f}× o normal de {baseline:.1f}/dia)" if history else " (ainda sem histórico)"),
+                f"{heavy} termos de escalada (mortos, míssil, invasão...)",
+                f"{urgent} histórias urgentes",
+                f"{coverage:.1f} veículos por história, em média",
+            ],
+            "last6": len(last6),
         }
     return result
 

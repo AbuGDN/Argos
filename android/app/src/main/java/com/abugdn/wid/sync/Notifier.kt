@@ -205,6 +205,12 @@ object Notifier {
             radar.airspace?.zones.orEmpty()
                 .filter { it.status == "fechado" && settings.matchesRegion(listOf(it.tag)) }
                 .forEach { add("airspace:${it.id}:${it.since}" to "✈ Espaço aéreo fechado: ${it.name} (${it.flights} aviões no ar)") }
+            radar.incidents
+                .filter { settings.matchesRegion(listOf(it.tag)) }
+                .forEach { inc ->
+                    add("incident:${inc.tag}:${inc.signals.map { it.kind }.sorted().joinToString("+")}:${inc.at.take(10)}" to
+                        "🧩 Sinais coincidentes em ${TAG_LABELS[inc.tag] ?: inc.tag}: " + inc.signals.joinToString(" + ") { s -> com.abugdn.wid.ui.INCIDENT_KINDS[s.kind] ?: s.kind })
+                }
             radar.quakes?.items.orEmpty()
                 .filter { it.alert && settings.matchesRegion(listOfNotNull(it.tag)) }
                 .forEach { q ->

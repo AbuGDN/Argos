@@ -29,6 +29,8 @@ data class RadarData(
     val sirens: SirensSection? = null,
     val quakes: QuakesSection? = null,
     val travel: TravelSection? = null,
+    /** Sinais de tipos diferentes na mesma região ao mesmo tempo (correlação do Radar). */
+    val incidents: List<Incident> = emptyList(),
     val status: Map<String, SectionStatus> = emptyMap(),
 )
 
@@ -319,3 +321,9 @@ fun RadarData.foreignTexts(): Set<String> = buildSet {
         e.markets.forEach { m -> if (m.label != e.title) add(m.label) }
     }
 }
+
+@Serializable
+data class Incident(val tag: String, val signals: List<IncidentSignal> = emptyList(), val at: String = "")
+
+@Serializable
+data class IncidentSignal(val kind: String, val text: String)

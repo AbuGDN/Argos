@@ -1563,7 +1563,57 @@ def apply_signals(regions: dict, radar: dict, now: datetime) -> None:
         region["signals"] = list(signals.values())
         boost = sum(SIGNAL_BOOST.get(s["status"], 0) for s in signals.values())
         region["tension"] = min(100, region["tension"] + boost)
+        region.setdefault("parts", {})["sensores"] = boost
         region["level"] = level_for(region["tension"])
+
+
+INCIDENT_MIN_KINDS = 2
+SIREN_RECENT = timedelta(hours=3)
+QUAKE_RECENT = timedelta(hours=24)
+
+
+def correlate(regions: dict, radar: dict, now: datetime) -> list[dict]:
+    """Sinais de tipos diferentes na mesma região ao mesmo tempo viram um "incidente" só:
+    sirenes, apagão, espaço aéreo, aviões militares, focos de calor, sismo suspeito e disparo de notícias."""
+    found: dict[str, list[dict]] = {}
+
+    def add(tag, kind, text):
+        if tag:
+            found.setdefault(tag, [])
+            if all(s["kind"] != kind for s in found[tag]):
+                found[tag].append({"kind": kind, "text": text})
+
+    for tag, region in regions.items():
+        for s in region.get("signals", []):
+            if s["kind"] == "internet":
+                add(tag, "internet", f"{'Apagão' if s['status'] == 'apagao' else 'Queda'} de internet: {s['name']}")
+            else:
+                add(tag, "airspace", f"Espaço aéreo {s['status']}: {s['name']}")
+        if region.get("spike"):
+            add(tag, "news", f"Disparo de notícias: {region.get('last6', 0)} em 6 h ({region.get('spike_ratio')}× o normal)")
+    sirens = radar.get("sirens") or {}
+    last = sirens.get("last")
+    if last and _fresh(sirens, now) and now - parse_iso(last) <= SIREN_RECENT:
+        add("israel", "sirens", f"Sirenes em Israel: {sirens.get('count_24h', 0)} locais em 24 h")
+    if _fresh(radar.get("military"), now):
+        for z in radar["military"].get("zones", []):
+            if z.get("unusual"):
+                add(z.get("tag"), "military", f"Aviões militares acima do normal: {z['name']}")
+    fires = radar.get("fires") or {}
+    if "updated" in fires and now - parse_iso(fires["updated"]) <= timedelta(hours=6):
+        for z in fires.get("zones", []):
+            b = z.get("baseline")
+            if b is not None and b >= 3 and z.get("count", 0) >= 2 * b:
+                add(z.get("tag"), "fires", f"Focos de calor acima do normal: {z['name']}")
+    for q in (radar.get("quakes") or {}).get("items", []):
+        if q.get("alert") and now - parse_iso(q["time"]) <= QUAKE_RECENT:
+            add(q.get("tag"), "quake", f"Sismo suspeito M {q.get('mag')} em {q.get('zone')}")
+    incidents = [
+        {"tag": tag, "signals": sigs, "at": iso(now)}
+        for tag, sigs in found.items() if len(sigs) >= INCIDENT_MIN_KINDS
+    ]
+    incidents.sort(key=lambda i: -len(i["signals"]))
+    return incidents
 
 
 FC_MIN_SHARED = 3
