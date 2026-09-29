@@ -253,6 +253,8 @@ def test_download_page_is_copied_to_site(tmp_path):
     copy_web(tmp_path)
     assert (tmp_path / "index.html").read_text(encoding="utf-8") == (WEB_DIR / "index.html").read_text(encoding="utf-8")
     assert (tmp_path / "icon.svg").exists()
+    # Configuração lida pelo app e pelo site (código do GoatCounter).
+    assert "goatcounter" in json.loads((tmp_path / "app-config.json").read_text(encoding="utf-8"))
     # O painel vai numa subpasta, com os dados fixos do app em geo.json.
     assert (tmp_path / "painel" / "index.html").exists()
     assert (tmp_path / "painel" / "vendor" / "maplibre-gl.js").exists()

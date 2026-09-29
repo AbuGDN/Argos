@@ -40,6 +40,8 @@ data class Settings(
     val notifyRadar: Boolean = true,
     /** Sirenes em Israel (desligado de fábrica: pode tocar muitas vezes por dia). */
     val notifySirens: Boolean = false,
+    /** Contagem anônima de uso (GoatCounter). */
+    val shareUsage: Boolean = true,
     /** Blocos da tela Hoje na ordem escolhida (ids de [HOME_BLOCKS]) e os escondidos. */
     val homeOrder: List<String> = HOME_BLOCKS.keys.toList(),
     val homeHidden: Set<String> = emptySet(),
@@ -89,6 +91,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
             .putBoolean("s_blur", next.blurSensitive)
             .putBoolean("s_notify_radar", next.notifyRadar)
             .putBoolean("s_notify_sirens", next.notifySirens)
+            .putBoolean("s_share_usage", next.shareUsage)
             .putString("s_home_order", next.homeOrder.joinToString(","))
             .putStringSet("s_home_hidden", next.homeHidden)
             .putString("s_panel_order", next.panelOrder.joinToString(","))
@@ -123,6 +126,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         blurSensitive = prefs.getBoolean("s_blur", true),
         notifyRadar = prefs.getBoolean("s_notify_radar", true),
         notifySirens = prefs.getBoolean("s_notify_sirens", false),
+        shareUsage = prefs.getBoolean("s_share_usage", true),
         homeOrder = orderOf(prefs.getString("s_home_order", null), HOME_BLOCKS.keys),
         // Quem desligou a faixa de manchetes antes (ajuste antigo) continua sem ela.
         homeHidden = prefs.getStringSet("s_home_hidden", null)?.toSet()

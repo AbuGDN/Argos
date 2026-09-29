@@ -84,6 +84,9 @@ android/app/src/main/java/com/abugdn/wid/
                          nascer/pôr do sol); Power.kt (quem manda em cada lado, linha do tempo dos reféns)
   data/RadarChanges.kt   "o que mudou desde a última visita" no Radar (retrato salvo ao sair da aba)
   data/Alerts.kt         sirenes (ao vivo: parseLiveSirens), sismos, alertas de viagem, ultimatos (Deadline)
+  data/Usage.kt          contagem anônima de uso (GoatCounter /count, 1×/dia, user-agent de navegador; desligável
+                         em Ajustes → Privacidade). O código da conta fica em web/app-config.json (vai para o site;
+                         vazio = não conta). Painel e página de download contam com o mesmo código
   data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
   ui/AlertScreens.kt     telas Sirenes (consulta a cada 5 s só com o app na frente) e Ultimatos; ui/AlertCards.kt:
                          cartões do Radar (sirenes, sismógrafo, viagem) e LocalGo (abre rotas de qualquer tela)

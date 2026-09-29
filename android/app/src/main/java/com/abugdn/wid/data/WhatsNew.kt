@@ -11,6 +11,13 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        40,
+        listOf(
+            "📊 O Argos agora conta, de forma anônima, quantas pessoas usam o app: uma vez por dia ele avisa que foi aberto, só com a versão. Nada pessoal é enviado (GoatCounter, que não guarda IP).",
+            "🔒 Não quer entrar na conta? Desligue em Ajustes → Privacidade → Contar meu uso.",
+        ),
+    ),
+    ChangelogEntry(
         39,
         listOf(
             "🔎 Nível de confiança em cada notícia (aba Cobertura): várias fontes independentes, só uma fonte, só um lado, versão oficial ou informações conflitantes, com os motivos.",

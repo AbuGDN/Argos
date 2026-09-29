@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         repository.startVisit()
+        lifecycleScope.launch { repository.pingUsage(applicationContext) }
         // Procura versão nova no GitHub toda vez que o app é aberto ou volta para a frente.
         lifecycleScope.launch { repository.updater.check(force = true) }
     }

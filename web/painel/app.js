@@ -876,3 +876,11 @@ setInterval(async () => {
   else if (S.region) openRegion(S.region, false);
   TR.run();
 }, 5 * 60 * 1000);
+
+// Contagem anônima de visitas (GoatCounter); o código fica em app-config.json.
+fetch('../app-config.json', { cache: 'no-store' }).then((r) => r.json()).then((c) => {
+  const code = String(c.goatcounter || '').trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,50}$/.test(code) || navigator.doNotTrack === '1') return;
+  const q = new URLSearchParams({ p: '/painel', t: document.title, s: `${screen.width},${screen.height},${devicePixelRatio}`, r: document.referrer, rnd: Math.random() });
+  new Image().src = `https://${code}.goatcounter.com/count?${q}`;
+}).catch(() => {});
