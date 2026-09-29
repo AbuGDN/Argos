@@ -231,9 +231,10 @@ const TILE = {
 
 const map = new maplibregl.Map({
   container: 'map',
-  center: [40, 29],
-  zoom: 2.2,
-  minZoom: 1.2,
+  // Começa longe: a abertura (motion.js) desce até o Oriente Médio.
+  center: [-40, 18],
+  zoom: 0.9,
+  minZoom: 0.8,
   maxZoom: 15,
   attributionControl: { compact: true },
   style: {
@@ -399,7 +400,7 @@ async function renderLayers() {
   map.getSource('cities').setData(fc(cities));
   // Focos de calor
   const fires = [];
-  if (L.fires) for (const z of S.radar?.fires?.zones || []) for (const p of z.points || []) fires.push(pt(p[1] ?? p.lon, p[0] ?? p.lat, { zone: z.name }));
+  if (L.fires) for (const z of S.radar?.fires?.zones || []) for (const p of z.points || []) fires.push(pt(p[1] ?? p.lon, p[0] ?? p.lat, { zone: z.name, seed: Math.random() }));
   map.getSource('fires').setData(fc(fires));
   // Aviões militares
   const planes = [];
@@ -474,7 +475,7 @@ function regionsList() {
     const warn = r.spike ? ` · <span class="alertline">⚠ ${r.spike_ratio?.toFixed?.(1) || ''}× o normal</span>` : '';
     const sig = (r.signals || []).length ? ' · <span class="alertline">📡 sinal do Radar</span>' : '';
     return `<button class="row region-row${S.region === tag ? ' sel' : ''}" data-region="${tag}">
-      <span class="name">${esc(label(tag))}</span><span class="score" style="color:${color}">${r.tension}</span>
+      <span class="name">${esc(label(tag))}</span><span class="score count" style="color:${color}">${r.tension}</span>
       <span class="bar"><i style="width:${r.tension}%;background:${color}"></i></span>
       <span class="m">${esc(r.level)} · ${r.last24} histórias em 24 h${warn}${sig}</span></button>`;
   }).join('');
@@ -526,7 +527,7 @@ function radarList(alerts) {
     const d = fl.change_7d_km2;
     const change = d == null ? '' : d > 0 ? `<span class="alertline">▲ Rússia avançou ${fmt(d)} km² em 7 dias</span>` : d < 0 ? `▼ Ucrânia retomou ${fmt(-d)} km² em 7 dias` : 'sem mudança em 7 dias';
     parts.push(`<div class="card"><h4>🗺 Linha de frente na Ucrânia<small>DeepStateMap · ${rel(fl.updated)}</small></h4>
-      <p>Ocupado pela Rússia: <b>${fmt(fl.occupied_km2)} km²</b><br>${change}</p>
+      <p>Ocupado pela Rússia: <b><span class="count">${fmt(fl.occupied_km2)}</span> km²</b><br>${change}</p>
       <button class="chip" data-layer-on="front" data-fly="36.5,47.8,5.2">Mostrar no globo</button></div>`);
   }
   parts.push(marketsCards());
@@ -592,7 +593,7 @@ function openRegion(tag, fly) {
       ${day ? `<div><span class="day">DIA ${fmt(day)}</span> <span class="muted small">${esc(conflict.label)} (desde ${new Date(conflict.start).toLocaleDateString('pt-BR')})</span></div>` : ''}
     </div>
     <div class="card${r.spike || r.level === 'crítica' ? ' alert' : ''}"><h4>Tensão<small>${esc(r.level)}</small></h4>
-      <div style="font:700 28px var(--mono);color:${color}">${r.tension}</div>
+      <div class="count" style="font:700 28px var(--mono);color:${color}">${r.tension}</div>
       <div class="gauge"><i style="width:${r.tension}%;background:${color}"></i></div>
       <p class="small muted">${r.last24} histórias nas últimas 24 h · média ${Math.round(r.baseline || 0)} por dia</p>
       ${r.spike ? `<p class="alertline">⚠ Alta incomum: ritmo ${(r.spike_ratio || 0).toFixed(1)}× o normal nas últimas 6 h</p>` : ''}
@@ -608,7 +609,7 @@ function openRegion(tag, fly) {
   `);
   if (fly) {
     const p = S.geo?.points?.[tag];
-    if (p) map.flyTo({ center: p, zoom: Math.max(map.getZoom(), tag === 'eua' || tag === 'asia' || tag === 'africa' ? 3 : 4.6), speed: 0.9, curve: 1.4 });
+    if (p) flyCam({ center: p, zoom: Math.max(map.getZoom(), tag === 'eua' || tag === 'asia' || tag === 'africa' ? 3 : 4.6), speed: 0.9, curve: 1.4 });
   }
   renderAll();
 }
@@ -667,7 +668,7 @@ function openStory(id, fly) {
     const broad = ['eua', 'otan', 'asia', 'africa'];
     const tag = c.tags.find((t) => !broad.includes(t)) || c.tags[0];
     const target = place ? [place.lon, place.lat] : S.geo?.points?.[tag];
-    if (target) map.flyTo({ center: target, zoom: place ? 6.5 : 4.5, speed: 0.9 });
+    if (target) flyCam({ center: target, zoom: place ? 6.5 : 4.5, speed: 0.9 });
   }
   renderAll();
 }
@@ -679,7 +680,7 @@ function openCity(name) {
   showDetail(`<div class="detail-head"><div class="kicker">Cidade · ${esc(label(city?.tag))}</div><h2>${esc(name)}</h2>
     <div class="m">${list.length} ${list.length === 1 ? 'notícia cita' : 'notícias citam'} esta cidade agora</div></div>
     ${list.map(storyRow).join('')}`);
-  if (city) map.flyTo({ center: [city.lon, city.lat], zoom: Math.max(map.getZoom(), 6.5), speed: 0.9 });
+  if (city) flyCam({ center: [city.lon, city.lat], zoom: Math.max(map.getZoom(), 6.5), speed: 0.9 });
 }
 
 // ---------------------------------------------------------------------------
@@ -759,7 +760,7 @@ document.addEventListener('click', (e) => {
   if (d.action === 'share') { shareImage(); return; }
   if (d.action === 'help') { openHelp(); return; }
   if (d.layerOn) setLayer(d.layerOn, true);
-  if (d.fly) { const [lon, lat, z] = d.fly.split(',').map(Number); map.flyTo({ center: [lon, lat], zoom: z, speed: 0.9 }); }
+  if (d.fly) { const [lon, lat, z] = d.fly.split(',').map(Number); flyCam({ center: [lon, lat], zoom: z, speed: 0.9 }); }
   if (d.clearRegion !== undefined) { S.region = null; renderAll(); return; }
   if (d.story) openStory(d.story, true);
   else if (d.city) openCity(d.city);

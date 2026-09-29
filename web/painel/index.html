@@ -12,6 +12,13 @@
 </head>
 <body>
 <div id="map" aria-label="Globo com as regiões acompanhadas"></div>
+<div id="splash" aria-hidden="true">
+  <svg viewBox="0 0 108 108"><g fill="none" stroke="#C9A227" stroke-linejoin="round" stroke-linecap="round">
+    <path class="tri" pathLength="1" d="M54 27 L77.5 68.5 L30.5 68.5 Z" stroke-width="2.4"/>
+    <path class="eye" pathLength="1" d="M42 57 Q54 47 66 57 Q54 67 42 57 Z" stroke-width="1.8"/>
+    <circle class="iris" cx="54" cy="57" r="4.2" fill="#C9A227" stroke="none"/></g></svg>
+  <div class="word">ARGOS</div>
+</div>
 
 <header class="top">
   <a class="brand" href="./" title="Argos · Painel">
@@ -84,5 +91,6 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="app.js"></script>
 <script src="features.js"></script>
+<script src="motion.js"></script>
 </body>
 </html>

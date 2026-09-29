@@ -241,3 +241,71 @@ body.far .cap { display: none; }
 kbd { display: inline-block; min-width: 1.6em; text-align: center; font: 600 11px var(--mono); padding: 2px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: #14130f; color: var(--bone); margin-right: 6px; }
 .hud-help { background: none; border: 0; color: var(--gold); cursor: pointer; font: inherit; padding: 0; }
 .tabs button { font-size: 13px; }
+
+/* ---------- movimento (motion.js) ---------- */
+.maplibregl-canvas { cursor: crosshair; }
+
+/* abertura */
+#splash { position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; justify-items: center; gap: 14px; background: radial-gradient(ellipse at 50% 50%, #0d0c09, #050505 70%); transition: opacity .7s ease; pointer-events: none; }
+#splash.out { opacity: 0; }
+#splash svg { width: 140px; height: 140px; }
+#splash .tri, #splash .eye { stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawline .9s cubic-bezier(.6,0,.3,1) forwards; }
+#splash .eye { animation-delay: .55s; }
+#splash .iris { opacity: 0; transform-origin: 54px 57px; animation: iris .5s .95s cubic-bezier(.2,.9,.3,1.4) forwards; }
+#splash .word { font: 700 30px var(--serif); letter-spacing: .5em; padding-left: .5em; color: var(--gold); opacity: 0; animation: fadeup .6s 1.05s ease forwards; }
+@keyframes drawline { to { stroke-dashoffset: 0; } }
+@keyframes iris { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* varredura de radar */
+.sweep { width: 190px; height: 190px; pointer-events: none; position: relative; }
+.sweep i { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(201,162,39,0) 0deg, rgba(201,162,39,0) 290deg, rgba(232,199,102,.38) 358deg, rgba(232,199,102,0) 360deg); animation: spin360 2.6s linear infinite; }
+.sweep b { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(201,162,39,.35); box-shadow: inset 0 0 0 45px rgba(201,162,39,.03), inset 0 0 0 46px rgba(201,162,39,.18); }
+@keyframes spin360 { to { transform: rotate(360deg); } }
+
+/* ping de notícia nova */
+.ping { width: 16px; height: 16px; position: relative; pointer-events: none; }
+.ping i { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #E8C766; animation: pingring 1.6s ease-out 3 both; }
+.ping i:nth-child(2) { animation-delay: .35s; }
+.ping i:nth-child(3) { animation-delay: .7s; }
+.ping.urgent i { border-color: #ff3355; }
+@keyframes pingring { from { transform: scale(.4); opacity: 1; } to { transform: scale(5); opacity: 0; } }
+.row.fresh { animation: freshglow 3s ease-out both; }
+@keyframes freshglow { from { background: rgba(201,162,39,.35); box-shadow: inset 3px 0 0 var(--gold); } to { background: transparent; box-shadow: inset 3px 0 0 transparent; } }
+
+/* painel da direita desliza; conteúdo em cascata */
+.panel.right.enter { animation: slidein .38s cubic-bezier(.2,.8,.2,1) both; }
+.panel.right.swap .scroll { animation: fadeup .3s ease both; }
+@keyframes slidein { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.row.in, .card.in { animation: fadeup .42s cubic-bezier(.2,.8,.2,1) both; }
+
+/* gráficos crescendo */
+svg.chart rect.rise { transform-box: fill-box; transform-origin: 50% 100%; animation: rise .7s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes rise { from { transform: scaleY(0); } }
+svg.chart path.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: drawline 1.1s cubic-bezier(.4,0,.2,1) forwards; }
+.bar i, .gauge i { animation: growbar .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes growbar { from { width: 0; } }
+
+/* região aberta: brilho que se espalha */
+.rm.sel .dot { animation: selglow 1.8s ease-out infinite; }
+@keyframes selglow { 0% { box-shadow: 0 0 0 0 rgba(232,226,208,.55), 0 0 12px currentColor; } 100% { box-shadow: 0 0 0 18px rgba(232,226,208,0), 0 0 12px currentColor; } }
+
+/* retícula */
+.reticle { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; width: 0; height: 0; }
+.reticle .h, .reticle .v { position: absolute; background: rgba(201,162,39,.55); }
+.reticle .h { left: -18px; top: 0; width: 36px; height: 1px; }
+.reticle .v { top: -18px; left: 0; width: 1px; height: 36px; }
+.reticle::before { content: ""; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border: 1px solid rgba(201,162,39,.7); border-radius: 50%; }
+.reticle span { position: absolute; left: 16px; top: 10px; font: 10.5px var(--mono); color: var(--gold); white-space: nowrap; text-shadow: 0 1px 3px #000; }
+.panel:hover ~ .reticle { display: none; }
+
+/* urgente datilografado */
+.ticker.alarm .live { animation: alarm .5s steps(2) 12; }
+@keyframes alarm { 50% { color: #fff; background: var(--blood); } }
+.marquee button.typing::after { content: "▌"; color: var(--blood); animation: alarm .6s steps(2) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  #splash, .sweep, .ping, .reticle { display: none; }
+  .row.fresh, .row.in, .card.in, .panel.right.enter, .panel.right.swap .scroll, svg.chart rect.rise, svg.chart path.draw, .bar i, .gauge i, .rm.sel .dot, .ticker.alarm .live { animation: none; }
+  svg.chart path.draw { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
