@@ -11,6 +11,18 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        38,
+        listOf(
+            "🌍 10 regiões novas: Egito, Jordânia, Arábia Saudita, Emirados Árabes, Catar e Golfo, Turquia, Somália, Mediterrâneo, ICE (imigração dos EUA) e Brasil — com mapa, bandeira, contexto e cidades.",
+            "🚨 Sirenes em Israel: alertas de foguete e drone ao vivo, no mapa, com as últimas 24 h e os últimos 7 dias. Aviso opcional em Ajustes → Notificações.",
+            "🌋 Sismógrafo no Radar: tremores perto do Irã, da Coreia do Norte e de outras zonas; explosão ou tremor raso perto de local nuclear vira alerta.",
+            "✈ Alertas de viagem dos EUA (níveis 1 a 4) no Radar → Contexto, com aviso quando um país sobe de nível.",
+            "⏳ Ultimatos e prazos: “48 horas para…” nas manchetes vira contagem regressiva, e depois o Argos mostra o que aconteceu.",
+            "📏 E se fosse no Brasil?: Gaza, a área ocupada na Ucrânia ou o alcance de um míssil em cima da sua cidade.",
+            "🎓 Curso rápido: lições curtas para entender cada guerra (em Ferramentas → Aprender).",
+        ),
+    ),
+    ChangelogEntry(
         32,
         listOf(
             "🗂 App mais organizado:",

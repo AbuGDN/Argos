@@ -49,6 +49,7 @@ class Ctx:
     conf: dict
     prev: dict | None
     state: dict
+    out: Path | None = None
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:
@@ -1257,6 +1258,189 @@ def collect_frontline(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Sirenes em Israel (Tzeva Adom, espelho público dos alertas do Comando da Frente Interna;
+# o site oficial oref.org.il bloqueia os IPs do GitHub)
+# ---------------------------------------------------------------------------
+
+SIREN_HISTORY = "https://api.tzevaadom.co.il/alerts-history"
+SIREN_CITIES = "https://www.tzevaadom.co.il/static/cities.json?v=5"
+SIREN_THREATS = {
+    0: "foguetes e mísseis", 1: "vazamento de material perigoso", 2: "infiltração de terroristas", 3: "terremoto",
+    4: "tsunami", 5: "aeronave hostil (drone)", 6: "evento radiológico", 7: "arma não convencional", 8: "alerta geral",
+}
+SIREN_CITIES_FILE = "sirens_cities.json"
+# Horário de Israel no verão (UTC+3); só serve para separar a contagem por dia.
+IL_TZ = timezone(timedelta(hours=3))
+
+
+def siren_cities(payload: dict) -> dict[str, list]:
+    """cities.json do Tzeva Adom -> {nome em hebraico: [nome em inglês, lat, lon]}."""
+    out = {}
+    for he, c in (payload.get("cities") or {}).items():
+        if c.get("lat") is None or c.get("lng") is None:
+            continue
+        out[he] = [c.get("en") or he, round(float(c["lat"]), 4), round(float(c["lng"]), 4)]
+    return out
+
+
+def siren_summary(history: list[dict], cities: dict[str, list], now: datetime, max_events: int = 60) -> dict:
+    """Alertas das últimas 24 h (sem simulados), do mais novo ao mais velho, e contagem por dia (7 dias)."""
+    events, days = [], {}
+    day_ago, week_ago = now - timedelta(hours=24), now - timedelta(days=7)
+    for group in history or []:
+        for a in group.get("alerts") or []:
+            if a.get("isDrill"):
+                continue
+            t = datetime.fromtimestamp(int(a.get("time", 0)), timezone.utc)
+            if t < week_ago:
+                continue
+            names = a.get("cities") or []
+            key = t.astimezone(IL_TZ).date().isoformat()
+            days[key] = days.get(key, 0) + len(names)
+            if t < day_ago:
+                continue
+            places = []
+            for he in names:
+                en, lat, lon = cities.get(he, [he, None, None])
+                places.append({"name": en, "lat": lat, "lon": lon})
+            events.append({"time": iso(t), "threat": SIREN_THREATS.get(a.get("threat"), "alerta"), "cities": places})
+    events.sort(key=lambda e: e["time"], reverse=True)
+    return {
+        "count_24h": sum(len(e["cities"]) for e in events),
+        "events": events[:max_events],
+        "last": events[0]["time"] if events else None,
+        "days": [{"date": d, "count": n} for d, n in sorted(days.items())],
+    }
+
+
+def collect_sirens(ctx: Ctx) -> dict:
+    cities: dict = {}
+    path = ctx.out / SIREN_CITIES_FILE if ctx.out else None
+    if path and path.exists():
+        cities = _read(path).get("cities", {})
+    fetched = ctx.state.get("cities_at")
+    if not cities or not fetched or ctx.now - parse_iso(fetched) > timedelta(days=7):
+        try:
+            cities = siren_cities(_get_json(ctx.client, ctx.conf.get("cities_url", SIREN_CITIES)))
+            ctx.state["cities_at"] = iso(ctx.now)
+            if path:
+                path.write_text(json.dumps({"cities": cities}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        except Exception as exc:  # sem o dicionário, os nomes ficam em hebraico
+            log.warning("radar/sirens: cidades: %s", exc)
+    history = _get_json(ctx.client, ctx.conf.get("url", SIREN_HISTORY))
+    return siren_summary(history, cities, ctx.now)
+
+
+# ---------------------------------------------------------------------------
+# Sismógrafo (USGS): tremores nas zonas sensíveis; explosões e testes aparecem como sismos rasos
+# ---------------------------------------------------------------------------
+
+USGS_FEED = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson"
+
+
+def _km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = p2 - p1, math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(a))
+
+
+def quake_items(payload: dict, zones: list[dict], sites: list[dict], shallow_km: float = 5, near_km: float = 60) -> list[dict]:
+    """Sismos dentro das zonas (box: [sul, oeste, norte, leste]). `alert` quando o USGS não classifica
+    como terremoto (explosão, teste nuclear...) ou quando é raso e perto de um local nuclear."""
+    items = []
+    for f in payload.get("features") or []:
+        props, geom = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or []
+        if len(geom) < 2:
+            continue
+        lon, lat = float(geom[0]), float(geom[1])
+        depth = float(geom[2]) if len(geom) > 2 and geom[2] is not None else None
+        zone = next((z for z in zones if z["box"][0] <= lat <= z["box"][2] and z["box"][1] <= lon <= z["box"][3]), None)
+        if zone is None:
+            continue
+        kind = props.get("type") or "earthquake"
+        shallow = depth is not None and depth <= shallow_km
+        site = None
+        for s in sites:
+            d = _km(lat, lon, s["lat"], s["lon"])
+            if d <= near_km:
+                site = {"name": s["name"], "km": round(d)}
+                break
+        items.append({
+            "id": f.get("id"), "mag": props.get("mag"), "place": props.get("place") or "",
+            "time": iso(datetime.fromtimestamp(int(props.get("time", 0)) / 1000, timezone.utc)),
+            "lat": round(lat, 3), "lon": round(lon, 3), "depth": round(depth, 1) if depth is not None else None,
+            "type": kind, "zone": zone["name"], "tag": zone.get("tag"), "shallow": shallow, "site": site,
+            "alert": kind != "earthquake" or (shallow and site is not None), "url": props.get("url") or "",
+        })
+    items.sort(key=lambda q: q["time"], reverse=True)
+    return items
+
+
+def collect_quakes(ctx: Ctx) -> dict:
+    payload = _get_json(ctx.client, ctx.conf.get("url", USGS_FEED))
+    items = quake_items(payload, ctx.conf["zones"], ctx.conf.get("sites", []))
+    return {"items": items[: int(ctx.conf.get("max_items", 40))], "alerts": sum(1 for q in items if q["alert"])}
+
+
+# ---------------------------------------------------------------------------
+# Alertas de viagem (Departamento de Estado dos EUA, níveis 1 a 4)
+# ---------------------------------------------------------------------------
+
+TRAVEL_RSS = "https://travel.state.gov/_res/rss/TAsTWs.xml"
+_LEVEL_RE = re.compile(r"^(.*?)\s+-\s+Level\s+(\d)", re.I)
+TRAVEL_LEVELS = {1: "precauções normais", 2: "mais cautela", 3: "reconsidere a viagem", 4: "não viaje"}
+
+
+def travel_levels(xml: bytes) -> dict[str, int]:
+    """RSS do Departamento de Estado -> {país em inglês: nível}."""
+    import feedparser  # já é dependência do fetch
+
+    out = {}
+    for e in feedparser.parse(xml).entries:
+        m = _LEVEL_RE.match((e.get("title") or "").strip())
+        if m:
+            out[m.group(1).strip()] = int(m.group(2))
+    return out
+
+
+def travel_summary(levels: dict[str, int], state: dict, watch: list[dict], now: datetime, keep_days: int = 60) -> dict:
+    """Compara com os níveis anteriores (state), guarda as mudanças e lista os países vigiados."""
+    prev = state.get("levels", {})
+    changes = list(state.get("changes", []))
+    for country, level in levels.items():
+        old = prev.get(country)
+        if old is not None and old != level:
+            changes.append({"country": country, "from": old, "to": level, "date": iso(now)})
+    cutoff = now - timedelta(days=keep_days)
+    changes = [c for c in changes if parse_iso(c["date"]) >= cutoff]
+    state["levels"], state["changes"] = levels, changes
+    names = {w["country"]: w for w in watch}
+    items, seen = [], set()
+    for w in watch:
+        lvl = levels.get(w["country"])
+        if lvl is not None and w["name"] not in seen:
+            seen.add(w["name"])
+            items.append({"country": w["country"], "name": w["name"], "tag": w.get("tag"), "level": lvl,
+                          "label": TRAVEL_LEVELS.get(lvl, "")})
+    items.sort(key=lambda i: (-i["level"], i["name"]))
+    recent = [
+        {**c, "name": names.get(c["country"], {}).get("name", c["country"]), "tag": names.get(c["country"], {}).get("tag")}
+        for c in sorted(changes, key=lambda c: c["date"], reverse=True)
+    ][:20]
+    return {"items": items, "changes": recent, "level4": sum(1 for v in levels.values() if v == 4)}
+
+
+def collect_travel(ctx: Ctx) -> dict:
+    resp = ctx.client.get(ctx.conf.get("url", TRAVEL_RSS))
+    resp.raise_for_status()
+    levels = travel_levels(resp.content)
+    if len(levels) < 50:
+        raise RuntimeError(f"só {len(levels)} países no RSS")
+    return travel_summary(levels, ctx.state, ctx.conf.get("watch", []), ctx.now)
+
+
+# ---------------------------------------------------------------------------
 # Orquestração
 # ---------------------------------------------------------------------------
 
@@ -1280,6 +1464,9 @@ COLLECTORS = {
     "military": collect_military,
     "carriers": collect_carriers,
     "frontline": collect_frontline,
+    "sirens": collect_sirens,
+    "quakes": collect_quakes,
+    "travel": collect_travel,
 }
 
 
@@ -1317,7 +1504,7 @@ def collect(out: Path, now: datetime, kw: Keywords, config: dict | None = None, 
         client = httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT, follow_redirects=True)
     try:
         def run(name: str):
-            ctx = Ctx(client, now, kw, config[name], prev.get(name), state.setdefault(name, {}))
+            ctx = Ctx(client, now, kw, config[name], prev.get(name), state.setdefault(name, {}), out)
             try:
                 return name, COLLECTORS[name](ctx), None
             except Exception as exc:  # uma seção quebrada não derruba as outras

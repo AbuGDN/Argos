@@ -247,3 +247,68 @@ carriers:
 # Linha de frente na Ucrânia (DeepStateMap): área ocupada e variação na semana.
 frontline:
   interval: 360
+
+# --- Alertas ---------------------------------------------------------------------------
+
+# Sirenes em Israel (Tzeva Adom): alertas das últimas 24 h com as cidades. O app também consulta
+# os alertas ao vivo enquanto a tela Sirenes está aberta.
+sirens:
+  interval: 25
+
+# Sismógrafo (USGS, magnitude 2,5+ na última semana). box: [sul, oeste, norte, leste].
+# sites: locais nucleares; sismo raso (até 5 km) perto deles vira alerta.
+quakes:
+  interval: 60
+  max_items: 40
+  zones:
+    - {name: Irã, tag: ira, box: [25.0, 44.0, 39.8, 63.3]}
+    - {name: Israel, Líbano e Síria, tag: israel, box: [29.4, 34.2, 37.3, 42.4]}
+    - {name: Coreia do Norte, tag: asia, box: [37.6, 124.0, 43.0, 131.0]}
+    - {name: Iraque, tag: iraque, box: [29.0, 38.8, 37.4, 48.6]}
+    - {name: Turquia, tag: turquia, box: [35.8, 26.0, 42.1, 44.8]}
+    - {name: Iêmen e Mar Vermelho, tag: iemen, box: [12.0, 32.0, 19.0, 54.0]}
+    - {name: Ucrânia e oeste da Rússia, tag: ucrania_russia, box: [44.0, 22.0, 56.5, 45.0]}
+    - {name: Paquistão e Índia (Caxemira), tag: asia, box: [24.0, 66.0, 36.5, 78.0]}
+  sites:
+    - {name: Punggye-ri (testes nucleares da Coreia do Norte), lat: 41.28, lon: 129.08}
+    - {name: Fordow, lat: 34.88, lon: 50.99}
+    - {name: Natanz, lat: 33.72, lon: 51.73}
+    - {name: Isfahan, lat: 32.60, lon: 51.67}
+    - {name: Semnan (base de mísseis), lat: 35.23, lon: 53.92}
+    - {name: Dimona, lat: 31.00, lon: 35.14}
+    - {name: Zaporíjia (usina nuclear), lat: 47.51, lon: 34.59}
+
+# Alertas de viagem do Departamento de Estado dos EUA (níveis 1 a 4). country = nome no RSS.
+travel:
+  interval: 360
+  watch:
+    - {country: Israel, name: Israel, tag: israel}
+    - {country: "Israel, the West Bank and Gaza", name: Israel e territórios palestinos, tag: israel}
+    - {country: Lebanon, name: Líbano, tag: libano}
+    - {country: Iran, name: Irã, tag: ira}
+    - {country: Yemen, name: Iêmen, tag: iemen}
+    - {country: Syria, name: Síria, tag: siria}
+    - {country: Iraq, name: Iraque, tag: iraque}
+    - {country: Ukraine, name: Ucrânia, tag: ucrania_russia}
+    - {country: Russia, name: Rússia, tag: ucrania_russia}
+    - {country: Belarus, name: Belarus, tag: ucrania_russia}
+    - {country: Sudan, name: Sudão, tag: sudao}
+    - {country: Egypt, name: Egito, tag: egito}
+    - {country: Jordan, name: Jordânia, tag: jordania}
+    - {country: Saudi Arabia, name: Arábia Saudita, tag: arabia}
+    - {country: United Arab Emirates, name: Emirados Árabes, tag: emirados}
+    - {country: Qatar, name: Catar, tag: golfo}
+    - {country: Bahrain, name: Bahrein, tag: golfo}
+    - {country: Kuwait, name: Kuwait, tag: golfo}
+    - {country: Oman, name: Omã, tag: golfo}
+    - {country: Turkey, name: Turquia, tag: turquia}
+    - {country: "Türkiye", name: Turquia, tag: turquia}
+    - {country: Somalia, name: Somália, tag: somalia}
+    - {country: Cyprus, name: Chipre, tag: mediterraneo}
+    - {country: Libya, name: Líbia, tag: africa}
+    - {country: Afghanistan, name: Afeganistão, tag: asia}
+    - {country: Pakistan, name: Paquistão, tag: asia}
+    - {country: North Korea, name: Coreia do Norte, tag: asia}
+    - {country: Taiwan, name: Taiwan, tag: asia}
+    - {country: Venezuela, name: Venezuela}
+    - {country: Brazil, name: Brasil, tag: brasil}

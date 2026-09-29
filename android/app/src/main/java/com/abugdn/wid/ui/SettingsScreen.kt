@@ -161,8 +161,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Toggle("Urgentes", "Muitos veículos cobrindo a mesma história em pouco tempo", s.notifyUrgent) {
                         update { st -> st.copy(notifyUrgent = it) }
                     }
-                    Toggle("Radar", "Apagão de internet ou espaço aéreo fechado numa região", s.notifyRadar) {
+                    Toggle("Radar", "Apagão de internet, espaço aéreo fechado, sismo suspeito, alerta de viagem nível 4 e prazos vencendo", s.notifyRadar) {
                         update { st -> st.copy(notifyRadar = it) }
+                    }
+                    Toggle("Sirenes em Israel", "Resumo dos alertas de foguete e drone (pode chegar até 30 min depois; ao vivo, abra a tela Sirenes)", s.notifySirens) {
+                        update { st -> st.copy(notifySirens = it) }
                     }
                     Toggle("Principal do dia", "Quando a principal muda (no máximo a cada 4 h)", s.notifyTop) {
                         update { st -> st.copy(notifyTop = it) }

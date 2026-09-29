@@ -27,6 +27,7 @@ from .cluster import build_clusters, cluster_json, is_urgent
 from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
 from . import radar as radar_mod
+from .deadlines import update_deadlines
 from . import webgeo
 
 log = logging.getLogger("wid")
@@ -194,6 +195,7 @@ def build(
         if truce_violation(c):
             c["truce_violation"] = True
     update_sagas(out, items, now)
+    update_deadlines(out, items, now)
 
     # Principal de cada dia e estatística diária (fuso de Brasília), antes do feed, porque
     # a tensão por região compara o dia de hoje com a média dos anteriores.
