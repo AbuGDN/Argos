@@ -142,8 +142,21 @@ tags:
   ucrania_russia: [ucrânia, ucranian*, ukrain*, kiev, kyiv, zelensky*, rússia, russo*, russa*, russia*, putin, kremlin, donbas*, crimeia, crimea, אוקראינה, רוסיה, פוטין, זלנסקי, اوكرانيا, روسيا, بوتين, زيلينسكي, كييف]
   sudao: [sudão, sudan*, darfur, cartum, khartoum, סודאן, السودان, الخرطوم, الفاشر]
   asia: [taiwan, coreia do norte, north korea*, caxemira, kashmir, myanmar, índia e paquistão, india and pakistan]
-  africa: [sahel, mali, burkina faso, níger, somália, somalia, al-shabaab, congo, etiópia, ethiopia, líbia, libya]
+  africa: [sahel, mali, burkina faso, níger, congo, etiópia, ethiopia, líbia, libya]
   otan: [otan, nato]
+  arabia: [arábia saudita, saudi*, saudita*, riad, riyadh, mohammed bin salman, bin salman, mbs, السعودية, الرياض, بن سلمان, סעודיה, ריאד]
+  emirados: [emirados árabes, emirados, emirati*, emirates, uae, abu dhabi, abu dabi, dubai, dubái, الامارات, ابوظبي, دبي, איחוד האמירויות, האמירויות, אבו דאבי, דובאי]
+  golfo: [catar, qatar*, catari*, doha, bahrein, bahrain*, barein, kuwait*, omã, oman*, mascate, muscat, golfo pérsico, persian gulf, قطر, الدوحة, البحرين, الكويت, عمان, مسقط, קטאר, דוחא, בחריין, כווית]
+  jordania: [jordânia, jordan, jordanian*, jordaniano*, amã, amman, rei abdullah, king abdullah, الاردن, ירדן, עמאן]
+  turquia: [turquia, turkey, türkiye, turkish, turco*, turca*, erdogan, erdoğan, ancara, ankara, istambul, istanbul, تركيا, اردوغان, טורקיה, ארדואן]
+  egito: [egito, egypt*, egípci*, cairo, sisi, sinai, suez, مصر, القاهرة, السيسي, سيناء, מצרים, קהיר, סיני]
+  somalia: [somália, somalia*, somali*, mogadíscio, mogadishu, al-shabaab, al shabaab, shabab, puntland, somaliland, الصومال, مقديشو, الشباب, סומליה]
+  mediterraneo: [mediterrâneo, mediterranean, flotilha, flotilla, chipre, cyprus, creta, crete, lampedusa, البحر المتوسط, اسطول, הים התיכון, משט, קפריסין]
+  # ICE (polícia de imigração dos EUA): entra mesmo sem termo de guerra (standalone_tags).
+  # "!ICE" diferencia maiúsculas (não confunde com "ice", gelo).
+  ice: ["!ICE", immigration and customs enforcement, ice agent*, ice officer*, ice raid*, ice detention, ice custody, agentes do ice, agentes de imigração, polícia de imigração, serviço de imigração dos eua, batida* de imigração, immigration raid*, deportação em massa, deportações em massa, mass deportation*, deportation flight*, voos de deportação]
+  # Brasil nas guerras (Itamaraty, brasileiros em zonas de conflito, defesa); não basta sozinho (weak_tags).
+  brasil: [brasil, brasileir*, brazil*, itamaraty, lula, planalto, mauro vieira, celso amorim, forças armadas brasileiras, embraer, البرازيل, ברזיל]
   eua:
     - eua
     - estados unidos
@@ -192,6 +205,12 @@ boost:
   iemen: 1.2
   siria: 1.1
   eua: 1.2
+
+# Tags que bastam sozinhas para a notícia entrar (sem termo de guerra) e tags que não contam como
+# região no filtro (precisam de outra região ou de 2 termos de guerra). Nenhuma das duas entra no
+# Relógio do Argos (não são frentes de guerra).
+standalone_tags: [ice]
+weak_tags: [brasil]
 
 # Palavras que marcam urgência no título.
 urgent_terms: [urgente, breaking, "última hora", ao vivo agora, מבזק, عاجل]

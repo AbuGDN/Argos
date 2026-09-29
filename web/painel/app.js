@@ -665,7 +665,7 @@ function openStory(id, fly) {
   `);
   if (fly) {
     // Região mais específica da notícia (EUA, OTAN, Ásia e África só quando não há outra).
-    const broad = ['eua', 'otan', 'asia', 'africa'];
+    const broad = ['eua', 'otan', 'asia', 'africa', 'ice', 'brasil', 'mediterraneo'];
     const tag = c.tags.find((t) => !broad.includes(t)) || c.tags[0];
     const target = place ? [place.lon, place.lat] : S.geo?.points?.[tag];
     if (target) flyCam({ center: target, zoom: place ? 6.5 : 4.5, speed: 0.9 });

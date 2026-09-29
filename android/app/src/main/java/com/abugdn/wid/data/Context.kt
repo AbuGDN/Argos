@@ -100,6 +100,40 @@ val REGION_CONTEXT = mapOf(
         "do Irã. Também é um dos maiores fornecedores de armas à Ucrânia.",
     "sudao" to "Em guerra desde abril de 2023 entre o exército (SAF) e as Forças de Apoio Rápido (RSF), paramilitares. O conflito, " +
         "centrado em Cartum e Darfur, gerou uma das maiores crises de deslocados do mundo e denúncias de atrocidades étnicas.",
+    "egito" to "País árabe mais populoso (cerca de 110 milhões), primeiro a fazer paz com Israel (1979). Faz fronteira com Gaza " +
+        "pela passagem de Rafah e é mediador, com o Catar e os EUA, nas negociações de trégua e reféns. O Canal de Suez perdeu " +
+        "boa parte da receita com os ataques dos Houthis a navios no Mar Vermelho. Governado por Abdel Fattah al-Sisi desde 2014.",
+    "jordania" to "Monarquia vizinha de Israel e da Cisjordânia, em paz com Israel desde 1994, com grande população de origem " +
+        "palestina. É guardiã dos locais sagrados muçulmanos de Jerusalém. Ajudou a derrubar drones e mísseis iranianos que " +
+        "cruzaram seu espaço aéreo em 2024. Rei: Abdullah II.",
+    "arabia" to "Maior potência do Golfo e rival regional do Irã, com quem reatou relações em 2023 por mediação da China. " +
+        "Liderou a coalizão que interveio no Iêmen contra os Houthis a partir de 2015. Negociava a normalização com Israel antes " +
+        "de 7 de outubro de 2023 e passou a exigir um caminho para um Estado palestino. Governada de fato pelo príncipe herdeiro " +
+        "Mohammed bin Salman.",
+    "emirados" to "Federação de sete emirados (Abu Dhabi e Dubai são os principais). Normalizou relações com Israel nos Acordos " +
+        "de Abraão (2020). Foi alvo de mísseis e drones dos Houthis em 2022. É acusado por especialistas da ONU de armar as RSF " +
+        "no Sudão, o que nega. Presidente: Mohammed bin Zayed.",
+    "golfo" to "Catar, Bahrein, Kuwait e Omã. O Catar abriga a maior base aérea dos EUA na região (Al Udeid), hospedou o " +
+        "escritório político do Hamas e é mediador em Gaza; em 2025 foi alvo de ataque iraniano à base americana e de um ataque " +
+        "israelense contra líderes do Hamas em Doha. O Bahrein sedia a 5ª Frota dos EUA e aderiu aos Acordos de Abraão. Omã " +
+        "costuma mediar conversas entre EUA e Irã.",
+    "turquia" to "Membro da OTAN com o segundo maior exército da aliança. Combate grupos curdos na Síria e no Iraque, apoia o " +
+        "novo governo sírio desde a queda de Assad (2024) e controla o Bósforo, rota da frota russa do Mar Negro. Mediou o " +
+        "acordo de grãos entre Rússia e Ucrânia (2022) e rompeu o comércio com Israel em 2024. Presidente: Recep Tayyip Erdoğan.",
+    "somalia" to "Vive guerra civil desde 1991. O grupo jihadista al-Shabaab, ligado à al-Qaeda, controla áreas rurais do centro " +
+        "e do sul e faz atentados em Mogadíscio. Os EUA fazem ataques aéreos contra o al-Shabaab e o Estado Islâmico. A " +
+        "Somalilândia, no norte, se declara independente desde 1991, sem reconhecimento internacional. Na costa, a pirataria " +
+        "voltou a crescer a partir de 2023.",
+    "mediterraneo" to "Mar entre a Europa, o Oriente Médio e o norte da África. Ali passam frotas da OTAN e da Rússia (com base " +
+        "em Tartus, na Síria), flotilhas com ajuda para Gaza interceptadas por Israel e a rota migratória mais mortal do mundo, " +
+        "da Líbia e da Tunísia para a Itália. Chipre é base de apoio a operações no Oriente Médio.",
+    "ice" to "Immigration and Customs Enforcement: a polícia de imigração e alfândega dos EUA, criada em 2003. Faz prisões, " +
+        "detenções e deportações de imigrantes sem documentos. Em 2025, o governo Trump ampliou muito as operações, com metas " +
+        "diárias de prisões, batidas em cidades como Los Angeles e Chicago, envio da Guarda Nacional e protestos. Brasileiros " +
+        "estão entre os deportados em voos fretados.",
+    "brasil" to "Aqui o Argos junta o Brasil diante das guerras: posições do Itamaraty e do presidente, votos na ONU, brasileiros " +
+        "em zonas de conflito e repatriações, defesa e exportação de armas. O Brasil defende a solução de dois Estados, " +
+        "reconheceu a Palestina em 2010 e costuma propor negociação na guerra da Ucrânia.",
 )
 
 /** Glossário de armas e sistemas que aparecem com frequência. */

@@ -51,6 +51,24 @@ def test_relevance_filter():
     assert m.relevant and {"ira", "israel"} <= m.tags
 
 
+def test_standalone_and_weak_tags():
+    k = kw()
+    # ICE entra sem termo de guerra; "ice" (gelo) não é o ICE.
+    assert k.match("ICE agents detain protesters in Chicago", "").relevant
+    assert not k.match("Ice storm hits Texas", "").relevant
+    # Brasil sozinho não basta: crime comum fica fora, o Brasil diante de uma guerra entra.
+    assert not k.match("Ataque a tiros em São Paulo deixa mortos no Brasil", "").relevant
+    m = k.match("Brasil condena ataque em Gaza", "")
+    assert m.relevant and {"brasil", "gaza"} <= m.tags
+    assert {"somalia"} == k.match("Somalia: al-Shabaab attack kills 10", "").tags
+
+
+def test_global_index_skips_non_war_tags():
+    from wid.build import global_index
+    regions = {"ice": {"tension": 90}, "israel": {"tension": 40}}
+    assert global_index(regions, frozenset({"ice"}))["leader"] == "israel"
+
+
 def test_build_clusters_across_languages_and_picks_portuguese_title(tmp_path):
     feed = build(tmp_path, NOW, SOURCES, kw(), fetched(), {})
     titles = [c["title"] for c in feed["clusters"]]

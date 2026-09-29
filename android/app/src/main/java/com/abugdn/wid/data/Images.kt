@@ -66,6 +66,15 @@ val REGION_FLAGS = mapOf(
     "eua" to listOf("Flag_of_the_United_States.svg"),
     "ucrania_russia" to listOf("Flag_of_Ukraine.svg", "Flag_of_Russia.svg"),
     "sudao" to listOf("Flag_of_Sudan.svg"),
+    "egito" to listOf("Flag_of_Egypt.svg"),
+    "jordania" to listOf("Flag_of_Jordan.svg"),
+    "arabia" to listOf("Flag_of_Saudi_Arabia.svg"),
+    "emirados" to listOf("Flag_of_the_United_Arab_Emirates.svg"),
+    "golfo" to listOf("Flag_of_Qatar.svg", "Flag_of_Bahrain.svg", "Flag_of_Kuwait.svg", "Flag_of_Oman.svg"),
+    "turquia" to listOf("Flag_of_Turkey.svg"),
+    "somalia" to listOf("Flag_of_Somalia.svg"),
+    "ice" to listOf("Flag_of_the_United_States.svg"),
+    "brasil" to listOf("Flag_of_Brazil.svg"),
     "otan" to listOf("Flag_of_NATO.svg"),
 )
 
