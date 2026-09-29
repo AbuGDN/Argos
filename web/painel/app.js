@@ -235,7 +235,7 @@ const map = new maplibregl.Map({
   center: [-40, 18],
   zoom: 0.9,
   minZoom: 0.8,
-  maxZoom: 15,
+  maxZoom: 17,
   attributionControl: { compact: true },
   style: {
     version: 8,
@@ -246,7 +246,7 @@ const map = new maplibregl.Map({
       borders: { type: 'geojson', data: 'borders.geojson' },
       dark: { type: 'raster', tiles: TILE.dark, tileSize: 256, maxzoom: 16, attribution: 'Mapa © Esri, HERE, Garmin, © OpenStreetMap' },
       labels: { type: 'raster', tiles: TILE.labels, tileSize: 256, maxzoom: 16 },
-      sat: { type: 'raster', tiles: TILE.sat, tileSize: 256, maxzoom: 18, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics' },
+      sat: { type: 'raster', tiles: TILE.sat, tileSize: 256, maxzoom: 19, attribution: 'Imagens © Esri, Maxar, Earthstar Geographics' },
     },
     layers: [
       { id: 'ocean', type: 'background', paint: { 'background-color': '#07090c' } },

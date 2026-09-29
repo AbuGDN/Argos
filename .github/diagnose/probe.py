@@ -13,8 +13,10 @@ for line in open(sys.argv[1], encoding="utf-8"):
         continue
     print("=" * 20, url)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        # Origin: para ver se o serviço libera uso direto no navegador (CORS), como no painel web.
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Origin": "https://abugdn.github.io"})
         with urllib.request.urlopen(req, timeout=30) as resp:
+            print("CORS:", resp.headers.get("Access-Control-Allow-Origin"), "| tipo:", resp.headers.get("Content-Type"))
             raw = resp.read()
             if raw[:2] == b"\x1f\x8b":
                 raw = gzip.decompress(raw)
