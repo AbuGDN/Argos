@@ -195,7 +195,7 @@ private fun App(
             "vigil" -> { closeAll(); vigilOpen = true }
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
-            "sirens", "deadlines", "scale", "course" -> { closeAll(); page = route.substringBefore(':') }
+            "sirens", "deadlines", "scale", "course", "contradictions", "method" -> { closeAll(); page = route.substringBefore(':') }
             "settings" -> { closeAll(); settingsOpen = true }
             "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
             "region" -> { closeAll(); regionOpen = arg }
@@ -303,6 +303,8 @@ private fun App(
                         "sirens" -> SirensScreen(onBack = { page = null })
                         "deadlines" -> DeadlinesScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
                         "scale" -> ScaleScreen(onBack = { page = null })
+                        "contradictions" -> ContradictionsScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
+                        "method" -> MethodScreen(onBack = { page = null })
                         else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
                     }
                 }

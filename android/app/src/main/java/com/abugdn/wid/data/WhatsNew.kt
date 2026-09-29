@@ -11,6 +11,19 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        39,
+        listOf(
+            "🔎 Nível de confiança em cada notícia (aba Cobertura): várias fontes independentes, só uma fonte, só um lado, versão oficial ou informações conflitantes, com os motivos.",
+            "🌳 Árvore de fontes: quando vários veículos só repetem a mesma agência (Reuters, AP, AFP, WAFA, IRNA...), eles contam como uma fonte só.",
+            "🌐 Como a notícia se espalhou: em que imprensa ela saiu primeiro e quanto tempo depois chegou nas outras.",
+            "⚖ Contradições ao vivo (Ferramentas): números que não batem, palavras diferentes, histórias de um lado só e muitos veículos com uma fonte só.",
+            "🧮 De onde vem a tensão: na página da região, cada parte do índice com os números por trás, e o porquê de um alerta de alta incomum.",
+            "🧩 Sinais coincidentes no Radar: sirenes, apagão, espaço aéreo, aviões militares, focos de calor, sismo e disparo de notícias na mesma região viram um incidente só (com aviso).",
+            "🕘 Desde sua última visita: a página da região mostra o que mudou desde a última vez que você abriu (tensão, alertas e histórias novas).",
+            "🔬 Como sabemos? (Ferramentas → Aprender): a metodologia inteira do Argos em linguagem simples.",
+        ),
+    ),
+    ChangelogEntry(
         38,
         listOf(
             "🌍 10 regiões novas: Egito, Jordânia, Arábia Saudita, Emirados Árabes, Catar e Golfo, Turquia, Somália, Mediterrâneo, ICE (imigração dos EUA) e Brasil — com mapa, bandeira, contexto e cidades.",

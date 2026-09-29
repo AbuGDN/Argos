@@ -203,7 +203,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                 }
                 // A notícia em três partes: o texto, como foi coberta e o contexto em volta.
                 val coverageCount = listOf(
-                    cluster.sides != null, cluster.figures.isNotEmpty(), cluster.framing.isNotEmpty(),
+                    cluster.sides != null, cluster.figures.isNotEmpty(), cluster.framing.isNotEmpty(), cluster.wires != null,
                     cluster.articles.any { it.edits.isNotEmpty() },
                 ).count { it }
                 var section by rememberSaveable(cluster.id) { mutableStateOf(0) }
@@ -218,7 +218,9 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                 FactcheckCard(cluster)
                 when (section) {
                     1 -> {
+                        ConfidenceCard(cluster)
                         SidesCard(cluster)
+                        SpreadCard(cluster)
                         FiguresCard(cluster)
                         EditsCard(cluster)
                         FramingCard(cluster)

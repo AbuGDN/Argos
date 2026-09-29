@@ -80,6 +80,8 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit, onRo
                     RegionFlags(tag, Modifier.padding(bottom = 10.dp), height = 32.dp)
                     ConflictCounter(tag, Modifier.padding(bottom = 12.dp))
                     stat?.let { TensionGauge(it) }
+                    SinceLastVisitCard(tag, current, stat, onOpen)
+                    stat?.let { TensionBreakdown(it) }
                     Text(
                         "TENSÃO · 30 DIAS",
                         style = MaterialTheme.typography.labelMedium,

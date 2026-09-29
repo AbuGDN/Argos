@@ -55,10 +55,13 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          (Tzeva Adom; oref.org.il dá 403 no GitHub; dicionário de cidades em sirens_cities.json),
                          sismos (USGS) e alertas de viagem (Departamento de Estado dos EUA). Cada seção é
                          independente e guarda o último dado bom; baselines em stats/radar_state.json.
-                         apply_signals() soma apagão/espaço aéreo fechado na tensão; link_factchecks()
+                         apply_signals() soma apagão/espaço aéreo fechado na tensão (parts.sensores);
+                         correlate() junta sinais de tipos diferentes na mesma região (radar.incidents); link_factchecks()
   wid/build.py           orquestra; escreve feed.json (com "global" = Relógio do Argos), top.json,
                          history/, stats/daily.json (com pico de tensão do dia), sagas.json;
                          merge() guarda manchetes trocadas em article.edits
+  wid/trust.py           por história: wires (árvore de fontes: agências citadas no título/resumo, com maiúsculas),
+                         confidence (alta/media/baixa/conflito + motivos) e spread (1ª aparição por origem)
   wid/deadlines.py       ultimatos ("48 horas para…") nas manchetes → deadlines.json, com "o que aconteceu depois"
   tests/                 pytest com fixtures; rode sempre antes do push
 android/app/src/main/java/com/abugdn/wid/
@@ -84,6 +87,9 @@ android/app/src/main/java/com/abugdn/wid/
   data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
   ui/AlertScreens.kt     telas Sirenes (consulta a cada 5 s só com o app na frente) e Ultimatos; ui/AlertCards.kt:
                          cartões do Radar (sirenes, sismógrafo, viagem) e LocalGo (abre rotas de qualquer tela)
+  ui/Trust.kt            ConfidenceCard (+ árvore de fontes), SpreadCard, TensionBreakdown (regions.parts/why),
+                         SinceLastVisitCard (visita gravada em prefs "visit_<tag>"), IncidentsCard
+  ui/MethodScreens.kt    Contradições ao vivo e "Como sabemos?" (metodologia: mudou uma regra, atualize o texto)
   ui/ScaleScreen.kt      "E se fosse no Brasil?"; ui/SmallMap.kt: mapa osmdroid com as proteções do MapScreen
   ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto; em Sensores os
                          cartões em alerta sobem e os calmos vêm recolhidos

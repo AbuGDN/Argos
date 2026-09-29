@@ -383,6 +383,7 @@ fun ClusterRow(c: Cluster, onOpen: (String) -> Unit) {
                 "NOVA".takeIf { isNew },
                 "+$addedSinceRead DESDE SUA LEITURA".takeIf { addedSinceRead > 0 },
                 sidesBadge(c),
+                confidenceBadge(c),
                 "✏ MANCHETE ALTERADA".takeIf { c.articles.any { it.edits.isNotEmpty() } },
             )
             if (badges.isNotEmpty()) {

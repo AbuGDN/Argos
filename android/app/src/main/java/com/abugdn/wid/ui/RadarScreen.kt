@@ -353,6 +353,9 @@ fun radarAlerts(radar: RadarData): List<String> = buildList {
     radar.straits?.items.orEmpty().filter { s -> s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6 }.forEach {
         add("🚢 Tráfego em queda: ${it.name}")
     }
+    radar.incidents.forEach { inc ->
+        add("🧩 Sinais coincidentes em ${TAG_LABELS[inc.tag] ?: inc.tag}: " + inc.signals.joinToString(" + ") { it.kind.let { k -> INCIDENT_KINDS[k] ?: k } })
+    }
     if (sirensRecent(radar)) radar.sirens?.let { add("🚨 Sirenes em Israel: ${it.count24h} locais em 24 h") }
     radar.quakes?.items.orEmpty().filter { it.alert }.forEach { q ->
         add("🌋 Sismo suspeito: M ${q.mag ?: "?"} em ${q.zone}" + (q.site?.let { " (perto de ${it.name})" } ?: ""))
@@ -377,6 +380,7 @@ private fun airColor(status: String) = when (status) {
 }
 
 private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) {
+    if (radar.incidents.isNotEmpty()) item { IncidentsCard(radar, onRegion) }
     item {
         val alerts = radarAlerts(radar)
         ArgosCard(

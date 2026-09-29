@@ -188,6 +188,9 @@ function radarAlerts(r) {
     out.push({ text: `🔥 Focos de calor acima do normal: ${z.name} (${z.count} em 24 h)`, tag: z.tag, layer: 'fires' }));
   (r.straits?.items || []).filter((s) => s.avg7 != null && s.avg90 != null && s.avg90 > 5 && s.avg7 < s.avg90 * 0.6).forEach((s) =>
     out.push({ text: `🚢 Tráfego em queda: ${s.name}`, tag: s.tag }));
+  const KINDS = { internet: 'internet', airspace: 'espaço aéreo', news: 'disparo de notícias', sirens: 'sirenes', military: 'aviões militares', fires: 'focos de calor', quake: 'sismo' };
+  (r.incidents || []).forEach((inc) =>
+    out.push({ text: `🧩 Sinais coincidentes em ${label(inc.tag)}: ${inc.signals.map((s) => KINDS[s.kind] || s.kind).join(' + ')}`, tag: inc.tag }));
   const lastSiren = Date.parse(r.sirens?.last || '');
   if (lastSiren && Date.now() - lastSiren < 3 * 3600e3) out.push({ text: `🚨 Sirenes em Israel: ${r.sirens.count_24h} locais em 24 h`, tag: 'israel', layer: 'sirens' });
   (r.quakes?.items || []).filter((q) => q.alert).forEach((q) =>
@@ -663,6 +666,14 @@ function openStory(id, fly) {
     ? '<div class="card"><h4>🤝 Confirmado por lados opostos</h4><p class="small">Veículos de lados rivais contam esta história. Fatos que os dois lados relatam costumam ser mais sólidos.</p></div>'
     : c.sides === 'um_lado' ? '<div class="card alert"><h4>⚠ Só um lado noticiou</h4><p class="small">Até agora só uma origem publicou esta história. Vale esperar confirmação.</p></div>' : '';
   const edits = c.articles.filter((a) => (a.edits || []).length);
+  // Confiança, árvore de fontes e propagação (calculados no backend, wid/trust.py).
+  const conf = c.confidence;
+  const confColor = { alta: '#6E8B6A', media: 'var(--gold)', conflito: 'var(--blood)' }[conf?.level] || 'var(--muted, #8A8578)';
+  const tree = c.wires ? `<p class="small" style="margin-top:8px"><b>Árvore de fontes:</b> ${c.wires.independent} ${c.wires.independent === 1 ? 'fonte independente' : 'fontes independentes'} em ${c.wires.total} veículos</p>${Object.entries(c.wires.agencies).map(([ag, outs]) => `<p class="small">${esc(ag)} ← ${outs.map(esc).join(', ')}</p>`).join('')}` : '';
+  const trust = conf ? `<div class="card${conf.level === 'conflito' ? ' alert' : ''}"><h4 style="color:${confColor}">🔎 Confiança: ${esc(conf.label)}</h4>${(conf.reasons || []).map((r) => `<p class="small">• ${esc(r)}</p>`).join('')}${tree}</div>` : '';
+  const LANGS = { pt: 'português', en: 'inglês', he: 'hebraico', ar: 'árabe' };
+  const mins = (m) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${Math.floor(m / 1440)} d`);
+  const spread = (c.spread || []).length >= 2 ? `<div class="card"><h4>🌐 Como a notícia se espalhou</h4>${c.spread.map((s, i) => `<p class="small"><b>${i === 0 ? '1º' : `+${mins(s.after_min)}`}</b> · ${esc(s.label)} · ${esc(s.source)}${LANGS[s.lang] ? ` (em ${LANGS[s.lang]})` : ''} · ${dayClock(s.time)}</p>`).join('')}</div>` : '';
   const place = storyPlace(c);
   const translatedUrl = `https://translate.google.com/translate?sl=auto&tl=pt&u=${encodeURIComponent(c.url)}`;
   const summary = c.summary ? TR.show(c.summary, c.lang) : '';
@@ -680,7 +691,9 @@ function openStory(id, fly) {
       ${c.lang !== 'pt' ? `<a class="btn" href="${esc(translatedUrl)}" target="_blank" rel="noopener">Ler traduzido</a>` : ''}
       ${place ? `<button class="btn" data-fly="${place.lon},${place.lat},7">📍 ${esc(place.name)}</button>` : ''}
     </div>
+    ${trust}
     ${sides}
+    ${spread}
     ${figures ? `<div class="card${divergent ? ' alert' : ''}"><h4>${divergent ? '⚠ Números divergentes' : '🔢 Números citados'}</h4>${figures}</div>` : ''}
     ${edits.length ? `<div class="card"><h4>✏ Manchete alterada</h4>${edits.map((a) => `<p class="small"><b>${esc(a.source)}</b><br><s class="muted">${esc(a.edits[0].title)}</s><br>${esc(a.title)}</p>`).join('')}</div>` : ''}
     ${(c.framing || []).length ? `<div class="card"><h4>🗣 Palavras de cada lado</h4>${c.framing.map((g) => `<p class="small"><b>${esc(g.group)}</b><br>${Object.entries(g.by_origin || {}).map(([o, terms]) => `${esc(origins[o] || o)}: ${terms.map((t) => `“${esc(t)}”`).join(', ')}`).join('<br>')}</p>`).join('')}</div>` : ''}
