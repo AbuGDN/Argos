@@ -75,6 +75,29 @@ data class PredictionScore(val hits: Int, val total: Int) {
     val percent: Int get() = if (total == 0) 0 else hits * 100 / total
 }
 
+/**
+ * Nota de Brier: média de (certeza − resultado)², com resultado 1 se aconteceu e 0 se não.
+ * 0 é perfeito; 0,25 é o que dá chutar sempre 50%. Mede calibração, não só acerto.
+ */
+fun brier(list: List<Prediction>): Double? {
+    val done = list.filter { it.hit != null }
+    if (done.isEmpty()) return null
+    return done.map { p ->
+        val prob = p.confidence / 100.0
+        val outcome = if (p.hit == true) 1.0 else 0.0
+        (prob - outcome) * (prob - outcome)
+    }.average()
+}
+
+/** Acerto por faixa de certeza: (faixa, acertos, total). Bem calibrado = acerto perto da faixa. */
+fun calibration(list: List<Prediction>): List<Triple<String, Int, Int>> {
+    val done = list.filter { it.hit != null }
+    return listOf("50–64%" to 50..64, "65–79%" to 65..79, "80–100%" to 80..100).mapNotNull { (label, range) ->
+        val inRange = done.filter { it.confidence in range }
+        if (inRange.isEmpty()) null else Triple(label, inRange.count { it.hit == true }, inRange.size)
+    }
+}
+
 fun score(list: List<Prediction>): PredictionScore {
     val done = list.filter { it.hit != null }
     return PredictionScore(done.count { it.hit == true }, done.size)

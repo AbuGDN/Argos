@@ -177,3 +177,42 @@ fun countdown(due: Instant, now: Instant = Instant.now()): String {
     }
     return if (left.isNegative) "venceu há $text" else "faltam $text"
 }
+
+// --- Termômetro diplomático (diplomacy.json) e status das fontes (sources_status.json) -----
+
+@Serializable
+data class DiplomacyFile(val labels: Map<String, String> = emptyMap(), val regions: Map<String, DiplomacyRegion> = emptyMap())
+
+@Serializable
+data class DiplomacyRegion(
+    /** 0 = só cooperação, 50 = equilíbrio, 100 = só hostilidade. */
+    val index: Int = 50,
+    val label: String = "",
+    val hostile: Int = 0,
+    val coop: Int = 0,
+    val counts: Map<String, Int> = emptyMap(),
+    val events: List<DiplomacyEvent> = emptyList(),
+    val total: Int = 0,
+)
+
+@Serializable
+data class DiplomacyEvent(
+    @SerialName("cluster_id") val clusterId: String,
+    val title: String,
+    val lang: String = "en",
+    val published: String = "",
+    val tags: List<String> = emptyList(),
+    val cats: List<String> = emptyList(),
+)
+
+/** Categorias que esquentam (true) ou esfriam (false). */
+val DIPLOMACY_HOSTILE = mapOf(
+    "embaixador" to true, "ruptura" to true, "sancoes" to true, "fronteira" to true, "emergencia" to true, "ameaca" to true,
+    "negociacao" to false, "acordo" to false, "encontro" to false, "reaproximacao" to false,
+)
+
+@Serializable
+data class SourcesStatus(@SerialName("generated_at") val generatedAt: String = "", val sources: Map<String, SourceStatus> = emptyMap())
+
+@Serializable
+data class SourceStatus(val ok: Boolean = false, val items: Int = 0, val error: String? = null)

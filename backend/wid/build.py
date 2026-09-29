@@ -28,6 +28,7 @@ from .fetch import Article, fetch_all, iso, parse_iso
 from .keywords import Keywords
 from . import radar as radar_mod
 from .deadlines import update_deadlines
+from .diplomacy import update_diplomacy
 from .trust import annotate as annotate_trust
 from . import webgeo
 
@@ -198,6 +199,7 @@ def build(
         annotate_trust(c)
     update_sagas(out, items, now)
     update_deadlines(out, items, now)
+    update_diplomacy(out, items, now)
 
     # Principal de cada dia e estatística diária (fuso de Brasília), antes do feed, porque
     # a tensão por região compara o dia de hoje com a média dos anteriores.

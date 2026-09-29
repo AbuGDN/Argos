@@ -295,6 +295,9 @@ private fun ArticleText(cluster: Cluster, state: TextState, showOriginal: Boolea
         is TextState.Ready -> {
             val text = state.text
             val translated = text.translated
+            // Lado a lado: cada parágrafo original seguido da tradução (para frases sensíveis ou ambíguas).
+            var sideBySide by rememberSaveable(cluster.id) { mutableStateOf(false) }
+            val paired = sideBySide && translated != null && translated.size == text.paragraphs.size
             val paragraphs = if (translated != null && !showOriginal) translated else text.paragraphs
             // ~200 palavras por minuto.
             val minutes = (paragraphs.sumOf { p -> p.split(' ').size } / 200).coerceAtLeast(1)
@@ -309,6 +312,9 @@ private fun ArticleText(cluster: Cluster, state: TextState, showOriginal: Boolea
                     TextButton(onClick = onToggleOriginal) {
                         Text(if (showOriginal) "Ver tradução" else "Ver original")
                     }
+                    TextButton(onClick = { sideBySide = !sideBySide }) {
+                        Text(if (sideBySide) "Só um idioma" else "Lado a lado")
+                    }
                 }
                 ReaderMenu()
             }
@@ -318,12 +324,31 @@ private fun ArticleText(cluster: Cluster, state: TextState, showOriginal: Boolea
                 fontFamily = if (settings.readerSerif) FontFamily.Serif else base.fontFamily,
                 lineHeight = if (settings.readerWide) base.fontSize * 1.75f else base.lineHeight,
             )
-            paragraphs.forEach {
+            if (paired && translated != null) {
                 Text(
-                    it,
-                    style = readerStyle,
-                    modifier = Modifier.padding(bottom = if (settings.readerWide) 18.dp else 12.dp),
+                    "Original: " + cluster.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    modifier = Modifier.padding(bottom = 12.dp),
                 )
+                text.paragraphs.zip(translated).forEach { (orig, tr) ->
+                    Text(
+                        orig,
+                        style = readerStyle.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    Text(tr, style = readerStyle, modifier = Modifier.padding(bottom = if (settings.readerWide) 20.dp else 14.dp))
+                }
+            } else {
+                paragraphs.forEach {
+                    Text(
+                        it,
+                        style = readerStyle,
+                        modifier = Modifier.padding(bottom = if (settings.readerWide) 18.dp else 12.dp),
+                    )
+                }
             }
         }
     }

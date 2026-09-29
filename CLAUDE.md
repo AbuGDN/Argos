@@ -62,6 +62,7 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          merge() guarda manchetes trocadas em article.edits
   wid/trust.py           por história: wires (árvore de fontes: agências citadas no título/resumo, com maiúsculas),
                          confidence (alta/media/baixa/conflito + motivos) e spread (1ª aparição por origem)
+  wid/diplomacy.py       termômetro diplomático: categorias por regex no título (pt/en), 7 dias → diplomacy.json
   wid/deadlines.py       ultimatos ("48 horas para…") nas manchetes → deadlines.json, com "o que aconteceu depois"
   tests/                 pytest com fixtures; rode sempre antes do push
 android/app/src/main/java/com/abugdn/wid/
@@ -93,6 +94,12 @@ android/app/src/main/java/com/abugdn/wid/
   ui/Trust.kt            ConfidenceCard (+ árvore de fontes), SpreadCard, TensionBreakdown (regions.parts/why),
                          SinceLastVisitCard (visita gravada em prefs "visit_<tag>"), IncidentsCard
   ui/MethodScreens.kt    Contradições ao vivo e "Como sabemos?" (metodologia: mudou uma regra, atualize o texto)
+  data/Rules.kt          regras de alerta da pessoa (tensão, Radar em alerta, mercado, palavra; avisa na virada),
+                         radarAlertTags(); ui/RulesScreen.kt. data/Alliances.kt: "quem apoia quem" (fixo até 2025)
+  ui/ExtraScreens.kt     Comparar (regiões/datas), Status das fontes, Quem apoia quem (grafo em Canvas),
+                         Termômetro diplomático (+ DiplomacyCard) e BrazilImpactCard ("E o Brasil?")
+  ui/HomeScreen.kt       search()/parseSearch(): filtros região:, fonte:, lado:, antes:, depois:, tipo:
+  Compartilhar           intent SEND text/plain → Repository.findShared (link, depois palavras do título/og:title)
   ui/ScaleScreen.kt      "E se fosse no Brasil?"; ui/SmallMap.kt: mapa osmdroid com as proteções do MapScreen
   ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto; em Sensores os
                          cartões em alerta sobem e os calmos vêm recolhidos
@@ -105,7 +112,7 @@ android/app/src/main/java/com/abugdn/wid/
   sync/                  SyncWorker (30 min), DigestWorker, Notifier, NotificationActionReceiver
   ui/                    Compose; MainActivity faz a navegação por estado (sem navigation-compose)
   widget/                Glance: TopWidget, CompactWidget, RegionWidget (+ configuração), ClockWidget
-web/                     página de download (index.html, icon.svg); build.py copia para a gh-pages →
+web/                     página de download (index.html, icon.svg), status.html (fontes e sensores); build.py copia para a gh-pages →
                          GitHub Pages em abugdn.github.io/Argos/. Busca o APK mais novo pela API
   painel/                painel para PC (abugdn.github.io/Argos/painel/): globo 3D (MapLibre 5, em
                          vendor/, sem CDN) com regiões/tensão, cidades, focos, aviões, porta-aviões,

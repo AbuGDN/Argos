@@ -11,6 +11,22 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        41,
+        listOf(
+            "🔍 Busca com filtros: região:irã, fonte:g1, lado:árabe, depois:01/09, antes:15/09, tipo:urgente (ou conflito, confirmado, umlado, alterada). Agora ela procura também no Arquivo.",
+            "📤 Compartilhar para o Argos: mande um link de notícia de outro app para o Argos e ele abre a mesma história, com a cobertura de todos os lados.",
+            "🎯 Nota de calibração (Brier) nas previsões: mostra se a sua certeza bate com os acertos, por faixa de confiança.",
+            "🔔 Regras de alerta suas: \u201cse Ormuz entrar em alerta e o petróleo passar de 90, me avise\u201d (Ajustes → Notificações ou Ferramentas).",
+            "🧹 Menos notificações repetidas: um aviso por assunto a cada 3 h, e as histórias seguidas juntam os veículos novos num aviso só.",
+            "🔤 Original e tradução lado a lado no texto completo, e 15 termos difíceis de traduzir explicados (intifada, nakba, shahid, hasbara, sumud...).",
+            "⚖ Comparar (Ferramentas): duas regiões lado a lado, ou a mesma região hoje e há 1, 7, 14 ou 30 dias.",
+            "🟢 Status das fontes: quais veículos e sensores estão funcionando agora (também em abugdn.github.io/Argos/status.html).",
+            "🕸 Quem apoia quem: rede de alianças, apoios, rivalidades e guerras entre países e grupos, com o porquê de cada ligação.",
+            "🌡 Termômetro diplomático: embaixadores, sanções, fronteiras e negociações de cada região em 7 dias, também na página da região.",
+            "🇧🇷 E o Brasil?: na página da região, por onde a crise pode chegar aqui (combustível, dólar, fertilizantes, frete, brasileiros), com as cotações.",
+        ),
+    ),
+    ChangelogEntry(
         40,
         listOf(
             "📊 O Argos agora conta, de forma anônima, quantas pessoas usam o app: uma vez por dia ele avisa que foi aberto, só com a versão. Nada pessoal é enviado (GoatCounter, que não guarda IP).",

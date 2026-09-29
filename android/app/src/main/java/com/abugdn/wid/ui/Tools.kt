@@ -61,6 +61,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("vigil", "📜", "Vigília", "Registro dos alertas com data e hora", "alertas registro historico"),
         Tool("sirens", "🚨", "Sirenes em Israel", "Alertas de foguete e drone ao vivo, no mapa", "sirene alerta foguete tzeva adom"),
         Tool("deadlines", "⏳", "Ultimatos e prazos", "Contagem regressiva dos prazos dados nas manchetes", "ultimato prazo contagem"),
+        Tool("diplomacy", "🌡", "Termômetro diplomático", "Embaixadores, sanções, fronteiras e negociações de cada região em 7 dias", "diplomacia embaixador sancoes negociacao acordo"),
         Tool("contradictions", "⚖", "Contradições ao vivo", "Números, palavras e versões que não batem entre os veículos", "contradicao divergente numeros versoes conflito"),
     ),
     "Resumos" to listOf(
@@ -75,6 +76,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("map:carriers", "⚓", "Porta-aviões", "Onde está cada porta-aviões americano", "frota marinha eua navios"),
         Tool("map:military", "✈", "Aviões militares", "Reabastecedores, aviões-radar e drones no ar", "militar avioes adsb"),
         Tool("map:ranges", "🎯", "Alcance de mísseis", "Até onde chegam mísseis e defesas", "misseis defesa alcance armas"),
+        Tool("compare", "⚖", "Comparar", "Duas regiões lado a lado, ou a mesma região em duas datas", "comparar regioes datas antes depois"),
         Tool("scale", "📏", "E se fosse no Brasil?", "Gaza, a frente na Ucrânia ou um míssil em cima da sua cidade", "escala tamanho comparar cidade"),
     ),
     "Radar" to listOf(
@@ -86,6 +88,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     ),
     "Aprender" to listOf(
         Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
+        Tool("alliances", "🕸", "Quem apoia quem", "Rede de alianças, apoios e rivalidades entre países e grupos", "aliancas aliados apoio rivais rede grupos"),
         Tool("method", "🔬", "Como sabemos?", "Como o Argos junta notícias, mede confiança e calcula a tensão", "metodologia confianca calculo transparencia fontes"),
     ),
     "Seus" to listOf(
@@ -93,6 +96,8 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("library:1", "🗂", "Dossiês", "Linha do tempo automática de um assunto", "acompanhar assunto"),
         Tool("library:2", "🎯", "Minhas previsões", "Seus palpites e o placar", "palpite aposta"),
         Tool("library:4", "👁", "Lidas", "O que você leu nos últimos 30 dias", "historico leituras"),
+        Tool("rules", "🔔", "Regras de alerta", "Avisos do seu jeito: se isso e aquilo, me avise", "regra alerta aviso condicao notificacao"),
+        Tool("sources", "🟢", "Status das fontes", "Quais veículos e sensores estão funcionando agora", "status fontes funcionando fora do ar erro"),
         Tool("settings", "⚙", "Ajustes", "Notificações, tela Hoje, leitura, aparência", "configuracoes preferencias"),
     ),
 )

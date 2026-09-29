@@ -44,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abugdn.wid.data.Dossier
 import com.abugdn.wid.data.Prediction
 import com.abugdn.wid.data.score
+import com.abugdn.wid.data.brier
+import com.abugdn.wid.data.calibration
 import com.abugdn.wid.repository
 import java.time.Instant
 import java.time.LocalDate
@@ -270,6 +272,31 @@ fun PredictionsTab() {
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        brier(predictions)?.let { b ->
+                            Text(
+                                "Nota de calibração (Brier): ${"%.2f".format(java.util.Locale("pt", "BR"), b)} · " + when {
+                                    b <= 0.12 -> "ótima"
+                                    b <= 0.2 -> "boa"
+                                    b < 0.25 -> "razoável"
+                                    else -> "pior que chutar 50%"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                            Text(
+                                "Quanto menor, melhor: 0 é perfeito e 0,25 é o que dá chutar sempre 50%. Leva em conta a certeza de cada palpite.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            calibration(predictions).forEach { (label, hits, total) ->
+                                Text(
+                                    "Certeza $label: acertou $hits de $total (${hits * 100 / total}%)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
