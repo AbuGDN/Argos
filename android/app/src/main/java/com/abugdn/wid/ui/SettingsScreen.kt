@@ -299,6 +299,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                         s.blurSensitive,
                     ) { update { st -> st.copy(blurSensitive = it) } }
 
+                    Section("Privacidade")
+                    Toggle(
+                        "Contar meu uso (anônimo)",
+                        "Uma vez por dia o app avisa o GoatCounter que foi aberto, só com a versão. Nada pessoal é enviado; serve para saber quantas pessoas usam o Argos",
+                        s.shareUsage,
+                    ) { update { st -> st.copy(shareUsage = it) } }
+
                     Section("Modo leitura")
                     Toggle("Fonte serifada", "Texto completo da notícia com letra de livro", s.readerSerif) {
                         update { st -> st.copy(readerSerif = it) }

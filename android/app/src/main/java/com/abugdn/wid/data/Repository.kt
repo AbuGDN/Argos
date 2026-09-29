@@ -275,6 +275,17 @@ class Repository(context: Context) {
         storage.prefs.edit().putLong("last_visit", System.currentTimeMillis()).apply()
     }
 
+    /** Contagem anônima de uso (GoatCounter), uma vez por dia; o código vem do app-config.json do site. */
+    suspend fun pingUsage(context: Context) {
+        if (!settings.value.shareUsage) return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val code = json.decodeFromString<AppConfig>(getData("app-config.json?t=${System.currentTimeMillis() / 3_600_000}")).goatcounter
+                Usage.ping(context, code.trim().lowercase(), true)
+            }
+        }
+    }
+
     fun startVisit() {
         previousVisit = storage.prefs.getLong("last_visit", 0)
     }
