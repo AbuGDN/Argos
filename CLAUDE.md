@@ -97,7 +97,12 @@ web/                     página de download (index.html, icon.svg); build.py co
                          app, o site acompanha. app.js = globo, painéis, busca; features.js = dia/noite,
                          arcos entre regiões, estreitos, ficha do país (Wikidata/Wikipédia no navegador),
                          comparar, arquivo, atalhos, mercados e imagem para compartilhar. Marcadores HTML
-                         atrás do globo são escondidos à mão (hideBackside), o MapLibre só os esmaece
+                         atrás do globo são escondidos à mão (hideBackside), o MapLibre só os esmaece.
+                         motion.js = animações (abertura, flyCam com inclinação, varredura, ping de notícia
+                         nova, arcos que se desenham, contorno do país sob o mouse, contagens, cascata,
+                         fogo, frente, alvorada, retícula, urgente datilografado); envolve funções de
+                         app.js/features.js reatribuindo o nome global (load = ..., showDetail = ...).
+                         Voo de câmera: use flyCam(), não map.flyTo
 .github/workflows/
   update-feed.yml        coleta; ciclos de ~5 h (11 rodadas × 30 min); cada rodada pega o backend novo
   build-android.yml      compila e publica release v1.0.<run_number> a cada push em android/

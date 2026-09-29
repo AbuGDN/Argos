@@ -130,6 +130,7 @@ function renderArcs() {
     geometry: { type: 'LineString', coordinates: greatCircle(pts[p.a], pts[p.b]) },
     properties: { a: p.a, b: p.b, n: p.ids.length, name: `${label(p.a)} ↔ ${label(p.b)}` },
   })) : [];
+  S.arcFeatures = feats;
   map.getSource('arcs').setData(fc(feats));
 }
 
@@ -193,14 +194,14 @@ function openStrait(id) {
   showDetail(`<div class="detail-head"><div class="kicker">Estreito</div><h2>${esc(s.name)}</h2>
     <div class="m">IMF PortWatch · dados até ${esc(s.date || '')}</div></div>
     <div class="card${st === 'queda' ? ' alert' : ''}"><h4>🚢 Navios por dia<small>média de 7 dias</small></h4>
-      <div style="font:700 28px var(--mono)">${s.avg7 != null ? Math.round(s.avg7) : '—'}</div>
+      <div class="count" style="font:700 28px var(--mono)">${s.avg7 != null ? Math.round(s.avg7) : '—'}</div>
       <p class="small muted">90 dias antes: ${s.avg90 != null ? Math.round(s.avg90) : '—'}${pct(s.avg7, s.avg90)} · há um ano: ${s.year_ago != null ? Math.round(s.year_ago) : '—'}${pct(s.avg7, s.year_ago)}</p>
       ${sparkSvg(s.spark, '#C9A227', { baseline: s.avg90 })}
       <p class="small muted">Linha tracejada = média de 90 dias antes. ${st === 'queda' ? '<span class="alertline">Tráfego bem abaixo do normal.</span>' : ''}</p></div>
     <div class="card"><h4>Fonte</h4><p class="small">IMF PortWatch (FMI), com dados de satélite dos navios (AIS). O FMI atualiza uma vez por semana, com alguns dias de atraso.</p></div>
     ${s.tag ? `<div class="linkrow"><span class="chip" data-region="${s.tag}">${esc(label(s.tag))}</span></div>` : ''}`);
   const pos = STRAIT_POS[id];
-  if (pos) map.flyTo({ center: pos, zoom: Math.max(map.getZoom(), 5.5), speed: 0.9 });
+  if (pos) flyCam({ center: pos, zoom: Math.max(map.getZoom(), 5.5), speed: 0.9 });
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +327,7 @@ async function openCountry(name, lngLat) {
     <div class="card"><h4>Nas notícias agora<small>${news.length}</small></h4>${news.length ? '' : '<p class="small muted">Nenhuma notícia das últimas 48 h cita este país.</p>'}</div>
     ${news.map(storyRow).join('')}`);
   loadWikiPhotos($('#detail-body'));
-  if (lngLat) map.flyTo({ center: lngLat, zoom: Math.max(map.getZoom(), 3.6), speed: 0.8 });
+  if (lngLat) flyCam({ center: lngLat, zoom: Math.max(map.getZoom(), 3.6), speed: 0.8 });
 }
 
 // ---------------------------------------------------------------------------
