@@ -98,6 +98,11 @@ web/                     página de download (index.html, icon.svg); build.py co
                          arcos entre regiões, estreitos, ficha do país (Wikidata/Wikipédia no navegador),
                          comparar, arquivo, atalhos, mercados e imagem para compartilhar. Marcadores HTML
                          atrás do globo são escondidos à mão (hideBackside), o MapLibre só os esmaece.
+                         detail.js = detalhe grátis e sem chave: relevo 3D (AWS terrarium), prédios/ruas/
+                         nomes (OpenFreeMap), nuvens (EUMETSAT WMS, 15 min), luzes das cidades só na noite
+                         (lights.geojson + filtro "within"), fundo "NASA de ontem" (GIBS); "Alta qualidade"
+                         liga relevo+prédios, de fábrica só em PC forte. Cidades 3D realistas (Google/Cesium)
+                         exigem chave: não usar.
                          motion.js = animações (abertura, flyCam com inclinação, varredura, ping de notícia
                          nova, arcos que se desenham, contorno do país sob o mouse, contagens, cascata,
                          fogo, frente, alvorada, retícula, urgente datilografado); envolve funções de
