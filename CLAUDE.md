@@ -121,7 +121,8 @@ web/                     página de download (index.html, icon.svg), status.html
                          carrossel/ (ferramenta pessoal do dono, sem link em lugar nenhum e noindex: escolhe uma
                          história do feed.json e gera 4 slides 1080×1350 editáveis em Canvas para o Instagram
                          (notícia, o que aconteceu, "siga para mais" com texto salvo no navegador, fontes; o dono
-                         pediu curto: não voltar a pôr números/lados/contexto/mapa);
+                         pediu curto: não voltar a pôr números/lados/contexto/mapa); *asteriscos* = destaque dourado
+                         (layout()/fitText), selo da capa, frase-chave, textura, barra de progresso, botão Legenda;
                          imagens: Wikimedia Commons (API com origin=*, crédito e licença desenhados), arquivo do
                          aparelho ou foto da notícia só se o site mandar CORS (senão o canvas não exporta); tradução pelo Translator do Chrome com o cache do painel); build.py copia para a gh-pages →
                          GitHub Pages em abugdn.github.io/Argos/. Busca o APK mais novo pela API
