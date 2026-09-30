@@ -58,6 +58,7 @@
   <span class="sp"></span>
   <label class="note"><input type="checkbox" id="showUrl"> endereço do Argos no último slide</label>
   <button id="translate" hidden>Traduzir textos</button>
+  <button id="caption" disabled>Legenda</button>
   <button id="share" disabled>Compartilhar</button>
   <button id="download" class="gold" disabled>Baixar imagens</button>
 </header>
@@ -67,10 +68,16 @@
     <div id="list"></div>
   </aside>
   <section id="work">
-    <p class="hint">Escolha uma história. Os slides saem prontos com os dados do Argos; edite o texto de cada um antes de baixar e desmarque os que não quiser. Tamanho do Instagram (1080×1350). Fotos dos jornais não entram (direitos autorais); o último slide cita as fontes.</p>
+    <p class="hint">Escolha uma história. Os slides saem prontos com os dados do Argos; edite o texto de cada um antes de baixar e desmarque os que não quiser. Tamanho do Instagram (1080×1350). Escreva *entre asteriscos* para destacar palavras em dourado. O botão Legenda monta o texto do post com link e hashtags.</p>
     <div class="slides" id="slides"><div class="empty">Nenhuma história escolhida.</div></div>
   </section>
 </main>
+<datalist id="selos"><option value="URGENTE"><option value="ATUALIZAÇÃO"><option value="ANÁLISE"><option value="EXCLUSIVO"></datalist>
+<dialog id="capdlg">
+  <div class="row" style="margin:0"><strong style="color:var(--gold)">Legenda do post</strong><button id="capclose">Fechar</button></div>
+  <textarea id="captext" style="width:100%;min-height:340px;margin-top:10px;background:var(--ink);color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.45 system-ui,sans-serif"></textarea>
+  <div class="row"><span class="note" id="capmsg">Edite à vontade antes de copiar.</span><button id="capcopy" class="gold">Copiar</button></div>
+</dialog>
 <dialog id="picker">
   <div class="row" style="margin:0"><strong style="color:var(--gold)">Imagem do slide</strong><button id="pclose">Fechar</button></div>
   <p class="note">Fotos livres do Wikimedia Commons (o crédito do autor e a licença entram na imagem), uma imagem sua ou a foto da notícia, quando o site do jornal permitir.</p>
@@ -176,6 +183,8 @@ function storyLink(c) {
   return url ? url.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, '') : '';
 }
 
+const FOLLOW_KEYS = { title: 'car_follow_title', body: 'car_follow_body2', handle: 'car_follow_handle' };
+
 function buildSlides(c) {
   const tag = mainTag(c);
   const slides = [];
@@ -186,10 +195,22 @@ function buildSlides(c) {
   // O que aconteceu: resumo (ou as manchetes dos outros veículos).
   const summary = TR.show(c.summary, c.lang) || '';
   const others = c.articles.filter((a) => a.source !== c.source).slice(0, 3).map((a) => `${a.source}: “${TR.show(a.title, a.lang)}”`);
-  slides.push({ kind: 'texto', kicker: 'O QUE ACONTECEU', title: 'O que aconteceu', body: summary.length > 60 ? summary : [summary, ...others].filter(Boolean).join('\n\n') });
+  // Frase-chave: a primeira frase vira o título grande; o resto fica menor embaixo.
+  const oneLine = summary.length > 60 && summary.length <= 280 && !/[.!?]\s+\S/.test(summary);
+  const key = summary.length > 60 && summary.match(/^(.{20,200}?[.!?])\s+(\S[\s\S]*)$/);
+  slides.push({
+    kind: 'texto', kicker: 'O QUE ACONTECEU',
+    title: key ? key[1] : oneLine ? summary : 'O que aconteceu',
+    body: key ? key[2] : oneLine ? '' : summary.length > 60 ? summary : [summary, ...others].filter(Boolean).join('\n\n'),
+  });
 
   // Chamada para seguir (o texto fica guardado para os próximos carrosséis).
-  slides.push({ kind: 'siga', kicker: 'ARGOS', title: store.get('car_follow_title', 'Siga para mais'), body: store.get('car_follow_body2', 'A geopolítica global no seu feed, todos os dias.') });
+  slides.push({
+    kind: 'siga', kicker: 'ARGOS', bg: true, question: '',
+    title: store.get(FOLLOW_KEYS.title, 'Siga para mais'),
+    body: store.get(FOLLOW_KEYS.body, 'A geopolítica global no seu feed, todos os dias.'),
+    handle: store.get(FOLLOW_KEYS.handle, ''),
+  });
 
   // Fontes.
   const sources = [...new Set(c.articles.map((a) => a.source))];
@@ -198,36 +219,92 @@ function buildSlides(c) {
 }
 
 // --- Desenho --------------------------------------------------------------------------------
-function wrap(ctx, text, maxW) {
-  const out = [];
-  for (const para of String(text).split('\n')) {
-    if (!para.trim()) { out.push(''); continue; }
-    let line = '';
-    for (const word of para.split(/\s+/)) {
-      const test = line ? `${line} ${word}` : word;
-      if (ctx.measureText(test).width > maxW && line) { out.push(line); line = word; } else line = test;
+/** Quebra em linhas de palavras; *entre asteriscos* marca o destaque (hl). Linha vazia = []. */
+function layout(ctx, text, maxW) {
+  const lines = [];
+  const sp = ctx.measureText(' ').width;
+  let on = false;
+  for (const para of String(text ?? '').split('\n')) {
+    if (!para.trim()) { lines.push([]); continue; }
+    let line = [], lineW = 0;
+    for (let w of para.split(/\s+/).filter(Boolean)) {
+      let hl = on;
+      if (w.startsWith('*')) { hl = true; w = w.slice(1); }
+      const end = w.match(/\*([^\p{L}\p{N}]*)$/u);
+      if (end) { w = w.slice(0, end.index) + end[1]; on = false; } else on = hl;
+      if (!w) continue;
+      const tw = ctx.measureText(w).width;
+      if (line.length && lineW + sp + tw > maxW) { lines.push(line); line = []; lineW = 0; }
+      lineW += (line.length ? sp : 0) + tw;
+      line.push({ t: w, hl });
     }
-    out.push(line);
+    lines.push(line);
   }
-  return out;
+  return lines;
 }
 
-/** Escreve o texto em até maxH de altura, diminuindo a letra até caber. Devolve a altura usada. */
-function fitText(ctx, text, x, y, maxW, maxH, { size = 44, min = 26, font = SANS, weight = '400', color = C.bone, lh = 1.32 } = {}) {
+/** Escreve o texto em até maxH de altura, diminuindo a letra até caber. Devolve a altura usada.
+ *  Respeita ctx.textAlign (left/center); dry = só mede. */
+function fitText(ctx, text, x, y, maxW, maxH, { size = 44, min = 26, font = SANS, weight = '400', color = C.bone, hl = C.gold, lh = 1.32, dry = false } = {}) {
   let s = size, lines;
   for (; s >= min; s -= 2) {
     ctx.font = `${weight} ${s}px ${font}`;
-    lines = wrap(ctx, text, maxW);
+    lines = layout(ctx, text, maxW);
     if (lines.length * s * lh <= maxH) break;
   }
+  s = Math.max(s, min);
   ctx.font = `${weight} ${s}px ${font}`;
-  ctx.fillStyle = color;
-  const maxLines = Math.floor(maxH / (s * lh));
-  lines.slice(0, maxLines).forEach((l, i) => {
-    const txt = i === maxLines - 1 && lines.length > maxLines ? l.replace(/\s*\S*$/, '') + '…' : l;
-    ctx.fillText(txt, x, y + s + i * s * lh);
+  lines = layout(ctx, text, maxW);
+  const maxLines = Math.max(1, Math.floor(maxH / (s * lh)));
+  const used = Math.min(lines.length, maxLines) * s * lh;
+  if (dry) return used;
+  const align = ctx.textAlign;
+  const sp = ctx.measureText(' ').width;
+  ctx.textAlign = 'left';
+  lines.slice(0, maxLines).forEach((line, i) => {
+    const words = line.map((w) => ({ ...w }));
+    if (i === maxLines - 1 && lines.length > maxLines && words.length) words[words.length - 1].t += '…';
+    const width = words.reduce((a, w) => a + ctx.measureText(w.t).width, 0) + sp * Math.max(0, words.length - 1);
+    let cx = align === 'center' ? x - width / 2 : x;
+    for (const w of words) {
+      ctx.fillStyle = w.hl ? hl : color;
+      ctx.fillText(w.t, cx, y + s + i * s * lh);
+      cx += ctx.measureText(w.t).width + sp;
+    }
   });
-  return Math.min(lines.length, maxLines) * s * lh;
+  ctx.textAlign = align;
+  return used;
+}
+
+/** Grão, retícula e vinheta: o fundo deixa de ser um preto chapado. */
+let GRAIN = null;
+function texture(ctx) {
+  if (!GRAIN) {
+    GRAIN = document.createElement('canvas');
+    GRAIN.width = GRAIN.height = 220;
+    const g = GRAIN.getContext('2d');
+    const d = g.createImageData(220, 220);
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < d.data.length; i += 4) {
+      const v = rnd() * 255;
+      d.data[i] = d.data[i + 1] = d.data[i + 2] = v;
+      d.data[i + 3] = rnd() < 0.5 ? 16 : 0;
+    }
+    g.putImageData(d, 0, 0);
+  }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(201,162,39,.045)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 54; x < W; x += 54) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+  for (let y = 54; y < H; y += 54) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+  ctx.stroke();
+  ctx.fillStyle = ctx.createPattern(GRAIN, 'repeat');
+  ctx.fillRect(0, 0, W, H);
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.78);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
 }
 
 function eye(ctx, cx, cy, size, color) {
@@ -266,9 +343,10 @@ function frame(ctx, s, index, total) {
   ctx.fillStyle = C.gold; ctx.font = `700 30px ${SERIF}`; ctx.letterSpacing = '6px';
   ctx.fillText('ARGOS', M + 58, H - 82);
   ctx.letterSpacing = '0px';
-  ctx.fillStyle = C.ash; ctx.font = `600 26px ${SANS}`; ctx.textAlign = 'right';
-  ctx.fillText(`${index + 1}/${total}${index + 1 < total ? '  →' : ''}`, W - M, H - 84);
-  ctx.textAlign = 'left';
+  // Barra de progresso no lugar do "1/4".
+  const bw = 220, bx = W - M - bw, by = H - 99;
+  ctx.fillStyle = C.line; ctx.beginPath(); ctx.roundRect(bx, by, bw, 8, 4); ctx.fill();
+  ctx.fillStyle = C.gold; ctx.beginPath(); ctx.roundRect(bx, by, Math.max(8, bw * (index + 1) / total), 8, 4); ctx.fill();
   // Cabeçalho do slide.
   if (s.kind !== 'capa' && s.kind !== 'siga') {
     ctx.fillStyle = C.gold; ctx.font = `700 28px ${SANS}`; ctx.letterSpacing = '3px';
@@ -291,14 +369,19 @@ function drawCover(ctx, s, c) {
   ctx.letterSpacing = '0px';
   const flag = S.flags[mainTag(c)];
   if (flag) ctx.drawImage(flag, W - M - 150, 110, 150, Math.round(150 * flag.naturalHeight / flag.naturalWidth));
-  if (s.body) {
-    ctx.fillStyle = C.blood; ctx.fillRect(M, 220, 210, 52);
-    ctx.fillStyle = C.bone; ctx.font = `800 30px ${SANS}`; ctx.fillText(s.body, M + 20, 257);
+  if (s.body.trim()) {
+    // Vermelho só para URGENTE; os outros selos em dourado.
+    const red = /urgente/i.test(s.body);
+    const txt = s.body.trim().toUpperCase();
+    ctx.font = `800 30px ${SANS}`; ctx.letterSpacing = '2px';
+    ctx.fillStyle = red ? C.blood : C.gold; ctx.fillRect(M, 220, ctx.measureText(txt).width + 40, 52);
+    ctx.fillStyle = red ? C.bone : C.ink; ctx.fillText(txt, M + 20, 257);
+    ctx.letterSpacing = '0px';
   }
   // Mede antes (sem pintar) para centralizar a manchete na altura livre.
   const opts = { size: 86, min: 50, font: SERIF, weight: '700', lh: 1.16 };
-  const h = fitText(ctx, s.title, M, 0, W - M * 2, 760, { ...opts, color: 'rgba(0,0,0,0)' });
-  const top = s.body ? 300 : 230;
+  const h = fitText(ctx, s.title, M, 0, W - M * 2, 760, { ...opts, dry: true });
+  const top = s.body.trim() ? 300 : 230;
   const y = s.img ? H - 250 - h : top + Math.max(0, (H - 260 - top - h) / 2);
   fitText(ctx, s.title, M, y, W - M * 2, 760, opts);
   if (s.img) credit(ctx, s.img.credit, M, 70, W - M * 2);
@@ -321,15 +404,115 @@ function drawText(ctx, s) {
     credit(ctx, s.img.credit, M + 16, top + bh - 18, W - M * 2 - 32);
     top += bh + 34;
   }
-  const h = fitText(ctx, s.title, M, top, W - M * 2, s.img ? 170 : 250, { size: s.img ? 54 : 64, min: 38, font: SERIF, weight: '700', lh: 1.15 });
-  fitText(ctx, s.body, M, top + h + 30, W - M * 2, H - top - h - 30 - 200, { size: s.img ? 36 : 42, min: 24, lh: 1.36 });
+  const tOpts = { size: s.img ? 50 : 62, min: 36, font: SERIF, weight: '700', lh: 1.18 };
+  const bOpts = { size: s.img ? 32 : 36, min: 24, color: 'rgba(232,226,208,.82)', lh: 1.4 };
+  const tMax = s.img ? 230 : 420;
+  const hasBody = !!s.body.trim();
+  if (!s.img) {
+    // Sem foto, o bloco de texto fica centralizado na altura livre.
+    const th = fitText(ctx, s.title, M, 0, W - M * 2, tMax, { ...tOpts, dry: true });
+    const bh = hasBody ? 50 + fitText(ctx, s.body, M, 0, W - M * 2, H - top - th - 250, { ...bOpts, dry: true }) : 0;
+    top += Math.max(0, (H - 230 - top - th - bh) / 2);
+  }
+  const h = fitText(ctx, s.title, M, top, W - M * 2, tMax, tOpts);
+  if (hasBody) {
+    ctx.fillStyle = C.gold; ctx.fillRect(M, top + h + 34, 60, 3);
+    fitText(ctx, s.body, M, top + h + 50, W - M * 2, H - top - h - 50 - 200, bOpts);
+  }
+}
+
+/** Fundo do "Siga": a foto da capa desfocada e escurecida, para o carrossel parecer uma peça só. */
+function followBackdrop(ctx, s) {
+  const cover = S.slides.find((x) => x.kind === 'capa');
+  if (!s.bg || !cover?.img) return;
+  ctx.save();
+  ctx.filter = 'blur(26px)';
+  coverImage(ctx, cover.img.el, -80, -80, W + 160, H + 160, 0.35);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(5,5,5,.8)'; ctx.fillRect(0, 0, W, H);
+}
+
+function icon(ctx, kind, x, y, s) {
+  ctx.beginPath();
+  if (kind === 'heart') {
+    ctx.moveTo(x, y + s * 0.38);
+    ctx.bezierCurveTo(x - s * 0.62, y - s * 0.02, x - s * 0.34, y - s * 0.58, x, y - s * 0.2);
+    ctx.bezierCurveTo(x + s * 0.34, y - s * 0.58, x + s * 0.62, y - s * 0.02, x, y + s * 0.38);
+  } else if (kind === 'bubble') {
+    ctx.ellipse(x, y - s * 0.04, s * 0.44, s * 0.38, 0, Math.PI * 0.62, Math.PI * 2.52);
+    ctx.lineTo(x - s * 0.42, y + s * 0.44);
+    ctx.closePath();
+  } else if (kind === 'plane') {
+    ctx.moveTo(x - s * 0.46, y - s * 0.08); ctx.lineTo(x + s * 0.46, y - s * 0.42); ctx.lineTo(x + s * 0.1, y + s * 0.44); ctx.lineTo(x - s * 0.04, y + s * 0.04); ctx.closePath();
+    ctx.moveTo(x - s * 0.04, y + s * 0.04); ctx.lineTo(x + s * 0.46, y - s * 0.42);
+  } else {
+    ctx.moveTo(x - s * 0.3, y - s * 0.44); ctx.lineTo(x + s * 0.3, y - s * 0.44); ctx.lineTo(x + s * 0.3, y + s * 0.44); ctx.lineTo(x, y + s * 0.18); ctx.lineTo(x - s * 0.3, y + s * 0.44); ctx.closePath();
+  }
+  ctx.stroke();
 }
 
 function drawFollow(ctx, s) {
-  eye(ctx, W / 2, 470, 300, C.gold);
+  const cx = W / 2, cy = 300;
+  // Olho da Providência com brilho e raios.
+  const glow = ctx.createRadialGradient(cx, cy, 20, cx, cy, 330);
+  glow.addColorStop(0, 'rgba(201,162,39,.28)'); glow.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, 700);
+  ctx.save();
+  ctx.translate(cx, cy + 10);
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2, long = i % 2 === 0;
+    ctx.strokeStyle = long ? 'rgba(201,162,39,.5)' : 'rgba(201,162,39,.25)';
+    ctx.lineWidth = long ? 4 : 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 180, Math.sin(a) * 180);
+    ctx.lineTo(Math.cos(a) * (long ? 262 : 222), Math.sin(a) * (long ? 262 : 222));
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.moveTo(cx, cy - 120); ctx.lineTo(cx + 132, cy + 101); ctx.lineTo(cx - 132, cy + 101); ctx.closePath(); ctx.fill();
+  eye(ctx, cx, cy, 240, C.gold);
+
   ctx.textAlign = 'center';
-  const h = fitText(ctx, s.title, W / 2, 700, W - M * 2, 200, { size: 84, min: 54, font: SERIF, weight: '700', lh: 1.1 });
-  fitText(ctx, s.body, W / 2, 700 + h + 30, W - M * 2, 300, { size: 40, min: 28, color: C.ash, lh: 1.35 });
+  let y = 590;
+  y += fitText(ctx, s.title, cx, y, W - M * 2, 170, { size: 78, min: 50, font: SERIF, weight: '700', lh: 1.1 }) + 16;
+  y += fitText(ctx, s.body, cx, y, W - M * 2, 100, { size: 36, min: 26, color: C.ash, lh: 1.35 }) + 40;
+
+  // @ do perfil + botão "Seguir".
+  const handle = s.handle.trim() ? (s.handle.trim().startsWith('@') ? s.handle.trim() : '@' + s.handle.trim()) : '';
+  if (handle) {
+    ctx.textAlign = 'left';
+    ctx.font = `700 46px ${SANS}`;
+    const hw = ctx.measureText(handle).width;
+    ctx.font = `700 30px ${SANS}`;
+    const bw = ctx.measureText('Seguir').width + 60, gap = 28;
+    const sx = cx - (hw + gap + bw) / 2;
+    ctx.font = `700 46px ${SANS}`; ctx.fillStyle = C.gold; ctx.fillText(handle, sx, y + 46);
+    ctx.fillStyle = C.gold; ctx.beginPath(); ctx.roundRect(sx + hw + gap, y, bw, 60, 12); ctx.fill();
+    ctx.font = `700 30px ${SANS}`; ctx.fillStyle = C.ink; ctx.fillText('Seguir', sx + hw + gap + 30, y + 41);
+    ctx.textAlign = 'center';
+    y += 100;
+  }
+
+  // Pergunta do dia.
+  if (s.question.trim()) {
+    const opts = { size: 38, min: 28, font: SERIF, weight: 'italic 600', lh: 1.3 };
+    const qh = fitText(ctx, s.question, cx, 0, W - M * 2 - 80, 150, { ...opts, dry: true });
+    ctx.fillStyle = 'rgba(201,162,39,.07)'; ctx.strokeStyle = 'rgba(201,162,39,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(M, y, W - M * 2, qh + 56, 16); ctx.fill(); ctx.stroke();
+    fitText(ctx, s.question, cx, y + 22, W - M * 2 - 80, 150, opts);
+  }
+
+  // Faixa de ações.
+  const ay = H - 262;
+  ctx.fillStyle = C.line; ctx.fillRect(M, ay - 66, W - M * 2, 2);
+  [['heart', 'Curta'], ['bubble', 'Comente'], ['plane', 'Envie'], ['bookmark', 'Salve']].forEach(([k, t], i) => {
+    const x = M + (W - M * 2) * (i + 0.5) / 4;
+    ctx.strokeStyle = C.bone; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+    icon(ctx, k, x, ay, 56);
+    ctx.fillStyle = C.ash; ctx.font = `600 26px ${SANS}`; ctx.fillText(t, x, ay + 76);
+  });
   ctx.textAlign = 'left';
 }
 
@@ -337,7 +520,7 @@ function drawSources(ctx, s) {
   fitText(ctx, s.title, M, 170, W - M * 2, 150, { size: 64, min: 44, font: SERIF, weight: '700' });
   const h = fitText(ctx, s.body, M, 330, W - M * 2, 560, { size: 40, min: 26, lh: 1.4 });
   if (s.link) {
-    // Link quebrado por caractere: URL não tem espaços para o wrap() normal.
+    // Link quebrado por caractere: URL não tem espaços para o layout() normal.
     let y = 330 + h + 70;
     ctx.fillStyle = C.ash; ctx.font = `600 26px ${SANS}`; ctx.letterSpacing = '3px';
     ctx.fillText('LEIA A MATÉRIA', M, y);
@@ -359,6 +542,8 @@ function drawSources(ctx, s) {
 function draw(canvas, s, index, total) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
+  if (s.kind === 'siga') followBackdrop(ctx, s);
+  texture(ctx);
   // A capa pinta a foto primeiro; a moldura e o rodapé vão por cima.
   if (s.kind === 'capa') { drawCover(ctx, s, S.story); frame(ctx, s, index, total); return; }
   frame(ctx, s, index, total);
@@ -377,7 +562,21 @@ function renderAll() {
     draw(el.querySelector('canvas'), s, idx < 0 ? 0 : idx, active.length);
   });
   $('#download').disabled = !active.length;
+  $('#caption').disabled = !S.story;
   $('#share').disabled = !active.length || !navigator.canShare;
+}
+
+function fields(s) {
+  const text = (label, f) => `<label>${label}</label><input type="text" data-f="${f}" value="${esc(s[f])}">`;
+  const area = (label, f) => `<label>${label}</label><textarea data-f="${f}">${esc(s[f])}</textarea>`;
+  const img = `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
+      ${s.img ? `<label>Crédito da imagem</label><input type="text" data-credit value="${esc(s.img.credit)}">` : ''}`;
+  if (s.kind === 'capa') return text('Manchete', 'title') + `<label>Selo (URGENTE sai em vermelho; vazio = sem selo)</label><input type="text" data-f="body" list="selos" value="${esc(s.body)}">` + img;
+  if (s.kind === 'texto') return area('Frase-chave (grande)', 'title') + area('Resto do texto', 'body') + img;
+  if (s.kind === 'siga') return text('Título (fica salvo)', 'title') + text('Frase (fica salva)', 'body') + text('@ do perfil (fica salvo)', 'handle')
+    + text('Pergunta para os comentários (opcional)', 'question')
+    + `<label><input type="checkbox" data-bg ${s.bg ? 'checked' : ''}> fundo com a foto da capa, desfocada</label>`;
+  return text('Título', 'title') + area('Veículos', 'body') + text('Link da matéria', 'link');
 }
 
 function renderSlides() {
@@ -385,15 +584,41 @@ function renderSlides() {
       <canvas width="${W}" height="${H}"></canvas>
       <div class="row"><span class="k">${esc(s.kicker.split(' · ')[0])}</span>
         <label style="margin:0"><input type="checkbox" data-on ${s.on ? 'checked' : ''}> incluir</label></div>
-      <label>Título</label><input type="text" data-f="title" value="${esc(s.title)}">
-      ${s.kind === 'capa' ? '<label>Selo (ex.: URGENTE)</label>' : s.kind === 'siga' ? '<label>Texto (fica salvo)</label>' : '<label>Texto</label>'}
-      ${s.kind === 'capa' ? `<input type="text" data-f="body" value="${esc(s.body)}">` : `<textarea data-f="body">${esc(s.body)}</textarea>`}
-      ${s.kind === 'fontes' ? `<label>Link da matéria</label><input type="text" data-f="link" value="${esc(s.link)}">` : ''}
-      ${s.kind === 'siga' || s.kind === 'fontes' ? '' : `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
-      ${s.img ? `<label>Crédito da imagem</label><input type="text" data-credit value="${esc(s.img.credit)}">` : ''}`}
+      ${fields(s)}
     </div>`).join('');
   renderAll();
 }
+
+// --- Legenda do post -----------------------------------------------------------------------
+function caption() {
+  const c = S.story;
+  const get = (k) => S.slides.find((x) => x.kind === k && x.on);
+  const clean = (t) => String(t ?? '').replace(/\*/g, '').trim();
+  const capa = get('capa'), txt = get('texto'), fon = get('fontes'), siga = get('siga');
+  const out = [clean(capa?.title || TR.show(c.title, c.lang))];
+  if (txt) out.push('', [txt.title === 'O que aconteceu' ? '' : clean(txt.title), clean(txt.body)].filter(Boolean).join(' '));
+  if (fon) {
+    out.push('', `📰 Fontes: ${clean(fon.body)}`);
+    if (fon.link.trim()) out.push(`🔗 ${/^https?:/.test(fon.link) ? fon.link.trim() : 'https://' + fon.link.trim()}`);
+  }
+  if (siga?.question.trim()) out.push('', `💬 ${clean(siga.question)}`);
+  const handle = siga?.handle.trim();
+  if (handle) out.push('', `Siga ${handle.startsWith('@') ? handle : '@' + handle} para mais.`);
+  const tags = c.tags.flatMap((t) => label(t).split('/')).map((x) => '#' + x.replace(/[^\p{L}\p{N}]/gu, ''));
+  out.push('', [...new Set([...tags, '#geopolítica', '#guerra', '#notícias'])].join(' '));
+  return out.join('\n');
+}
+
+$('#caption').addEventListener('click', () => {
+  $('#captext').value = caption();
+  $('#capmsg').textContent = 'Edite à vontade antes de copiar.';
+  $('#capdlg').showModal();
+});
+$('#capclose').addEventListener('click', () => $('#capdlg').close());
+$('#capcopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('#captext').value); } catch { $('#captext').select(); document.execCommand('copy'); }
+  $('#capmsg').textContent = 'Copiada.';
+});
 
 async function loadFlag(tag) {
   const file = S.geo?.flags?.[tag]?.[0];
@@ -427,7 +652,8 @@ $('#slides').addEventListener('input', (e) => {
   if (!el) return;
   const s = S.slides[+el.dataset.i];
   if (e.target.dataset.f) s[e.target.dataset.f] = e.target.value;
-  if (s.kind === 'siga' && e.target.dataset.f) store.set(e.target.dataset.f === 'body' ? 'car_follow_body2' : 'car_follow_title', e.target.value);
+  if (s.kind === 'siga' && FOLLOW_KEYS[e.target.dataset.f]) store.set(FOLLOW_KEYS[e.target.dataset.f], e.target.value);
+  if (e.target.hasAttribute('data-bg')) s.bg = e.target.checked;
   if (e.target.hasAttribute('data-on')) s.on = e.target.checked;
   if (e.target.hasAttribute('data-credit') && s.img) s.img.credit = e.target.value;
   renderAll();
