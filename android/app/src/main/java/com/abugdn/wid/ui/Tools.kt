@@ -147,7 +147,7 @@ fun ToolsScreen(onBack: () -> Unit, onRoute: (String) -> Unit) {
         LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
             TOOL_GROUPS.forEach { (group, tools) ->
                 item { GroupHeader(group) }
-                items(tools, key = { it.route }) { ToolRow(it, onRoute) }
+                items(tools, key = { it.route + "|" + it.name }) { ToolRow(it, onRoute) }
             }
             item { GroupHeader("Regiões") }
             item {

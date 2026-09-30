@@ -222,7 +222,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(16.dp, 8.dp, 16.dp, 0.dp),
                             )
                         }
-                        items(tools, key = { "tool-" + it.route }) { ToolRow(it, onRoute) }
+                        items(tools, key = { "tool-" + it.route + "|" + it.name }) { ToolRow(it, onRoute) }
                     }
                     item {
                         Text(
