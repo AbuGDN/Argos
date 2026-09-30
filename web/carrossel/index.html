@@ -37,6 +37,18 @@
   .row .k { font-size: 12px; color: var(--gold); font-weight: 700; letter-spacing: .08em; }
   .note { color: var(--ash); font-size: 12px; }
   .empty { color: var(--ash); padding: 40px 0; text-align: center; }
+  .imgrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .imgrow button { padding: 6px 10px; font-size: 13px; }
+  dialog { background: var(--card); color: var(--bone); border: 1px solid var(--gold); border-radius: 12px; width: min(920px, 96vw); max-height: 90vh; padding: 16px; }
+  dialog::backdrop { background: rgba(0,0,0,.7); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chips button { font-size: 13px; padding: 5px 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 52vh; overflow: auto; margin-top: 8px; }
+  .grid figure { margin: 0; cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; background: var(--ink); }
+  .grid figure:hover { border-color: var(--gold); }
+  .grid img { width: 100%; height: 110px; object-fit: cover; display: block; }
+  .grid figcaption { font-size: 11px; color: var(--ash); padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pq { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink); color: var(--bone); font: inherit; }
 </style>
 </head>
 <body>
@@ -59,6 +71,18 @@
     <div class="slides" id="slides"><div class="empty">Nenhuma história escolhida.</div></div>
   </section>
 </main>
+<dialog id="picker">
+  <div class="row" style="margin:0"><strong style="color:var(--gold)">Imagem do slide</strong><button id="pclose">Fechar</button></div>
+  <p class="note">Fotos livres do Wikimedia Commons (o crédito do autor e a licença entram na imagem), uma imagem sua ou a foto da notícia, quando o site do jornal permitir.</p>
+  <div class="row" style="justify-content:flex-start"><input id="pq" placeholder="Buscar no Wikimedia Commons (ex.: Kyiv, Gaza, Netanyahu)"><button id="psearch" class="gold">Buscar</button></div>
+  <div class="chips" id="pchips"></div>
+  <div class="row" style="justify-content:flex-start">
+    <label class="btn" style="margin:0">📱 Imagem do aparelho<input type="file" id="pfile" accept="image/*" hidden></label>
+    <button id="pnews">📰 Foto da notícia</button>
+    <span class="note" id="pmsg"></span>
+  </div>
+  <div class="grid" id="pgrid"></div>
+</dialog>
 <script>
 'use strict';
 // Ferramenta pessoal: gera o carrossel do Instagram de uma história do Argos (feed.json + painel/geo.json).
@@ -260,8 +284,27 @@ function eye(ctx, cx, cy, size, color) {
   ctx.restore();
 }
 
+/** Desenha a imagem cobrindo o retângulo (corta o excesso, como object-fit: cover). */
+function coverImage(ctx, img, x, y, w, h, focusY = 0.4) {
+  const r = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = w / r, sh = h / r;
+  const sx = (img.naturalWidth - sw) / 2, sy = Math.max(0, Math.min(img.naturalHeight - sh, (img.naturalHeight - sh) * focusY));
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function credit(ctx, text, x, y, maxW) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = `500 21px ${SANS}`; ctx.fillStyle = 'rgba(232,226,208,.85)';
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+  let t = text;
+  while (ctx.measureText(t).width > maxW && t.length > 10) t = t.slice(0, -2);
+  if (t !== text) t = t.slice(0, -1) + '…';
+  ctx.fillText(t, x, y);
+  ctx.restore();
+}
+
 function frame(ctx, s, index, total) {
-  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = C.gold; ctx.lineWidth = 3; ctx.strokeRect(28, 28, W - 56, H - 56);
   // Rodapé: marca e contador.
   eye(ctx, M + 18, H - 96, 44, C.gold);
@@ -281,6 +324,13 @@ function frame(ctx, s, index, total) {
 }
 
 function drawCover(ctx, s, c) {
+  if (s.img) {
+    // Foto de fundo com escurecimento para o texto ler bem; a manchete desce para a parte de baixo.
+    coverImage(ctx, s.img.el, 0, 0, W, H, 0.35);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(5,5,5,.72)'); g.addColorStop(0.28, 'rgba(5,5,5,.25)'); g.addColorStop(0.55, 'rgba(5,5,5,.55)'); g.addColorStop(1, 'rgba(5,5,5,.96)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
   ctx.fillStyle = C.gold; ctx.font = `700 30px ${SANS}`; ctx.letterSpacing = '4px';
   ctx.fillText(s.kicker, M, 170);
   ctx.letterSpacing = '0px';
@@ -294,14 +344,30 @@ function drawCover(ctx, s, c) {
   const opts = { size: 86, min: 50, font: SERIF, weight: '700', lh: 1.16 };
   const h = fitText(ctx, s.title, M, 0, W - M * 2, 760, { ...opts, color: 'rgba(0,0,0,0)' });
   const top = s.body ? 300 : 230;
-  fitText(ctx, s.title, M, top + Math.max(0, (H - 260 - top - h) / 2), W - M * 2, 760, opts);
+  const y = s.img ? H - 250 - h : top + Math.max(0, (H - 260 - top - h) / 2);
+  fitText(ctx, s.title, M, y, W - M * 2, 760, opts);
+  if (s.img) credit(ctx, s.img.credit, M, 70, W - M * 2);
   ctx.fillStyle = C.ash; ctx.font = `500 28px ${SANS}`;
   ctx.fillText(`${c.sources_count} ${c.sources_count === 1 ? 'veículo' : 'veículos'} · arraste para entender →`, M, H - 190);
 }
 
 function drawText(ctx, s) {
-  const h = fitText(ctx, s.title, M, 170, W - M * 2, 250, { size: 64, min: 42, font: SERIF, weight: '700', lh: 1.15 });
-  fitText(ctx, s.body, M, 170 + h + 40, W - M * 2, H - 170 - h - 40 - 200, { size: 42, min: 26, lh: 1.38 });
+  let top = 170;
+  if (s.img) {
+    // Faixa de foto no alto do slide, com o crédito por cima.
+    const bh = 470;
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(M, top, W - M * 2, bh, 14); ctx.clip();
+    coverImage(ctx, s.img.el, M, top, W - M * 2, bh, 0.4);
+    const g = ctx.createLinearGradient(0, top + bh - 90, 0, top + bh);
+    g.addColorStop(0, 'rgba(5,5,5,0)'); g.addColorStop(1, 'rgba(5,5,5,.75)');
+    ctx.fillStyle = g; ctx.fillRect(M, top + bh - 90, W - M * 2, 90);
+    ctx.restore();
+    credit(ctx, s.img.credit, M + 16, top + bh - 18, W - M * 2 - 32);
+    top += bh + 34;
+  }
+  const h = fitText(ctx, s.title, M, top, W - M * 2, s.img ? 170 : 250, { size: s.img ? 54 : 64, min: 38, font: SERIF, weight: '700', lh: 1.15 });
+  fitText(ctx, s.body, M, top + h + 30, W - M * 2, H - top - h - 30 - 200, { size: s.img ? 36 : 42, min: 24, lh: 1.36 });
 }
 
 function drawMap(ctx, s) {
@@ -356,9 +422,11 @@ function drawSources(ctx, s) {
 
 function draw(canvas, s, index, total) {
   const ctx = canvas.getContext('2d');
+  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
+  // A capa pinta a foto primeiro; a moldura e o rodapé vão por cima.
+  if (s.kind === 'capa') { drawCover(ctx, s, S.story); frame(ctx, s, index, total); return; }
   frame(ctx, s, index, total);
-  if (s.kind === 'capa') drawCover(ctx, s, S.story);
-  else if (s.kind === 'mapa') drawMap(ctx, s);
+  if (s.kind === 'mapa') drawMap(ctx, s);
   else if (s.kind === 'fontes') drawSources(ctx, s);
   else drawText(ctx, s);
 }
@@ -384,6 +452,8 @@ function renderSlides() {
       <label>Título</label><input type="text" data-f="title" value="${esc(s.title)}">
       ${s.kind === 'capa' ? '<label>Selo (ex.: URGENTE)</label>' : s.kind === 'mapa' ? '<label>Legenda (opcional)</label>' : '<label>Texto</label>'}
       ${s.kind === 'capa' ? `<input type="text" data-f="body" value="${esc(s.body)}">` : `<textarea data-f="body">${esc(s.body)}</textarea>`}
+      ${s.kind === 'mapa' || s.kind === 'fontes' ? '' : `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
+      ${s.img ? `<label>Crédito da imagem</label><input type="text" data-credit value="${esc(s.img.credit)}">` : ''}`}
     </div>`).join('');
   renderAll();
 }
@@ -421,7 +491,15 @@ $('#slides').addEventListener('input', (e) => {
   const s = S.slides[+el.dataset.i];
   if (e.target.dataset.f) s[e.target.dataset.f] = e.target.value;
   if (e.target.hasAttribute('data-on')) s.on = e.target.checked;
+  if (e.target.hasAttribute('data-credit') && s.img) s.img.credit = e.target.value;
   renderAll();
+});
+$('#slides').addEventListener('click', (e) => {
+  const el = e.target.closest('.slide');
+  if (!el) return;
+  const i = +el.dataset.i;
+  if (e.target.closest('[data-img]')) openPicker(i);
+  if (e.target.closest('[data-noimg]')) { delete S.slides[i].img; renderSlides(); }
 });
 $('#translate').addEventListener('click', async () => {
   $('#translate').disabled = true;
@@ -429,7 +507,9 @@ $('#translate').addEventListener('click', async () => {
   const missing = await TR.story(S.story);
   $('#status').textContent = missing > 0 ? `${missing} textos ficaram no original.` : 'Traduzido.';
   $('#translate').disabled = false;
+  const old = S.slides;
   S.slides = buildSlides(S.story);
+  S.slides.forEach((sl) => { const o = old.find((x) => x.kicker.split(' · ')[0] === sl.kicker.split(' · ')[0] && x.kind === sl.kind); if (o?.img) sl.img = o.img; });
   renderSlides();
   renderList();
 });
@@ -462,6 +542,110 @@ $('#share').addEventListener('click', async () => {
   } else {
     $('#status').textContent = 'Este navegador não compartilha imagens; use Baixar imagens.';
   }
+});
+
+// --- Imagens ---------------------------------------------------------------------------------
+const P = { slide: 0 };
+const stripHtml = (h) => { const d = document.createElement('div'); d.innerHTML = h || ''; return (d.textContent || '').replace(/\s+/g, ' ').trim(); };
+
+/** Carrega a imagem pedindo permissão de uso (CORS); sem ela o navegador não deixa exportar o slide. */
+function loadImage(src) {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => ok(img);
+    img.onerror = () => fail(new Error('bloqueada'));
+    img.src = src;
+  });
+}
+
+function useImage(img, creditText) {
+  S.slides[P.slide].img = { el: img, credit: creditText };
+  $('#picker').close();
+  renderSlides();
+}
+
+/** Sugestões de busca: cidades, pessoas (de "quem manda") e a região da história. */
+function suggestions(c) {
+  const text = norm([c.title, c.summary, ...c.articles.map((a) => a.title)].join(' '));
+  const out = citiesOf(c).map((x) => x.name);
+  for (const side of S.geo.power || []) for (const r of side.roles) {
+    const last = r.name.split(/[ (]/).filter((w) => w.length > 3).pop();
+    if (last && text.includes(norm(last)) && !out.includes(r.name)) out.push(r.name.replace(/\s*\(.*\)/, ''));
+  }
+  c.tags.forEach((t) => out.push(label(t).split('/')[0]));
+  return [...new Set(out)].slice(0, 8);
+}
+
+async function commons(q) {
+  $('#pmsg').textContent = 'Buscando…';
+  $('#pgrid').innerHTML = '';
+  const url = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=30'
+    + `&gsrsearch=${encodeURIComponent(q + ' filetype:bitmap')}&prop=imageinfo&iiprop=url|extmetadata|size&iiurlwidth=1080`;
+  try {
+    const data = await getJSON(url);
+    const items = Object.values(data.query?.pages || {})
+      .map((p) => ({ p, i: p.imageinfo?.[0] }))
+      .filter(({ i }) => i?.thumburl && i.width >= 600)
+      .sort((a, b) => a.p.index - b.p.index)
+      .map(({ p, i }) => {
+        const m = i.extmetadata || {};
+        const author = stripHtml(m.Artist?.value).slice(0, 60);
+        const lic = stripHtml(m.LicenseShortName?.value);
+        return { thumb: i.thumburl, title: p.title.replace(/^File:/, ''), credit: `Foto: ${author || 'autor no Commons'} · ${lic || 'licença livre'} · Wikimedia Commons` };
+      });
+    P.items = items;
+    $('#pgrid').innerHTML = items.map((it, k) => `<figure data-k="${k}"><img src="${esc(it.thumb)}" alt="" loading="lazy" crossorigin="anonymous"><figcaption>${esc(it.title)}</figcaption></figure>`).join('');
+    $('#pmsg').textContent = items.length ? `${items.length} fotos livres` : 'Nada encontrado; tente outro termo (em inglês costuma achar mais).';
+  } catch {
+    $('#pmsg').textContent = 'Não consegui buscar no Wikimedia Commons agora.';
+  }
+}
+
+function openPicker(i) {
+  P.slide = i;
+  const sug = suggestions(S.story);
+  $('#pchips').innerHTML = sug.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  $('#pq').value = sug[0] || '';
+  $('#pmsg').textContent = '';
+  $('#pgrid').innerHTML = '';
+  $('#picker').showModal();
+  if (sug[0]) commons(sug[0]);
+}
+
+$('#pclose').addEventListener('click', () => $('#picker').close());
+$('#psearch').addEventListener('click', () => $('#pq').value.trim() && commons($('#pq').value.trim()));
+$('#pq').addEventListener('keydown', (e) => { if (e.key === 'Enter' && $('#pq').value.trim()) commons($('#pq').value.trim()); });
+$('#pchips').addEventListener('click', (e) => { const b = e.target.closest('[data-q]'); if (b) { $('#pq').value = b.dataset.q; commons(b.dataset.q); } });
+$('#pgrid').addEventListener('click', async (e) => {
+  const f = e.target.closest('figure');
+  if (!f) return;
+  const it = P.items[+f.dataset.k];
+  $('#pmsg').textContent = 'Carregando…';
+  try { useImage(await loadImage(it.thumb), it.credit); } catch { $('#pmsg').textContent = 'Essa imagem não carregou; escolha outra.'; }
+});
+$('#pfile').addEventListener('change', () => {
+  const file = $('#pfile').files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => useImage(img, '');
+  img.src = URL.createObjectURL(file);
+  $('#pfile').value = '';
+});
+$('#pnews').addEventListener('click', async () => {
+  const c = S.story;
+  const cands = [[c.image, c.source], ...c.articles.map((a) => [a.image, a.source])].filter(([u]) => u);
+  if (!cands.length) { $('#pmsg').textContent = 'Esta história não tem foto.'; return; }
+  $('#pmsg').textContent = 'Tentando…';
+  for (const [u, src] of cands) {
+    try {
+      const img = await loadImage(u.replace(/&amp;/g, '&'));
+      useImage(img, `Foto: ${src}`);
+      $('#status').textContent = 'Foto do jornal: os direitos são do veículo. Use com crédito e com cuidado.';
+      return;
+    } catch { /* site não permite: tenta a próxima */ }
+  }
+  $('#pmsg').textContent = 'Os sites desta história não permitem usar a foto aqui. Se tiver direito de uso, baixe e envie pelo botão do aparelho.';
 });
 
 load();
