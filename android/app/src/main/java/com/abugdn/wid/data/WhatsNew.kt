@@ -11,6 +11,12 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        43,
+        listOf(
+            "🛠 Corrigido o fechamento do app ao rolar a tela Ferramentas (e a busca), que tinha duas ferramentas levando ao mesmo lugar.",
+        ),
+    ),
+    ChangelogEntry(
         42,
         listOf(
             "🇺🇦 Placar aéreo da Ucrânia: drones e mísseis lançados pela Rússia por noite e quantos foram abatidos, com gráfico de 30 dias (Radar → Números e página da região).",
