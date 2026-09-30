@@ -1,5 +1,8 @@
 # WID — Plano do app de notícias de guerra
 
+> Documento histórico: o plano original do projeto (quando ainda se chamava WID). O estado atual está no
+> [`CLAUDE.md`](CLAUDE.md) (seção "Onde estamos") e o passo a passo de uso no [`README.md`](README.md).
+
 App mobile de notícias sobre conflitos no Oriente Médio e no mundo, com foco em Israel.
 Público: 1 dono + até 4 amigos. Requisitos: **custo zero**, **mobile**, **widget com a notícia principal do dia**.
 

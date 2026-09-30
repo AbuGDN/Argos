@@ -5,13 +5,15 @@
 
 App Android pessoal (para até 5 pessoas) com notícias de guerra, foco em Israel/Oriente Médio, tudo em
 português, com widget, notificações e **custo zero**. O "servidor" é o próprio GitHub: um workflow coleta
-~26 feeds RSS a cada 30 min, agrupa e analisa as notícias e publica JSONs na branch `gh-pages`; o app lê
+~33 feeds RSS a cada 30 min, além de dezenas de sensores e bases de dados abertas (o "Radar"),, agrupa e analisa as notícias e publica JSONs na branch `gh-pages`; o app lê
 esses JSONs, traduz no próprio celular e guarda tudo offline.
 
 - Repositório: https://github.com/AbuGDN/Argos (público)
 - Releases (APK): https://github.com/AbuGDN/Argos/releases
 - Página de download: https://abugdn.github.io/Argos/
-- Dados publicados: `https://raw.githubusercontent.com/AbuGDN/Argos/gh-pages/feed.json` (e `top.json`, `history/`, `stats/`, `sagas.json`, `sources_status.json`)
+- Dados publicados: `https://raw.githubusercontent.com/AbuGDN/Argos/gh-pages/feed.json` (e os outros arquivos da tabela abaixo)
+- Painel para PC: https://abugdn.github.io/Argos/painel/ · Status das fontes: https://abugdn.github.io/Argos/status.html
+- Versão atual do app: **1.0.44** (30/09/2026). Onde o trabalho parou e como seguir: [`CLAUDE.md`](CLAUDE.md), seção "Onde estamos"
 - Histórico de decisões e fases: [`PLANO.md`](PLANO.md)
 - Contexto para o Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
@@ -76,8 +78,8 @@ cd android
 > ⚠️ **Número da versão em builds locais.** O `versionCode` vem da variável `WID_VERSION_CODE` (no CI é o
 > número da execução do workflow "App Android"). Sem ela, a build local sai como versão 1 e o Android
 > **recusa instalar por cima** de uma versão maior. Para testar no seu celular sem desinstalar, use o
-> mesmo número da última release: `WID_VERSION_CODE=15 ./gradlew installRelease`
-> (PowerShell: `$env:WID_VERSION_CODE=15; .\gradlew.bat installRelease`).
+> mesmo número da última release: `WID_VERSION_CODE=44 ./gradlew installRelease`
+> (PowerShell: `$env:WID_VERSION_CODE=44; .\gradlew.bat installRelease`).
 > **Nunca** instale um número maior que o da próxima release do CI, senão as atualizações automáticas
 > param de instalar (o Android não aceita "voltar" de versão).
 
@@ -111,7 +113,8 @@ App Android (Kotlin + Jetpack Compose)                       build-android.yml �
            (Context/Milestones/Conflicts/WhatsNew)
   sync/    SyncWorker (30 min), DigestWorker (resumo diário/semanal), Notifier, ações de notificação
   ui/      telas Compose (Hoje, Mapa, Arquivo, Salvos, notícia, região, ajustes...)
-  widget/  3 widgets Glance (principal, compacto, por região)
+  widget/  widgets Glance (principal, compacto, por região, relógio, próximo prazo, sirenes)
+web/       página de download, status.html, painel/ (globo 3D para PC) e carrossel/ (ferramenta pessoal)
 ```
 
 ### Arquivos publicados na `gh-pages`
@@ -125,7 +128,12 @@ App Android (Kotlin + Jetpack Compose)                       build-android.yml �
 | `stats/first.json` | Ranking de quem publicou primeiro |
 | `sagas.json` | Estado das sagas (histórias ligadas entre dias) |
 | `sources_status.json` | Quais feeds funcionaram na última coleta |
-| `radar.json` | Aba Radar: internet, espaço aéreo, focos de calor, estreitos, cotações, números humanitários, perdas, fontes oficiais, sanções, análises, CrisisWatch, checagens e previsões (status de cada seção em `status`) |
+| `radar.json` | Aba Radar: internet, espaço aéreo, focos de calor, estreitos, cotações, números humanitários, perdas, fontes oficiais, sanções, análises, CrisisWatch, checagens, previsões, aviões militares, porta-aviões, frente, sirenes, sismos, alertas de viagem, ONU, tempo, deslocados, fome, gás, imprensa e lista de sanções (status de cada seção em `status`) |
+| `frontline.json` | Polígonos da linha de frente na Ucrânia (DeepStateMap), baixados pelo app só com a camada ligada |
+| `sirens_cities.json` | Dicionário de cidades das sirenes em Israel |
+| `airwar.json`, `deadlines.json`, `diplomacy.json` | Placar aéreo da Ucrânia, ultimatos e termômetro diplomático |
+| `sanctions.tsv.gz` | Lista consolidada de sanções (OpenSanctions), baixada pelo app só na busca |
+| `painel/`, `carrossel/`, `status.html`, `index.html`, `app-config.json` | Site (copiado de `web/`); `app-config.json` tem o código do GoatCounter |
 
 A `gh-pages` é **gerada**: nunca edite à mão (é recriada com force-push a cada coleta).
 
@@ -139,6 +147,7 @@ A `gh-pages` é **gerada**: nunca edite à mão (é recriada com force-push a ca
 | Ajustar o que conta como notícia de guerra ou uma região | `backend/config/keywords.yaml` (+ `TAG_LABELS` em `Models.kt`, ponto em `MapScreen.kt`) |
 | Mudar textos de contexto, pessoas, glossário | `android/.../data/Context.kt`, `Milestones.kt`, `Conflicts.kt` |
 | Mudar países, zonas e fontes do Radar | `backend/config/radar.yaml` |
+| Testar se uma fonte nova responde dos servidores do GitHub | `.github/diagnose/urls.txt` + push (workflow "Diagnóstico de fontes") |
 | Ligar os focos de calor (NASA) | Crie a chave grátis em firms.modaps.eosdis.nasa.gov/api/map_key e salve como secret `FIRMS_MAP_KEY` (Settings → Secrets and variables → Actions) |
 | Forçar uma coleta agora | Actions → "Atualizar feed" → **Run workflow** |
 | Ver se os feeds estão ok | `sources_status.json` na `gh-pages` |

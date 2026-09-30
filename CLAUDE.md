@@ -15,6 +15,29 @@ para continuar o trabalho sem redescobrir tudo.
   como segunda opção (o GitHub redireciona o nome antigo); pode ficar.
 - Página de download: **https://abugdn.github.io/Argos/** (GitHub Pages da branch `gh-pages`).
 
+## Onde estamos (30/09/2026)
+
+- App na **versão 1.0.44** (versionCode = run_number do workflow "App Android"; a próxima entrada do
+  CHANGELOG é **45**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
+- Fluxo usado nas sessões em nuvem: trabalho na branch `claude/app-information-suggestions-8g3ca9`
+  (recriada a partir da base a cada rodada) → PR para a base → build "App Android" verde → merge com
+  **`[skip ci]` no título do merge** (senão o merge gera uma segunda release igual). Mudanças só em
+  `backend/`/`web/` não compilam app: merge direto. No PC, commitar direto na base também funciona:
+  todo push que mexe em `android/` publica release.
+- Últimas versões: 38–41 (sirenes Tzeva Adom, sismos, alertas de viagem, ultimatos, curso rápido,
+  regras de alerta, busca com filtros, compartilhar para o Argos, comparar, status das fontes, quem apoia
+  quem, termômetro diplomático, "E o Brasil?", contagem de uso GoatCounter); 42 (placar aéreo da Ucrânia,
+  Conselho de Segurança, tempo, temas, modo manchetes, widgets de prazo e sirenes, boletim mensal);
+  43 (correção: crash ao rolar Ferramentas, chave repetida `radar:2`); 44 (fome/IPC, deslocados/ACNUR,
+  imprensa/CPJ, gás na Europa, busca de sanções, quem arma quem, bases no mapa, verificar imagem,
+  antes e depois por satélite).
+- Pendências conhecidas: os percentuais de `data/Arms.kt` foram escritos de memória (fact sheet do
+  SIPRI de mar/2025) e precisam ser conferidos na fonte; as seções novas do Radar (refugees, hunger,
+  gas, press, sanctionlist) rodaram pela primeira vez em 30/09 — conferir `status` no radar.json.
+- Fora do app: `web/carrossel/` (slides do Instagram, só para o dono) e um vídeo de apresentação de 30 s
+  (vertical, feito com a skill "motion-graphics-video" do próprio dono; o vídeo e o código dele não
+  estão no repositório).
+
 ## O projeto em uma frase
 
 App Android pessoal de notícias de guerra (foco Israel/Oriente Médio, depois EUA e o mundo), em
@@ -27,9 +50,14 @@ que publica JSON na branch `gh-pages`; app Kotlin/Compose que lê esse JSON.
 - Ciclo típico: pede ideias → escolhe quais ("todas menos X") → tudo entra numa atualização. Para cada
   atualização do app: implementar, acrescentar entrada no `CHANGELOG` (`data/WhatsNew.kt`), push,
   conferir o build no Actions, responder com um resumo curto do que entrou.
-- Descartou até agora: ler em voz alta (TTS), grupo/bot no Telegram, PWA/app web, tradução com LLM,
-  mapa colorido por tendência, "baixar tudo offline", backup/exportação, mapa em time-lapse, modo
-  "sala de situação". Não re-sugerir.
+- Descartou até agora: ler em voz alta (TTS), grupo/bot no Telegram ou Discord, PWA/app web, tradução
+  ou textos com LLM/IA, mapa colorido por tendência, "baixar tudo offline", backup/exportação, mapa em
+  time-lapse/replay, modo "sala de situação"/Modo Evento/TV, sons, quiz, podcasts/vídeos no app, QR
+  "continuar no PC", luzes da noite por satélite no app, igualar o painel web ao app, "dieta de notícias"
+  (tempo de leitura/pausas). Não re-sugerir.
+- Pediu sugestões de **features novas**, não complementos de coisas que já existem.
+- Autorizou sem perguntar: abrir PR, conferir o build e fazer o merge. Teste de fumaça só em mudança
+  grande de UI (não rodar em correção pequena).
 - Restrições firmes: custo zero, só Android, repo público.
 
 ## Mapa do código
@@ -163,7 +191,10 @@ web/                     página de download (index.html, icon.svg), status.html
 ## Armadilhas conhecidas (já custaram builds)
 
 - **Não havia Android SDK na sessão em nuvem**: o app só era compilado no CI. No PC dá para compilar
-  localmente; ainda assim confira o Actions depois do push.
+  localmente (`cd android && ./gradlew assembleDebug`); ainda assim confira o Actions depois do push.
+- **Sessão em nuvem sem acesso à maioria dos sites** (o proxy recusa): para saber se uma fonte funciona,
+  use o workflow "Diagnóstico de fontes" (edite `.github/diagnose/urls.txt` e dê push; o log mostra
+  código HTTP, CORS e trechos). No PC com internet dá para testar direto com curl.
 - **Aspas dentro de strings Kotlin**: `"texto "entre aspas""` quebra o build. Use `\"` ou aspas
   tipográficas “ ”.
 - **Compose × Glance**: `Text`, `padding`, `fillMaxSize`… existem nos dois. Não misture imports dos dois
