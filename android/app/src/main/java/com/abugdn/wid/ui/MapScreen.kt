@@ -74,6 +74,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
+import com.abugdn.wid.data.BASES
+import com.abugdn.wid.data.BASE_COLORS
+import com.abugdn.wid.data.BASE_FLAGS
 import com.abugdn.wid.data.RANGES
 import com.abugdn.wid.data.RangeArc
 import com.abugdn.wid.data.cities
@@ -166,6 +169,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var showMilitary by rememberSaveable { mutableStateOf(false) }
     var showCarriers by rememberSaveable { mutableStateOf(false) }
     var showFront by rememberSaveable { mutableStateOf(false) }
+    var showBases by rememberSaveable { mutableStateOf(false) }
     var satellite by rememberSaveable { mutableStateOf(false) }
     val reduceMotion = LocalReduceMotion.current
     val repo = context.repository
@@ -221,8 +225,12 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 showFront = true
                 mapView.controller.animateTo(GeoPoint(47.8, 36.5), 6.0, 600L)
             }
+            id == "bases" -> {
+                showBases = true
+                mapView.controller.animateTo(GeoPoint(30.0, 42.0), 3.0, 600L)
+            }
         }
-        if (id.startsWith("military:") || id == "carriers" || id == "frontline") {
+        if (id.startsWith("military:") || id == "carriers" || id == "frontline" || id == "bases") {
             repo.mapFocus.value = null
             return@LaunchedEffect
         }
@@ -261,6 +269,14 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     selected = byCity,
                     onClick = { byCity = !byCity },
                     label = { Text("📍 Por cidade") },
+                )
+                FilterChip(
+                    selected = showBases,
+                    onClick = {
+                        showBases = !showBases
+                        if (showBases) mapView.controller.animateTo(GeoPoint(30.0, 42.0), 3.0, 600L)
+                    },
+                    label = { Text("🪖 Bases") },
                 )
                 FilterChip(
                     selected = showRanges,
@@ -344,6 +360,15 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 if (m.isInfoWindowShown) onOpen(stories.first().id) else m.showInfoWindow()
                                 true
                             }
+                        })
+                    }
+                    if (showBases) BASES.forEach { b ->
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(b.lat, b.lon)
+                            title = "${BASE_FLAGS[b.operator] ?: "🪖"} ${b.name} · ${b.host}"
+                            snippet = b.note
+                            icon = dotIcon(context, BASE_COLORS[b.operator] ?: 0xFF8A8578.toInt(), 13)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
                     }
                     if (showCarriers) carriers.forEach { ship ->
@@ -452,6 +477,32 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 )
                             }
                         }
+                        HorizontalDivider()
+                    }
+                }
+                if (showBases) {
+                    items(BASES, key = { "base-" + it.operator + it.name }) { b ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { mapView.controller.animateTo(GeoPoint(b.lat, b.lon), 7.0, 600L) }
+                                .padding(16.dp, 10.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${BASE_FLAGS[b.operator] ?: "🪖"} ${b.name}", style = MaterialTheme.typography.bodyLarge)
+                                Text(b.note, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(b.host, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    item {
+                        Text(
+                            "Bases estrangeiras mais citadas nas guerras que o Argos acompanha, de fontes abertas (até 2025). " +
+                                "Posições aproximadas. Ouro: EUA; osso: Rússia; azul: China; verde: França e Reino Unido; bronze: Turquia.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
                         HorizontalDivider()
                     }
                 }

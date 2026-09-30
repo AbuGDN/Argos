@@ -249,7 +249,7 @@ private fun Unavailable(what: String, status: SectionStatus?) {
 
 /** Linha fina com os valores (nulos viram buraco). [baseline] desenha uma linha pontilhada de referência. */
 @Composable
-private fun Sparkline(values: List<Double?>, color: Color, modifier: Modifier = Modifier, baseline: Double? = null) {
+internal fun Sparkline(values: List<Double?>, color: Color, modifier: Modifier = Modifier, baseline: Double? = null) {
     val present = values.filterNotNull()
     if (present.size < 2) return
     val min = minOf(present.min(), baseline ?: present.min())
@@ -629,6 +629,7 @@ private fun pct(now: Double?, before: Double): String {
 // ---------------------------------------------------------------------------
 
 private fun LazyListScope.markets(radar: RadarData) {
+    item { GasCard(radar) }
     item {
         val section = radar.markets
         val status = radar.status["markets"]
@@ -745,6 +746,11 @@ private fun PredictionCard(e: PredictionEvent) {
 
 private fun LazyListScope.numbers(radar: RadarData?, onOpen: (String) -> Unit, onRegion: (String) -> Unit) {
     item { AirwarCard(onOpen) }
+    radar?.let { r ->
+        item { HungerCard(r, onRegion) }
+        item { RefugeesCard(r, onRegion) }
+        item { PressCard(r, onRegion) }
+    }
     val human = radar?.humanitarian
     item {
         if (human == null) {

@@ -11,6 +11,20 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        44,
+        listOf(
+            "🌾 Fome nas zonas de guerra: quantas pessoas estão em crise alimentar ou catástrofe (IPC) e quanto subiu o preço da comida (Radar → Números).",
+            "🏚 Deslocados e refugiados: quantos fugiram de cada país, quantos continuam deslocados dentro e para onde foram (Radar → Números).",
+            "📰 Imprensa sob fogo: jornalistas mortos neste ano e no anterior, por país (Radar → Números).",
+            "⛽ Gás na Europa: estoques da UE e o gás russo que ainda chega pelo TurkStream (Radar → Mercados).",
+            "🚫 Quem está sancionado? Busque pessoa, empresa ou navio na lista de sanções de EUA, UE, Reino Unido, ONU e outros (Ferramentas → Checar).",
+            "🔫 Quem arma quem: quem vende e quem compra armas, e de onde vêm as armas de Ucrânia, Israel e outros (Ferramentas → Aprender).",
+            "🪖 Bases militares no mapa: EUA, Rússia, China, França, Reino Unido e Turquia pelo mundo.",
+            "🔍 Verificar imagem: compartilhe uma foto para o Argos e veja busca reversa e metadados, para pegar foto antiga fingindo ser nova.",
+            "🛰 Antes e depois por satélite: escolha uma cidade e duas datas e compare as imagens da NASA com um controle deslizante.",
+        ),
+    ),
+    ChangelogEntry(
         43,
         listOf(
             "🛠 Corrigido o fechamento do app ao rolar a tela Ferramentas (e a busca), que tinha duas ferramentas levando ao mesmo lugar.",

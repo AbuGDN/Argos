@@ -33,6 +33,11 @@ data class RadarData(
     val incidents: List<Incident> = emptyList(),
     val unsc: UnscSection? = null,
     val weather: WeatherSection? = null,
+    val refugees: RefugeesSection? = null,
+    val hunger: HungerSection? = null,
+    val gas: GasSection? = null,
+    val press: PressSection? = null,
+    val sanctionlist: SanctionListSection? = null,
     val status: Map<String, SectionStatus> = emptyMap(),
 )
 

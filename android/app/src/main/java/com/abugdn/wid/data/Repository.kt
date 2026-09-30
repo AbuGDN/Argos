@@ -37,6 +37,7 @@ private const val USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Mobile Safari/537.36"
 
 class Repository(context: Context) {
+    private val cacheDir = context.cacheDir
     val storage = Storage(context)
     val translator = Translator(storage)
     val settings = SettingsStore(storage.prefs)
@@ -200,6 +201,35 @@ class Repository(context: Context) {
         runCatching {
             json.decodeFromString<FrontlineShapes>(getData("frontline.json?t=${System.currentTimeMillis() / 3_600_000}"))
                 .also { _frontline.value = it }
+        }
+    }
+
+    // --- Sanções ------------------------------------------------------------------------
+
+    @Volatile
+    private var sanctionLines: List<String>? = null
+
+    /**
+     * Lista consolidada de sanções (sanctions.tsv.gz, ~70 mil nomes). Baixada só quando a pessoa abre a
+     * busca, guardada no cache por 24 h; depois fica na memória enquanto o app estiver aberto.
+     */
+    suspend fun loadSanctions(force: Boolean = false): Result<List<String>> = withContext(Dispatchers.IO) {
+        runCatching {
+            sanctionLines?.takeIf { !force }?.let { return@runCatching it }
+            val file = java.io.File(cacheDir, "sanctions.tsv.gz")
+            val fresh = file.exists() && System.currentTimeMillis() - file.lastModified() < 24 * 3_600_000L
+            if (force || !fresh) {
+                try {
+                    val bytes = getDataBytes("sanctions.tsv.gz?t=${System.currentTimeMillis() / 3_600_000}")
+                    val tmp = java.io.File(cacheDir, "sanctions.tsv.gz.part")
+                    tmp.writeBytes(bytes)
+                    tmp.renameTo(file)
+                } catch (e: IOException) {
+                    if (!file.exists()) throw e  // sem rede: usa o que tiver guardado
+                }
+            }
+            java.util.zip.GZIPInputStream(file.inputStream()).bufferedReader().useLines { seq -> seq.filter { it.isNotBlank() }.toList() }
+                .also { sanctionLines = it }
         }
     }
 
@@ -642,6 +672,22 @@ class Repository(context: Context) {
         for (base in DATA_URLS) {
             try {
                 return get("$base/$path")
+            } catch (e: IOException) {
+                last = e
+            }
+        }
+        throw last
+    }
+
+    private fun getDataBytes(path: String): ByteArray {
+        var last: Exception = IOException("sem endereço")
+        for (base in DATA_URLS) {
+            try {
+                val request = Request.Builder().url("$base/$path").header("User-Agent", USER_AGENT).build()
+                http.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
+                    return resp.body?.bytes() ?: throw IOException("resposta vazia")
+                }
             } catch (e: IOException) {
                 last = e
             }

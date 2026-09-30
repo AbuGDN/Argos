@@ -55,7 +55,9 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          (Tzeva Adom; oref.org.il dá 403 no GitHub; dicionário de cidades em sirens_cities.json),
                          sismos (USGS), alertas de viagem (Departamento de Estado dos EUA), Conselho de Segurança
                          (press.un.org + Security Council Report: reuniões, aprovadas, vetos) e tempo (Open-Meteo,
-                         com poeira do serviço de qualidade do ar). Cada seção é
+                         com poeira do serviço de qualidade do ar), deslocados (ACNUR, anual), fome e preços
+                         (IPC/HDX HAPI), gás na Europa (AGSI+ sem chave, ENTSOG/TurkStream), jornalistas mortos (CPJ) e
+                         lista de sanções (OpenSanctions → sanctions.tsv.gz à parte, baixada pelo app só na busca). Cada seção é
                          independente e guarda o último dado bom; baselines em stats/radar_state.json.
                          apply_signals() soma apagão/espaço aéreo fechado na tensão (parts.sensores);
                          correlate() junta sinais de tipos diferentes na mesma região (radar.incidents); link_factchecks()
@@ -92,6 +94,11 @@ android/app/src/main/java/com/abugdn/wid/
                          em Ajustes → Privacidade). O código da conta fica em web/app-config.json (vai para o site;
                          vazio = não conta). Painel e página de download contam com o mesmo código
   data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
+  data/WorldData.kt      espelho de refugees/hunger/gas/press/sanctionlist do radar.json; ui/WorldDataCards.kt: cartões
+                         (Números: fome, deslocados, imprensa; Mercados: gás). data/Arms.kt (SIPRI 2020–24, fixo) e
+                         data/Bases.kt (bases estrangeiras, camada "Bases" do mapa). ui/WorldScreens.kt: Quem está
+                         sancionado?, Quem arma quem, Verificar imagem (compartilhar foto → busca reversa + EXIF) e
+                         Antes e depois por satélite (WMS da NASA GIBS: HLS 30 m e VIIRS)
   ui/AlertScreens.kt     telas Sirenes (consulta a cada 5 s só com o app na frente) e Ultimatos; ui/AlertCards.kt:
                          cartões do Radar (sirenes, sismógrafo, viagem) e LocalGo (abre rotas de qualquer tela)
   ui/Trust.kt            ConfidenceCard (+ árvore de fontes), SpreadCard, TensionBreakdown (regions.parts/why),
@@ -192,6 +199,8 @@ web/                     página de download (index.html, icon.svg), status.html
 - **Teste de fumaça** (`.github/workflows/smoke.yml` + `.github/smoke/`): emulador no Actions que navega
   pelo app e falha se houver crash. Rode (Actions → Teste de fumaça → Run workflow) antes de publicar
   mudanças grandes de UI. Crashes no celular aparecem na próxima abertura (`CrashLog`).
+- **Chave de LazyColumn única**: várias ferramentas levam à mesma rota (ex.: radar:2); a lista usa rota + nome.
+  Chave repetida derruba o app ao rolar (crash da 1.0.42). Na dúvida, não use chave.
 - Extração de números: idades ("14-year-old"), anos e porcentagens não são vítimas (há teste).
 - **Tela Hoje configurável**: blocos em `HOME_BLOCKS`/`PANEL_ITEMS` (Settings.kt), ordem e ocultos salvos
   em `s_home_order`/`s_home_hidden`/`s_panel_*`. Bloco novo: acrescente no mapa (entra no fim da ordem de

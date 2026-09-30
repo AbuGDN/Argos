@@ -227,6 +227,9 @@ private val RADAR_NAMES = mapOf(
     "sanctions" to "Sanções", "analysis" to "Análises", "crisiswatch" to "CrisisWatch", "factcheck" to "Checagens", "predictions" to "Polymarket",
     "military" to "Aviões militares (adsb.lol)", "carriers" to "Porta-aviões (USNI)", "frontline" to "Linha de frente (DeepStateMap)",
     "sirens" to "Sirenes (Tzeva Adom)", "quakes" to "Sismos (USGS)", "travel" to "Alertas de viagem (EUA)",
+    "unsc" to "Conselho de Segurança (ONU)", "weather" to "Tempo (Open-Meteo)", "refugees" to "Deslocados e refugiados (ACNUR)",
+    "hunger" to "Fome e preços (IPC/HAPI)", "gas" to "Gás na Europa (AGSI+/ENTSOG)", "press" to "Imprensa sob fogo (CPJ)",
+    "sanctionlist" to "Lista de sanções (OpenSanctions)",
 )
 
 @Composable
