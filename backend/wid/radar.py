@@ -1578,6 +1578,391 @@ def collect_weather(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Deslocados e refugiados (API de população do ACNUR, anual, grátis e sem chave)
+# ---------------------------------------------------------------------------
+
+UNHCR_URL = "https://api.unhcr.org/population/v1/population/"
+
+
+def _num(v) -> int:
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return 0
+
+
+def refugee_years(items: list[dict]) -> list[dict]:
+    """Totais por ano de um país de origem: refugiados, solicitantes de refúgio e deslocados internos."""
+    out = []
+    for it in items:
+        year = _num(it.get("year"))
+        if not year:
+            continue
+        out.append({"year": year, "refugees": _num(it.get("refugees")), "asylum": _num(it.get("asylum_seekers")),
+                    "idps": _num(it.get("idps"))})
+    out.sort(key=lambda r: r["year"])
+    return out
+
+
+def refugee_hosts(items: list[dict], limit: int = 5) -> list[dict]:
+    """Países que mais recebem refugiados de uma origem, no ano mais recente com dados."""
+    rows = [it for it in items if _num(it.get("refugees")) + _num(it.get("asylum_seekers")) > 0
+            and str(it.get("coa_iso") or it.get("coa") or "-") not in ("-", "")]
+    if not rows:
+        return []
+    year = max(_num(r.get("year")) for r in rows)
+    rows = [r for r in rows if _num(r.get("year")) == year]
+    rows.sort(key=lambda r: _num(r.get("refugees")) + _num(r.get("asylum_seekers")), reverse=True)
+    return [{"iso": r.get("coa_iso") or r.get("coa"), "name": r.get("coa_name"), "year": year,
+             "people": _num(r.get("refugees")) + _num(r.get("asylum_seekers"))} for r in rows[:limit]]
+
+
+def collect_refugees(ctx: Ctx) -> dict:
+    now_year = ctx.now.year
+    out = []
+    for c in ctx.conf["countries"]:
+        try:
+            tot = _get_json(ctx.client, UNHCR_URL, params={
+                "coo": c["iso"], "yearFrom": now_year - 6, "yearTo": now_year, "cf_type": "ISO", "limit": 100})
+            years = refugee_years(tot.get("items") or [])
+            if not years:
+                continue
+            hosts = []
+            try:
+                h = _get_json(ctx.client, UNHCR_URL, params={
+                    "coo": c["iso"], "coa_all": "true", "yearFrom": years[-1]["year"], "yearTo": years[-1]["year"],
+                    "cf_type": "ISO", "limit": 300})
+                hosts = refugee_hosts(h.get("items") or [])
+            except Exception as exc:
+                log.info("ACNUR destinos %s: %s", c["iso"], exc)
+            out.append({"iso": c["iso"], "name": c["name"], "tag": c.get("tag"), "years": years, "hosts": hosts})
+        except Exception as exc:
+            log.info("ACNUR %s: %s", c["iso"], exc)
+    if not out:
+        raise RuntimeError("ACNUR sem dados")
+    return {"countries": out}
+
+
+# ---------------------------------------------------------------------------
+# Fome (IPC) e preço dos alimentos (HDX HAPI, mesma identificação dos deslocados)
+# ---------------------------------------------------------------------------
+
+HAPI_FOOD = "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
+HAPI_PRICES = "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-prices-market-monitor"
+FOOD_PREF = ["wheat flour", "bread", "rice", "sugar", "oil", "sorghum", "maize", "lentils", "beans", "fuel", "diesel"]
+
+
+def ipc_summary(rows: list[dict]) -> dict | None:
+    """Pessoas em fase 3+ (crise ou pior) e fase 5 (catástrofe) no período atual mais recente.
+
+    Usa um só nível administrativo (o mais alto disponível) para não somar país e províncias juntos."""
+    rows = [r for r in rows if str(r.get("ipc_type") or "current") == "current"]
+    if not rows:
+        return None
+    periods = sorted({str(r.get("reference_period_start") or "")[:10] for r in rows if r.get("reference_period_start")})
+    if not periods:
+        return None
+
+    def at(period: str) -> dict | None:
+        cur = [r for r in rows if str(r.get("reference_period_start") or "")[:10] == period]
+        if not cur:
+            return None
+        level = min(_num(r.get("admin_level")) for r in cur)
+        cur = [r for r in cur if _num(r.get("admin_level")) == level]
+        by_phase: dict[str, float] = {}
+        for r in cur:
+            ph = str(r.get("ipc_phase"))
+            by_phase[ph] = by_phase.get(ph, 0) + float(r.get("population_in_phase") or 0)
+        p3 = by_phase.get("3+") or sum(by_phase.get(k, 0) for k in ("3", "4", "5"))
+        total = by_phase.get("all") or sum(by_phase.get(k, 0) for k in ("1", "2", "3", "4", "5"))
+        ends = [str(r.get("reference_period_end") or "")[:10] for r in cur]
+        return {"start": period, "end": max(ends) if ends else period, "phase3plus": int(p3),
+                "phase4": int(by_phase.get("4", 0)), "phase5": int(by_phase.get("5", 0)),
+                "fraction": round(p3 / total, 3) if total else None}
+
+    latest = at(periods[-1])
+    if not latest or not latest["phase3plus"]:
+        # período mais novo ainda sem números: volta um
+        for p in reversed(periods[:-1]):
+            latest = at(p)
+            if latest and latest["phase3plus"]:
+                break
+    if not latest:
+        return None
+    older = [p for p in periods if p < latest["start"]]
+    prev = at(older[-1]) if older else None
+    if prev:
+        latest["prev"] = {"start": prev["start"], "phase3plus": prev["phase3plus"]}
+    return latest
+
+
+def price_changes(rows: list[dict], limit: int = 3) -> list[dict]:
+    """Variação da mediana nacional de preço de varejo, do mês mais antigo ao mais novo (até ~12 meses)."""
+    series: dict[str, dict[str, list[float]]] = {}
+    units: dict[str, str] = {}
+    for r in rows:
+        if str(r.get("price_type") or "Retail").lower() != "retail":
+            continue
+        name = str(r.get("commodity_name") or "").strip()
+        month = str(r.get("reference_period_start") or "")[:7]
+        try:
+            price = float(r.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if not name or not month or price <= 0:
+            continue
+        series.setdefault(name, {}).setdefault(month, []).append(price)
+        units[name] = f"{r.get('currency_code') or ''}/{r.get('unit') or ''}".strip("/")
+    out = []
+    for name, months in series.items():
+        keys = sorted(months)
+        if len(keys) < 2:
+            continue
+        first, last = keys[max(0, len(keys) - 13)], keys[-1]
+        a, b = statistics.median(months[first]), statistics.median(months[last])
+        if a <= 0:
+            continue
+        rank = next((i for i, k in enumerate(FOOD_PREF) if k in name.lower()), len(FOOD_PREF))
+        out.append({"name": name, "unit": units.get(name, ""), "from": first, "to": last, "price": round(b, 2),
+                    "change": round((b / a - 1) * 100, 1), "_rank": rank, "_n": len(keys)})
+    out.sort(key=lambda x: (x["_rank"], -x["_n"]))
+    for x in out:
+        x.pop("_rank")
+        x.pop("_n")
+    return out[:limit]
+
+
+def collect_hunger(ctx: Ctx) -> dict:
+    out = []
+    for c in ctx.conf["countries"]:
+        entry = {"iso": c["iso"], "name": c["name"], "tag": c.get("tag")}
+        try:
+            payload = _get_json(ctx.client, HAPI_FOOD, params={
+                "location_code": c["iso"], "output_format": "json", "limit": 10000, "app_identifier": HAPI_APP})
+            ipc = ipc_summary(payload.get("data") or [])
+            if ipc:
+                entry["ipc"] = ipc
+        except Exception as exc:
+            log.info("HAPI fome %s: %s", c["iso"], exc)
+        try:
+            start = (ctx.now - timedelta(days=420)).date().isoformat()
+            payload = _get_json(ctx.client, HAPI_PRICES, params={
+                "location_code": c["iso"], "output_format": "json", "limit": 10000, "start_date": start,
+                "app_identifier": HAPI_APP})
+            prices = price_changes(payload.get("data") or [])
+            if prices:
+                entry["prices"] = prices
+        except Exception as exc:
+            log.info("HAPI preços %s: %s", c["iso"], exc)
+        if "ipc" in entry or "prices" in entry:
+            out.append(entry)
+    if not out:
+        raise RuntimeError("HAPI sem dados de fome")
+    return {"countries": out}
+
+
+# ---------------------------------------------------------------------------
+# Gás na Europa: estoques (AGSI+, GIE) e o gás russo que ainda entra (ENTSOG, TurkStream)
+# ---------------------------------------------------------------------------
+
+AGSI_URL = "https://agsi.gie.eu/api"
+ENTSOG_URL = "https://transparency.entsog.eu/api/v1/operationaldatas"
+# Strandzha 2 (Bulgária) / Malkoclar (Turquia): entrada do TurkStream na UE. O trânsito pela Ucrânia acabou em 1/1/2025.
+TURKSTREAM_POINT = "bg-tso-0001itp-00549entry"
+
+
+def gas_storage(rows: list[dict]) -> dict:
+    pts = []
+    for r in rows:
+        try:
+            pts.append((str(r["gasDayStart"])[:10], float(r["full"]), float(r.get("gasInStorage") or 0), float(r.get("trend") or 0)))
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not pts:
+        raise ValueError("AGSI sem dias")
+    pts.sort()
+    day, full, twh, trend = pts[-1]
+    return {"date": day, "full": round(full, 2), "twh": round(twh, 1), "trend": round(trend, 2),
+            "series": [[d, round(f, 2)] for d, f, _, _ in pts[-60:]]}
+
+
+def gas_flows(rows: list[dict]) -> dict:
+    by_day: dict[str, float] = {}
+    for r in rows:
+        try:
+            day = str(r["periodFrom"])[:10]
+            by_day[day] = by_day.get(day, 0) + float(r["value"]) / 1e6  # kWh/d -> GWh/d
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not by_day:
+        raise ValueError("ENTSOG sem fluxo")
+    days = sorted(by_day)
+    last30 = [by_day[d] for d in days[-30:]]
+    return {"date": days[-1], "gwh": round(by_day[days[-1]], 1), "avg30": round(sum(last30) / len(last30), 1),
+            "series": [[d, round(by_day[d], 1)] for d in days[-60:]]}
+
+
+def collect_gas(ctx: Ctx) -> dict:
+    result: dict = {}
+    try:
+        payload = _get_json(ctx.client, AGSI_URL, params={"type": "eu", "size": 60})
+        result["storage"] = gas_storage(payload.get("data") or [])
+        try:
+            ly = (datetime.fromisoformat(result["storage"]["date"]) - timedelta(days=365)).date().isoformat()
+            old = _get_json(ctx.client, AGSI_URL, params={"type": "eu", "date": ly})
+            rows = old.get("data") or []
+            if rows:
+                result["storage"]["last_year"] = round(float(rows[0]["full"]), 2)
+        except Exception as exc:
+            log.info("AGSI ano passado: %s", exc)
+    except Exception as exc:
+        log.info("AGSI: %s", exc)
+    try:
+        start = (ctx.now - timedelta(days=62)).date().isoformat()
+        payload = _get_json(ctx.client, ENTSOG_URL, params={
+            "indicator": "Physical Flow", "periodType": "day", "timezone": "UTC", "pointDirection": TURKSTREAM_POINT,
+            "from": start, "to": ctx.now.date().isoformat(), "limit": 500}, timeout=60)
+        result["russia"] = gas_flows(payload.get("operationaldatas") or [])
+        result["russia"]["point"] = "TurkStream (Strandzha 2, Bulgária)"
+    except Exception as exc:
+        log.info("ENTSOG: %s", exc)
+    if not result:
+        raise RuntimeError("AGSI e ENTSOG sem dados")
+    for part in ("storage", "russia"):
+        if part not in result and ctx.prev and part in ctx.prev:
+            result[part] = ctx.prev[part]
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Imprensa sob fogo: jornalistas mortos (base de dados do CPJ)
+# ---------------------------------------------------------------------------
+
+CPJ_URL = "https://datamanager.cpj.org/api/datamanager/reports/entries"
+CPJ_TAGS = {
+    "Israel and the Occupied Palestinian Territory": "gaza", "Lebanon": "libano", "Syria": "siria", "Ukraine": "ucrania_russia",
+    "Russia": "ucrania_russia", "Sudan": "sudao", "Yemen": "iemen", "Iraq": "iraque", "Iran": "ira", "Somalia": "somalia",
+    "Mexico": None, "Brazil": "brasil", "Egypt": "egito",
+}
+
+
+def _cpj_date(text: str) -> str:
+    for fmt in ("%B %d, %Y", "%B %Y", "%Y"):
+        try:
+            return datetime.strptime(text.strip(), fmt).date().isoformat()
+        except (ValueError, AttributeError):
+            continue
+    return ""
+
+
+def press_summary(rows: list[dict], year: int, recent: int = 15) -> dict:
+    people = []
+    seen = set()
+    for r in rows:
+        name = str(r.get("fullName") or "").strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        people.append({"name": name, "outlet": str(r.get("organizations") or "").strip(), "country": str(r.get("country") or ""),
+                       "place": str(r.get("location") or ""), "date": _cpj_date(str(r.get("startDisplay") or "")),
+                       "type": str(r.get("type") or ""), "tag": CPJ_TAGS.get(str(r.get("country") or ""))})
+    people.sort(key=lambda p: p["date"], reverse=True)
+    by_country: dict[str, dict] = {}
+    for p in people:
+        if not p["date"].startswith(str(year)) and not p["date"].startswith(str(year - 1)):
+            continue
+        c = by_country.setdefault(p["country"], {"country": p["country"], "tag": p["tag"], "this_year": 0, "last_year": 0})
+        c["this_year" if p["date"].startswith(str(year)) else "last_year"] += 1
+    countries = sorted(by_country.values(), key=lambda c: (c["this_year"], c["last_year"]), reverse=True)
+    return {"year": year, "killed_this_year": sum(1 for p in people if p["date"].startswith(str(year))),
+            "killed_last_year": sum(1 for p in people if p["date"].startswith(str(year - 1))),
+            "countries": countries[:12], "recent": people[:recent]}
+
+
+def collect_press(ctx: Ctx) -> dict:
+    year = ctx.now.year
+    rows: list[dict] = []
+    for page in range(1, 6):
+        url = (f"{CPJ_URL}?distinct(personId)&includes=organizations,fullName,location,status,country,type,startDisplay"
+               f"&sort=fullName&pageNum={page}&pageSize=200&in(status,%27Killed%27)&ge(year,{year - 1})")
+        data = _get_json(ctx.client, url, timeout=60)
+        rows += data.get("data") or []
+        if page >= int(data.get("pageCount") or 1):
+            break
+    if not rows:
+        raise RuntimeError("CPJ sem dados")
+    return press_summary(rows, year)
+
+
+# ---------------------------------------------------------------------------
+# Lista de sanções consolidada (OpenSanctions, dados abertos para uso não comercial)
+# Publicada à parte (sanctions.tsv.gz), baixada pelo app só quando a pessoa busca.
+# ---------------------------------------------------------------------------
+
+SANCTIONS_INDEX = "https://data.opensanctions.org/datasets/latest/sanctions/index.json"
+SANCTIONS_FILE = "sanctions.tsv.gz"
+AUTHORITY = [  # prefixo do dataset -> quem sancionou
+    ("us_", "EUA"), ("eu_", "União Europeia"), ("gb_", "Reino Unido"), ("un_", "ONU"), ("ca_", "Canadá"),
+    ("ch_", "Suíça"), ("au_", "Austrália"), ("jp_", "Japão"), ("ua_", "Ucrânia"), ("nz_", "Nova Zelândia"),
+    ("fr_", "França"), ("be_", "Bélgica"), ("nl_", "Países Baixos"), ("pl_", "Polônia"), ("lt_", "Lituânia"),
+    ("lv_", "Letônia"), ("ee_", "Estônia"), ("cz_", "Tchéquia"), ("sg_", "Singapura"), ("kr_", "Coreia do Sul"),
+    ("tw_", "Taiwan"), ("il_", "Israel"), ("ru_", "Rússia"), ("cn_", "China"), ("ae_", "Emirados"), ("qa_", "Catar"),
+    ("worldbank", "Banco Mundial"), ("adb_", "BAD"), ("afdb", "BAfD"), ("eb_", "BERD"), ("iadb", "BID"),
+]
+SCHEMA_PT = {"Person": "pessoa", "Company": "empresa", "Organization": "organização", "LegalEntity": "entidade",
+             "Vessel": "navio", "Airplane": "avião", "CryptoWallet": "carteira cripto", "Security": "título"}
+
+
+def _authorities(datasets: str) -> list[str]:
+    out = []
+    for d in datasets.split(";"):
+        d = d.strip().lower()
+        for prefix, label in AUTHORITY:
+            if d.startswith(prefix) and label not in out:
+                out.append(label)
+                break
+    return out
+
+
+def sanctions_rows(lines) -> tuple[list[str], dict[str, int]]:
+    """CSV simplificado do OpenSanctions -> linhas 'nome\\ttipo\\tpaíses\\tquem\\tdesde\\tapelidos' (sem tabs internos)."""
+    out = []
+    by_auth: dict[str, int] = {}
+    for r in csv.DictReader(lines):
+        name = (r.get("name") or "").strip()
+        if not name:
+            continue
+        auth = _authorities(r.get("dataset") or r.get("datasets") or "")
+        for a in auth:
+            by_auth[a] = by_auth.get(a, 0) + 1
+        aliases = [a for a in (r.get("aliases") or "").split(";") if a and a != name][:3]
+        fields = [name, SCHEMA_PT.get(r.get("schema") or "", (r.get("schema") or "").lower()),
+                  (r.get("countries") or "").replace(";", ","), ", ".join(auth), (r.get("first_seen") or "")[:10],
+                  " | ".join(aliases)]
+        out.append("\t".join(f.replace("\t", " ").replace("\n", " ") for f in fields))
+    out.sort()
+    return out, by_auth
+
+
+def collect_sanctionlist(ctx: Ctx) -> dict:
+    index = _get_json(ctx.client, SANCTIONS_INDEX)
+    url = next(r["url"] for r in index.get("resources", []) if r.get("name") == "targets.simple.csv")
+    rows: list[str] = []
+    by_auth: dict[str, int] = {}
+    with ctx.client.stream("GET", url, timeout=300) as resp:
+        resp.raise_for_status()
+        rows, by_auth = sanctions_rows(resp.iter_lines())
+    if len(rows) < 1000:
+        raise RuntimeError(f"lista de sanções curta demais ({len(rows)})")
+    if ctx.out is not None:
+        data = ("\n".join(rows) + "\n").encode("utf-8")
+        (ctx.out / SANCTIONS_FILE).write_bytes(gzip.compress(data, 9, mtime=0))
+    top = sorted(by_auth.items(), key=lambda kv: kv[1], reverse=True)[:8]
+    return {"count": len(rows), "file": SANCTIONS_FILE, "source_updated": str(index.get("updated_at") or "")[:19],
+            "by_authority": [{"name": k, "count": v} for k, v in top]}
+
+
+# ---------------------------------------------------------------------------
 # Orquestração
 # ---------------------------------------------------------------------------
 
@@ -1606,6 +1991,11 @@ COLLECTORS = {
     "travel": collect_travel,
     "unsc": collect_unsc,
     "weather": collect_weather,
+    "refugees": collect_refugees,
+    "hunger": collect_hunger,
+    "gas": collect_gas,
+    "press": collect_press,
+    "sanctionlist": collect_sanctionlist,
 }
 
 

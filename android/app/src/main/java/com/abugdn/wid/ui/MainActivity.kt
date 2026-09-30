@@ -133,11 +133,26 @@ class MainActivity : ComponentActivity() {
         repository.endVisit()
     }
 
-    /** Link ou texto compartilhado de outro app: abre a mesma história no Argos, se houver. */
+    /** Link ou texto compartilhado de outro app: abre a mesma história no Argos, se houver. Foto: abre "Verificar imagem". */
     private fun handleShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
+        if (intent.type?.startsWith("image/") == true) {
+            @Suppress("DEPRECATION")
+            val uri = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM) ?: return
+            openCluster = null
+            shortcut = "verify:$uri"
+            return
+        }
         val text = listOfNotNull(intent.getStringExtra(Intent.EXTRA_SUBJECT), intent.getStringExtra(Intent.EXTRA_TEXT)).joinToString(" ")
         if (text.isBlank()) return
+        // Endereço direto de uma imagem: verificar, em vez de procurar notícia.
+        Regex("""https?://\S+\.(jpe?g|png|webp)(\?\S*)?""", RegexOption.IGNORE_CASE).find(text)?.let { m ->
+            if (m.value.length >= text.trim().length - 2) {
+                openCluster = null
+                shortcut = "verify:${m.value}"
+                return
+            }
+        }
         android.widget.Toast.makeText(this, "Procurando essa notícia no Argos…", android.widget.Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
             val found = repository.findShared(text)
@@ -217,7 +232,8 @@ private fun App(
             "vigil" -> { closeAll(); vigilOpen = true }
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
-            "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy", "topic", "monthly" -> {
+            "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy", "topic", "monthly",
+            "sanctions", "arms", "verify", "satellite" -> {
                 closeAll(); page = route.substringBefore(':'); pageArg = arg
             }
             "settings" -> { closeAll(); settingsOpen = true }
@@ -336,6 +352,10 @@ private fun App(
                         "topic" -> TopicScreen(pageArg, onBack = { page = null }, onOpen = { onOpenCluster(it) })
                         "monthly" -> MonthlyScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) })
                         "diplomacy" -> DiplomacyScreen(onBack = { page = null }, onOpen = { onOpenCluster(it) }, onRegion = { page = null; regionOpen = it })
+                        "sanctions" -> SanctionsScreen(onBack = { page = null })
+                        "arms" -> ArmsScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        "verify" -> VerifyImageScreen(pageArg, onBack = { page = null })
+                        "satellite" -> SatelliteScreen(pageArg, onBack = { page = null })
                         else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it }, initial = pageArg.ifBlank { null })
                     }
                 }

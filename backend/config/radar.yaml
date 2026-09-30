@@ -337,3 +337,40 @@ weather:
     - {name: Mogadíscio, tag: somalia, lat: 2.05, lon: 45.32}
     - {name: Estreito de Ormuz, tag: ira, lat: 26.57, lon: 56.25}
     - {name: Bab el-Mandeb, tag: iemen, lat: 12.60, lon: 43.40}
+
+# Deslocados e refugiados por país de origem (ACNUR, anual): totais e para onde foram.
+refugees:
+  interval: 1440
+  countries:
+    - {iso: UKR, name: Ucrânia, tag: ucrania_russia}
+    - {iso: SDN, name: Sudão, tag: sudao}
+    - {iso: SYR, name: Síria, tag: siria}
+    - {iso: AFG, name: Afeganistão, tag: asia}
+    - {iso: SOM, name: Somália, tag: somalia}
+    - {iso: YEM, name: Iêmen, tag: iemen}
+    - {iso: IRQ, name: Iraque, tag: iraque}
+    - {iso: LBN, name: Líbano, tag: libano}
+
+# Fome (IPC: fase 3+ = crise ou pior; fase 5 = catástrofe) e preço dos alimentos (HDX HAPI).
+hunger:
+  interval: 720
+  countries:
+    - {iso: PSE, name: Gaza e Cisjordânia, tag: gaza}
+    - {iso: SDN, name: Sudão, tag: sudao}
+    - {iso: YEM, name: Iêmen, tag: iemen}
+    - {iso: SOM, name: Somália, tag: somalia}
+    - {iso: SYR, name: Síria, tag: siria}
+    - {iso: LBN, name: Líbano, tag: libano}
+    - {iso: AFG, name: Afeganistão, tag: asia}
+
+# Gás na Europa: estoques (AGSI+) e o fluxo do TurkStream (ENTSOG), a única rota russa por gasoduto que resta.
+gas:
+  interval: 360
+
+# Jornalistas mortos neste ano e no anterior (CPJ).
+press:
+  interval: 720
+
+# Lista consolidada de sanções (OpenSanctions) publicada como sanctions.tsv.gz para a busca do app.
+sanctionlist:
+  interval: 1440

@@ -77,6 +77,8 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("map:carriers", "⚓", "Porta-aviões", "Onde está cada porta-aviões americano", "frota marinha eua navios"),
         Tool("map:military", "✈", "Aviões militares", "Reabastecedores, aviões-radar e drones no ar", "militar avioes adsb"),
         Tool("map:ranges", "🎯", "Alcance de mísseis", "Até onde chegam mísseis e defesas", "misseis defesa alcance armas"),
+        Tool("map:bases", "🪖", "Bases militares", "Bases estrangeiras de EUA, Rússia, China, França, Reino Unido e Turquia", "base militar eua russia china tropas exterior"),
+        Tool("satellite", "🛰", "Antes e depois por satélite", "Imagens da NASA de uma cidade em duas datas, com controle deslizante", "satelite imagem nasa antes depois destruicao comparar"),
         Tool("compare", "⚖", "Comparar", "Duas regiões lado a lado, ou a mesma região em duas datas", "comparar regioes datas antes depois"),
         Tool("scale", "📏", "E se fosse no Brasil?", "Gaza, a frente na Ucrânia ou um míssil em cima da sua cidade", "escala tamanho comparar cidade"),
     ),
@@ -84,6 +86,10 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("radar:1", "🛢", "Mercados", "Petróleo, ouro, moedas e apostas sobre as guerras", "cotacao petroleo brent ouro polymarket"),
         Tool("radar:2", "🩸", "Números", "Gaza, deslocados, reféns e perdas russas", "mortos refens humanitario perdas"),
         Tool("radar:2", "🇺🇦", "Placar aéreo da Ucrânia", "Drones e mísseis lançados por noite e quantos foram abatidos", "drones misseis ucrania abatidos noite"),
+        Tool("radar:2", "🌾", "Fome nas zonas de guerra", "Pessoas em crise alimentar (IPC) e preço dos alimentos", "fome ipc comida alimentos precos crise"),
+        Tool("radar:2", "🏚", "Deslocados e refugiados", "Quantos fugiram de cada país e para onde foram (ACNUR)", "refugiados deslocados acnur fuga migracao"),
+        Tool("radar:2", "📰", "Imprensa sob fogo", "Jornalistas mortos neste ano, por país (CPJ)", "jornalistas mortos imprensa cpj"),
+        Tool("radar:1", "⛽", "Gás na Europa", "Estoques de gás da UE e o gás russo que ainda chega", "gas energia europa estoque russia turkstream"),
         Tool("radar:3", "🇺🇳", "Conselho de Segurança da ONU", "Reuniões, resoluções aprovadas, vetos e votações previstas", "onu veto resolucao conselho seguranca"),
         Tool("radar:0", "🌦", "Tempo nas zonas de conflito", "Vento, chuva, neve e tempestade de areia no front", "clima tempo chuva vento areia neve"),
         Tool("radar:3", "🏛", "Vozes", "O que governos dizem nos próprios canais e sanções", "oficial governo sancoes"),
@@ -92,8 +98,13 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     ),
     "Aprender" to listOf(
         Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
+        Tool("arms", "🔫", "Quem arma quem", "Quem vende e quem compra armas, e de onde vêm as armas das guerras (SIPRI)", "armas exportacao importacao sipri fornecedor"),
         Tool("alliances", "🕸", "Quem apoia quem", "Rede de alianças, apoios e rivalidades entre países e grupos", "aliancas aliados apoio rivais rede grupos"),
         Tool("method", "🔬", "Como sabemos?", "Como o Argos junta notícias, mede confiança e calcula a tensão", "metodologia confianca calculo transparencia fontes"),
+    ),
+    "Checar" to listOf(
+        Tool("verify", "🔍", "Verificar imagem", "Busca reversa e metadados: a foto é mesmo de hoje?", "foto imagem falsa antiga checar busca reversa lens"),
+        Tool("sanctions", "🚫", "Quem está sancionado?", "Busque pessoa, empresa ou navio na lista de sanções do mundo", "sancoes sancionado ofac lista navio empresa"),
     ),
     "Seus" to listOf(
         Tool("library:0", "★", "Salvos", "Notícias guardadas, com pasta e nota", "favoritos estrela"),
