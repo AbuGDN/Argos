@@ -145,7 +145,6 @@ async function load() {
     $('#status').textContent = 'Não consegui ler os dados do Argos.';
     return;
   }
-  getJSON('../painel/countries.geojson').then((w) => { S.world = w; if (S.story) renderAll(); }).catch(() => {});
   $('#status').textContent = `${S.feed.clusters.length} histórias · atualizado ${fmtDate(S.feed.generated_at)}`;
   renderList();
   const id = location.hash.slice(1);
@@ -183,58 +182,8 @@ function buildSlides(c) {
   const others = c.articles.filter((a) => a.source !== c.source).slice(0, 3).map((a) => `${a.source}: “${TR.show(a.title, a.lang)}”`);
   slides.push({ kind: 'texto', kicker: 'O QUE ACONTECEU', title: 'O que aconteceu', body: summary.length > 60 ? summary : [summary, ...others].filter(Boolean).join('\n\n') });
 
-  // Números.
-  const figs = Object.entries(c.figures || {});
-  if (figs.length) {
-    const names = { killed: 'Mortos', injured: 'Feridos' };
-    const divergent = figs.some(([, f]) => f.divergent);
-    const lines = figs.map(([k, f]) => `${names[k] || k}: ` + Object.entries(f.by_source).sort((a, b) => b[1] - a[1]).map(([s, n]) => `${n.toLocaleString('pt-BR')} (${s})`).join(' · '));
-    slides.push({ kind: 'texto', kicker: 'OS NÚMEROS', title: divergent ? 'Os números não batem' : 'Os números', body: lines.join('\n\n') + (divergent ? '\n\nCada veículo cita um balanço diferente. Balanços costumam subir com o tempo.' : '') });
-  }
-
-  // Como cada lado contou.
-  const byOrigin = {};
-  for (const a of c.articles) (byOrigin[a.origin || 'internacional'] ||= []).push(a);
-  if (Object.keys(byOrigin).length >= 2) {
-    const body = Object.entries(byOrigin).slice(0, 4).map(([o, arts]) => `${(S.geo.origins[o] || o).toUpperCase()}\n“${TR.show(arts[0].title, arts[0].lang)}” (${arts[0].source})`).join('\n\n');
-    slides.push({ kind: 'texto', kicker: 'CADA LADO', title: 'Como cada lado contou', body });
-  }
-  if ((c.framing || []).length) {
-    const body = c.framing.map((g) => `${g.group}\n` + Object.entries(g.by_origin).map(([o, t]) => `${S.geo.origins[o] || o}: ${t.map((x) => `“${x}”`).join(', ')}`).join('\n')).join('\n\n');
-    slides.push({ kind: 'texto', kicker: 'PALAVRAS', title: 'As palavras de cada lado', body });
-  }
-
-  // Contexto.
-  const ctx = S.geo.context?.[tag];
-  if (ctx) {
-    const conflict = S.geo.conflicts?.[tag];
-    const day = conflict ? Math.floor((Date.now() - Date.parse(conflict.start)) / 864e5) + 1 : null;
-    slides.push({ kind: 'texto', kicker: 'CONTEXTO', title: day ? `${conflict.label}: dia ${day.toLocaleString('pt-BR')}` : `Entenda: ${label(tag)}`, body: ctx });
-  }
-
-  // Linha do tempo: capítulos da saga ou marcos da região.
-  const chapters = c.saga?.chapters || [];
-  if (chapters.length >= 2) {
-    const body = chapters.slice(-5).map((ch) => `${fmtDate(ch.published).slice(0, 5)} · ${TR.show(ch.title, ch.lang)}`).join('\n\n');
-    slides.push({ kind: 'texto', kicker: 'LINHA DO TEMPO', title: 'Como chegamos aqui', body });
-  } else if ((S.geo.milestones?.[tag] || []).length) {
-    const body = S.geo.milestones[tag].slice(-4).map((m) => `${m.date} · ${m.text}`).join('\n\n');
-    slides.push({ kind: 'texto', kicker: 'LINHA DO TEMPO', title: 'Marcos da região', body });
-  }
-
-  // Onde.
-  const cities = citiesOf(c);
-  const pt = S.geo.points?.[tag];
-  if (cities.length || pt) {
-    slides.push({ kind: 'mapa', kicker: 'ONDE', title: cities.length ? cities.slice(0, 3).map((x) => x.name).join(', ') : label(tag), body: '', cities, tag });
-  }
-
-  // Confiança.
-  if (c.confidence && c.sources_count >= 2) {
-    const reasons = (c.confidence.reasons || []).map((r) => `• ${r}`);
-    const wires = c.wires ? Object.entries(c.wires.agencies).map(([ag, outs]) => `${ag} ← ${outs.join(', ')}`) : [];
-    slides.push({ kind: 'texto', kicker: 'CONFIANÇA', title: c.confidence.label, body: [...reasons, ...(wires.length ? ['', 'Agências citadas:', ...wires] : [])].join('\n') });
-  }
+  // Chamada para seguir (o texto fica guardado para os próximos carrosséis).
+  slides.push({ kind: 'siga', kicker: 'ARGOS', title: store.get('car_follow_title', 'Siga para mais'), body: store.get('car_follow_body', 'Notícias de guerra explicadas, com várias fontes, todos os dias.') });
 
   // Fontes.
   const sources = [...new Set(c.articles.map((a) => a.source))];
@@ -315,7 +264,7 @@ function frame(ctx, s, index, total) {
   ctx.fillText(`${index + 1}/${total}${index + 1 < total ? '  →' : ''}`, W - M, H - 84);
   ctx.textAlign = 'left';
   // Cabeçalho do slide.
-  if (s.kind !== 'capa') {
+  if (s.kind !== 'capa' && s.kind !== 'siga') {
     ctx.fillStyle = C.gold; ctx.font = `700 28px ${SANS}`; ctx.letterSpacing = '3px';
     ctx.fillText(s.kicker, M, 120);
     ctx.letterSpacing = '0px';
@@ -370,41 +319,12 @@ function drawText(ctx, s) {
   fitText(ctx, s.body, M, top + h + 30, W - M * 2, H - top - h - 30 - 200, { size: s.img ? 36 : 42, min: 24, lh: 1.36 });
 }
 
-function drawMap(ctx, s) {
-  fitText(ctx, s.title, M, 170, W - M * 2, 150, { size: 58, min: 40, font: SERIF, weight: '700', lh: 1.15 });
-  const pts = s.cities.length ? s.cities.map((x) => [x.lon, x.lat, x.name]) : [[...S.geo.points[s.tag], label(s.tag)]];
-  const lons = pts.map((p) => p[0]), lats = pts.map((p) => p[1]);
-  const span = Math.max(6, Math.max(...lons) - Math.min(...lons), Math.max(...lats) - Math.min(...lats)) * 1.8;
-  const cx = (Math.max(...lons) + Math.min(...lons)) / 2, cy = (Math.max(...lats) + Math.min(...lats)) / 2;
-  const box = { x: M, y: 360, w: W - M * 2, h: 760 };
-  const k = Math.min(box.w, box.h) / span, kx = k * Math.cos(cy * Math.PI / 180);
-  const P = (lon, lat) => [box.x + box.w / 2 + (lon - cx) * kx, box.y + box.h / 2 - (lat - cy) * k];
-  ctx.save();
-  ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
-  ctx.fillStyle = '#07090c'; ctx.fillRect(box.x, box.y, box.w, box.h);
-  if (S.world) {
-    ctx.fillStyle = '#16140f'; ctx.strokeStyle = 'rgba(201,162,39,.45)'; ctx.lineWidth = 1.5;
-    for (const f of S.world.features) {
-      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-      for (const poly of polys) {
-        ctx.beginPath();
-        for (const ring of poly) ring.forEach(([lo, la], i) => { const [x, y] = P(lo > 180 ? lo - 360 : lo, la); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-        ctx.fill('evenodd'); ctx.stroke();
-      }
-    }
-  }
-  for (const [lo, la, name] of pts) {
-    const [x, y] = P(lo, la);
-    ctx.fillStyle = 'rgba(179,18,46,.25)'; ctx.beginPath(); ctx.arc(x, y, 34, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C.blood; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = C.bone; ctx.font = `700 32px ${SANS}`;
-    ctx.shadowColor = '#000'; ctx.shadowBlur = 8;
-    ctx.fillText(name, Math.min(x + 22, box.x + box.w - ctx.measureText(name).width - 10), y - 18);
-    ctx.shadowBlur = 0;
-  }
-  ctx.restore();
-  ctx.strokeStyle = C.line; ctx.lineWidth = 2; ctx.strokeRect(box.x, box.y, box.w, box.h);
-  if (s.body) fitText(ctx, s.body, M, box.y + box.h + 12, W - M * 2, 80, { size: 30, min: 24, color: C.ash });
+function drawFollow(ctx, s) {
+  eye(ctx, W / 2, 470, 300, C.gold);
+  ctx.textAlign = 'center';
+  const h = fitText(ctx, s.title, W / 2, 700, W - M * 2, 200, { size: 84, min: 54, font: SERIF, weight: '700', lh: 1.1 });
+  fitText(ctx, s.body, W / 2, 700 + h + 30, W - M * 2, 300, { size: 40, min: 28, color: C.ash, lh: 1.35 });
+  ctx.textAlign = 'left';
 }
 
 function drawSources(ctx, s) {
@@ -426,7 +346,7 @@ function draw(canvas, s, index, total) {
   // A capa pinta a foto primeiro; a moldura e o rodapé vão por cima.
   if (s.kind === 'capa') { drawCover(ctx, s, S.story); frame(ctx, s, index, total); return; }
   frame(ctx, s, index, total);
-  if (s.kind === 'mapa') drawMap(ctx, s);
+  if (s.kind === 'siga') drawFollow(ctx, s);
   else if (s.kind === 'fontes') drawSources(ctx, s);
   else drawText(ctx, s);
 }
@@ -450,9 +370,9 @@ function renderSlides() {
       <div class="row"><span class="k">${esc(s.kicker.split(' · ')[0])}</span>
         <label style="margin:0"><input type="checkbox" data-on ${s.on ? 'checked' : ''}> incluir</label></div>
       <label>Título</label><input type="text" data-f="title" value="${esc(s.title)}">
-      ${s.kind === 'capa' ? '<label>Selo (ex.: URGENTE)</label>' : s.kind === 'mapa' ? '<label>Legenda (opcional)</label>' : '<label>Texto</label>'}
+      ${s.kind === 'capa' ? '<label>Selo (ex.: URGENTE)</label>' : s.kind === 'siga' ? '<label>Texto (fica salvo)</label>' : '<label>Texto</label>'}
       ${s.kind === 'capa' ? `<input type="text" data-f="body" value="${esc(s.body)}">` : `<textarea data-f="body">${esc(s.body)}</textarea>`}
-      ${s.kind === 'mapa' || s.kind === 'fontes' ? '' : `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
+      ${s.kind === 'siga' || s.kind === 'fontes' ? '' : `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
       ${s.img ? `<label>Crédito da imagem</label><input type="text" data-credit value="${esc(s.img.credit)}">` : ''}`}
     </div>`).join('');
   renderAll();
@@ -490,6 +410,7 @@ $('#slides').addEventListener('input', (e) => {
   if (!el) return;
   const s = S.slides[+el.dataset.i];
   if (e.target.dataset.f) s[e.target.dataset.f] = e.target.value;
+  if (s.kind === 'siga' && e.target.dataset.f) store.set(`car_follow_${e.target.dataset.f}`, e.target.value);
   if (e.target.hasAttribute('data-on')) s.on = e.target.checked;
   if (e.target.hasAttribute('data-credit') && s.img) s.img.credit = e.target.value;
   renderAll();
