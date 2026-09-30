@@ -120,7 +120,8 @@ android/app/src/main/java/com/abugdn/wid/
 web/                     página de download (index.html, icon.svg), status.html (fontes e sensores),
                          carrossel/ (ferramenta pessoal do dono, sem link em lugar nenhum e noindex: escolhe uma
                          história do feed.json e gera slides 1080×1350 editáveis em Canvas para o Instagram;
-                         sem fotos dos jornais; tradução pelo Translator do Chrome com o cache do painel); build.py copia para a gh-pages →
+                         imagens: Wikimedia Commons (API com origin=*, crédito e licença desenhados), arquivo do
+                         aparelho ou foto da notícia só se o site mandar CORS (senão o canvas não exporta); tradução pelo Translator do Chrome com o cache do painel); build.py copia para a gh-pages →
                          GitHub Pages em abugdn.github.io/Argos/. Busca o APK mais novo pela API
   painel/                painel para PC (abugdn.github.io/Argos/painel/): globo 3D (MapLibre 5, em
                          vendor/, sem CDN) com regiões/tensão, cidades, focos, aviões, porta-aviões,
