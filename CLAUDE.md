@@ -15,10 +15,10 @@ para continuar o trabalho sem redescobrir tudo.
   como segunda opção (o GitHub redireciona o nome antigo); pode ficar.
 - Página de download: **https://abugdn.github.io/Argos/** (GitHub Pages da branch `gh-pages`).
 
-## Onde estamos (30/09/2026)
+## Onde estamos (01/10/2026)
 
-- App na **versão 1.0.44** (versionCode = run_number do workflow "App Android"; a próxima entrada do
-  CHANGELOG é **45**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
+- App na **versão 1.0.45** (versionCode = run_number do workflow "App Android"; a próxima entrada do
+  CHANGELOG é **46**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
 - Fluxo usado nas sessões em nuvem: trabalho na branch `claude/app-information-suggestions-8g3ca9`
   (recriada a partir da base a cada rodada) → PR para a base → build "App Android" verde → merge com
   **`[skip ci]` no título do merge** (senão o merge gera uma segunda release igual). Mudanças só em
@@ -30,7 +30,11 @@ para continuar o trabalho sem redescobrir tudo.
   Conselho de Segurança, tempo, temas, modo manchetes, widgets de prazo e sirenes, boletim mensal);
   43 (correção: crash ao rolar Ferramentas, chave repetida `radar:2`); 44 (fome/IPC, deslocados/ACNUR,
   imprensa/CPJ, gás na Europa, busca de sanções, quem arma quem, bases no mapa, verificar imagem,
-  antes e depois por satélite).
+  antes e depois por satélite); 45 (feito no PC: atenção do mundo e guerras esquecidas — Wikipédia +
+  UCDP —, gastos militares/SIPRI, arsenais nucleares/FAS, e "quem sancionou" que vinha vazio).
+- Pendências para o dono decidir: o cartão da imprensa (CPJ parado, ver abaixo) e atualizar `Arms.kt` para
+  o SIPRI 2021–25. Features recusadas por falta de fonte (ver lista abaixo): mapa de eventos (ACLED/GDELT),
+  NOTAMs, ciberataques (CFR parado em 2023), votos da Assembleia Geral (só placar, não provado).
 - Conferido em 30/09/2026 (no PC, com internet):
   - `data/Arms.kt`: os 30 números batem com as tabelas 1 e 2 do fact sheet do SIPRI de mar/2025
     (2020–24). **Já existe o de mar/2026 (2021–25)**: `sipri.org/sites/default/files/2026-03/fs_2603_at_2025.pdf`.
@@ -110,6 +114,13 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          confidence (alta/media/baixa/conflito + motivos) e spread (1ª aparição por origem)
   wid/diplomacy.py       termômetro diplomático: categorias por regex no título (pt/en), 7 dias → diplomacy.json
   wid/airwar.py          placar aéreo da Ucrânia (drones/mísseis/abatidos por noite, regex nas manchetes) → airwar.json
+  wid/radar.py → attention  Atenção do mundo: visitas diárias da Wikipédia (API de pageviews, sem chave) por
+                         guerra, somando 8 idiomas; títulos em inglês em radar.yaml → attention.conflicts, os
+                         outros idiomas vêm dos links entre idiomas (segue redirecionamento: pageviews conta só o
+                         título exato). Cada guerra tem também os conflict_id do UCDP (`ucdp:`)
+  tools/gerar_dados_fixos.py  gera WarDeaths.kt (UCDP), MilitarySpending.kt (SIPRI) e NuclearForces.kt (FAS) das
+                         fontes originais, com o sha256 do arquivo no cabeçalho. Roda no PC (openpyxl em
+                         tools/requirements.txt, fora do CI). Não edite esses .kt à mão
   wid/deadlines.py       ultimatos ("48 horas para…") nas manchetes → deadlines.json, com "o que aconteceu depois"
   tests/                 pytest com fixtures; rode sempre antes do push
 android/app/src/main/java/com/abugdn/wid/
@@ -135,6 +146,9 @@ android/app/src/main/java/com/abugdn/wid/
   data/Usage.kt          contagem anônima de uso (GoatCounter /count, 1×/dia, user-agent de navegador; desligável
                          em Ajustes → Privacidade). O código da conta fica em web/app-config.json (vai para o site;
                          vazio = não conta). Painel e página de download contam com o mesmo código
+  data/Attention.kt      espelho de radar.json → attention e forgottenRows() (parte nas mortes × parte na atenção);
+                         ui/WarDataScreens.kt: Atenção do mundo (rota "attention:0"), Guerras esquecidas
+                         ("attention:1"), Gastos militares ("milex") e Arsenais nucleares ("nuclear")
   data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
   data/WorldData.kt      espelho de refugees/hunger/gas/press/sanctionlist do radar.json; ui/WorldDataCards.kt: cartões
                          (Números: fome, deslocados, imprensa; Mercados: gás). data/Arms.kt (SIPRI 2020–24, fixo) e
@@ -257,6 +271,12 @@ web/                     página de download (index.html, icon.svg), status.html
 - **Painel web**: teste local servindo uma cópia da gh-pages + `copy_web()` com `python -m http.server`
   e Playwright (Chromium com `--use-angle=swiftshader` para o WebGL). Os blocos de mapa (Esri; o CARTO passou a exigir chave e mostra "API KEY REQUIRED")
   não carregam na sessão em nuvem; o fundo vetorial (countries.geojson) aparece mesmo assim.
+- **SIPRI recusa conexões às vezes** (01/10/2026: TLS cortado no site inteiro, do Python e do curl, enquanto
+  UCDP e Google respondiam; na véspera o curl baixava). O gerador aceita o arquivo baixado pelo navegador:
+  `tools/gerar_dados_fixos.py --milex arquivo.xlsx` (também `--ucdp`, `--fas`).
+- **Teste de fumaça sem publicar**: push que mexe em `android/` publica release em QUALQUER branch. Para testar
+  antes, mande para uma branch de teste com um commit vazio `[skip ci]` no topo (nenhum workflow de push
+  roda), dispare "Teste de fumaça" nessa branch e só depois mande o commit real para a base.
 - Textos de contexto/pessoas/marcos vão até 2025 e mostram aviso de data; ao atualizar, mantenha o tom
   neutro e factual.
 

@@ -4,6 +4,8 @@ set -x
 APK=android/app/build/outputs/apk/release/app-release.apk
 PKG=com.abugdn.wid
 tap() { python3 .github/smoke/tap.py "$1"; sleep "${2:-4}"; }
+# Rola a tela para baixo até achar o texto (lista longa, como Ferramentas) e toca nele.
+scrolltap() { for i in 1 2 3 4 5 6 7 8 9 10; do python3 .github/smoke/tap.py "$1" && { sleep "${2:-5}"; return; }; adb shell input swipe 500 1500 500 700 300; sleep 1; done; echo "NAO ACHOU $1"; }
 shot() { adb exec-out screencap -p > "shots/$1.png"; }
 mkdir -p shots
 adb install -r "$APK"
@@ -55,6 +57,21 @@ tap "Contexto" 3; shot 17-noticia-contexto
 adb shell input swipe 500 1600 500 700 300; sleep 2; shot 18-noticia-rolada
 adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell input tap 540 1700; sleep 6; shot 19-noticia-lista   # uma notícia da lista
+adb shell input keyevent KEYCODE_BACK; sleep 2
+# Telas da 1.0.45: atenção do mundo, guerras esquecidas, gastos militares, arsenais nucleares.
+tap "Hoje" 3; tap "Ferramentas" 3
+scrolltap "Atenção do mundo"; shot 20-atencao
+tap "Guerras esquecidas" 3; shot 21-esquecidas
+adb shell input swipe 500 1600 500 600 300; sleep 2; shot 21b-esquecidas-rolada
+adb shell input keyevent KEYCODE_BACK; sleep 2
+tap "Hoje" 3; tap "Ferramentas" 3
+scrolltap "Gastos militares"; shot 22-gastos
+tap "% do PIB" 3; shot 22b-gastos-pib
+tap "Guerras e Brasil" 3; shot 22c-gastos-brasil
+adb shell input keyevent KEYCODE_BACK; sleep 2
+tap "Hoje" 3; tap "Ferramentas" 3
+scrolltap "Arsenais nucleares"; shot 23-nuclear
+adb shell input keyevent KEYCODE_BACK; sleep 2
 sleep 20
 echo "=== processo vivo? ==="
 adb shell pidof $PKG || echo "APP NÃO ESTÁ RODANDO"

@@ -87,7 +87,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SimpleScaffold(title: String, onBack: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
+internal fun SimpleScaffold(title: String, onBack: () -> Unit, content: @Composable (PaddingValues) -> Unit) {
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = {

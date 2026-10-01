@@ -13,7 +13,7 @@ esses JSONs, traduz no próprio celular e guarda tudo offline.
 - Página de download: https://abugdn.github.io/Argos/
 - Dados publicados: `https://raw.githubusercontent.com/AbuGDN/Argos/gh-pages/feed.json` (e os outros arquivos da tabela abaixo)
 - Painel para PC: https://abugdn.github.io/Argos/painel/ · Status das fontes: https://abugdn.github.io/Argos/status.html
-- Versão atual do app: **1.0.44** (30/09/2026). Onde o trabalho parou e como seguir: [`CLAUDE.md`](CLAUDE.md), seção "Onde estamos"
+- Versão atual do app: **1.0.45** (01/10/2026). Onde o trabalho parou e como seguir: [`CLAUDE.md`](CLAUDE.md), seção "Onde estamos"
 - Histórico de decisões e fases: [`PLANO.md`](PLANO.md)
 - Contexto para o Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
@@ -128,7 +128,7 @@ web/       página de download, status.html, painel/ (globo 3D para PC) e carros
 | `stats/first.json` | Ranking de quem publicou primeiro |
 | `sagas.json` | Estado das sagas (histórias ligadas entre dias) |
 | `sources_status.json` | Quais feeds funcionaram na última coleta |
-| `radar.json` | Aba Radar: internet, espaço aéreo, focos de calor, estreitos, cotações, números humanitários, perdas, fontes oficiais, sanções, análises, CrisisWatch, checagens, previsões, aviões militares, porta-aviões, frente, sirenes, sismos, alertas de viagem, ONU, tempo, deslocados, fome, gás, imprensa e lista de sanções (status de cada seção em `status`) |
+| `radar.json` | Aba Radar: internet, espaço aéreo, focos de calor, estreitos, cotações, números humanitários, perdas, fontes oficiais, sanções, análises, CrisisWatch, checagens, previsões, aviões militares, porta-aviões, frente, sirenes, sismos, alertas de viagem, ONU, tempo, deslocados, fome, gás, imprensa, lista de sanções e atenção do mundo (visitas da Wikipédia por guerra) (status de cada seção em `status`) |
 | `frontline.json` | Polígonos da linha de frente na Ucrânia (DeepStateMap), baixados pelo app só com a camada ligada |
 | `sirens_cities.json` | Dicionário de cidades das sirenes em Israel |
 | `airwar.json`, `deadlines.json`, `diplomacy.json` | Placar aéreo da Ucrânia, ultimatos e termômetro diplomático |
@@ -149,6 +149,7 @@ A `gh-pages` é **gerada**: nunca edite à mão (é recriada com force-push a ca
 | Mudar países, zonas e fontes do Radar | `backend/config/radar.yaml` |
 | Testar se uma fonte nova responde dos servidores do GitHub | `.github/diagnose/urls.txt` + push (workflow "Diagnóstico de fontes") |
 | Ligar os focos de calor (NASA) | Crie a chave grátis em firms.modaps.eosdis.nasa.gov/api/map_key e salve como secret `FIRMS_MAP_KEY` (Settings → Secrets and variables → Actions) |
+| Atualizar dados fixos (mortes UCDP, gastos SIPRI, ogivas FAS) | `backend/tools/gerar_dados_fixos.py` (troque a URL da edição nova e rode; instruções no topo do arquivo) |
 | Forçar uma coleta agora | Actions → "Atualizar feed" → **Run workflow** |
 | Ver se os feeds estão ok | `sources_status.json` na `gh-pages` |
 

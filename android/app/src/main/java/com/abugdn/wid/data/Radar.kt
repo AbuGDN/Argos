@@ -38,6 +38,7 @@ data class RadarData(
     val gas: GasSection? = null,
     val press: PressSection? = null,
     val sanctionlist: SanctionListSection? = null,
+    val attention: AttentionSection? = null,
     val status: Map<String, SectionStatus> = emptyMap(),
 )
 

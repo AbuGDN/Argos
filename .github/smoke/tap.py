@@ -24,3 +24,4 @@ for node in re.finditer(r"<node [^>]*>", xml):
             print(f"tocou em '{target}'")
         sys.exit(0)
 print(f"não achou '{target}'")
+sys.exit(1)  # o run.sh usa o código para rolar a lista até achar

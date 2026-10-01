@@ -88,6 +88,8 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("radar:2", "🇺🇦", "Placar aéreo da Ucrânia", "Drones e mísseis lançados por noite e quantos foram abatidos", "drones misseis ucrania abatidos noite"),
         Tool("radar:2", "🌾", "Fome nas zonas de guerra", "Pessoas em crise alimentar (IPC) e preço dos alimentos", "fome ipc comida alimentos precos crise"),
         Tool("radar:2", "🏚", "Deslocados e refugiados", "Quantos fugiram de cada país e para onde foram (ACNUR)", "refugiados deslocados acnur fuga migracao"),
+        Tool("attention:0", "👀", "Atenção do mundo", "Quantas pessoas leem sobre cada guerra na Wikipédia, em 8 idiomas", "atencao wikipedia leitura interesse visitas audiencia"),
+        Tool("attention:1", "🕯", "Guerras esquecidas", "As guerras que mais matam e menos aparecem: mortes × atenção", "esquecidas esquecida mortes atencao sudao congo sahel mianmar ucdp"),
         Tool("radar:2", "📰", "Imprensa sob fogo", "Jornalistas mortos neste ano, por país (CPJ)", "jornalistas mortos imprensa cpj"),
         Tool("radar:1", "⛽", "Gás na Europa", "Estoques de gás da UE e o gás russo que ainda chega", "gas energia europa estoque russia turkstream"),
         Tool("radar:3", "🇺🇳", "Conselho de Segurança da ONU", "Reuniões, resoluções aprovadas, vetos e votações previstas", "onu veto resolucao conselho seguranca"),
@@ -99,6 +101,8 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
     "Aprender" to listOf(
         Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
         Tool("arms", "🔫", "Quem arma quem", "Quem vende e quem compra armas, e de onde vêm as armas das guerras (SIPRI)", "armas exportacao importacao sipri fornecedor"),
+        Tool("milex", "💰", "Gastos militares", "Quanto cada país gasta com as forças armadas, em dólares e em % do PIB (SIPRI)", "gastos militares orcamento defesa pib dinheiro sipri"),
+        Tool("nuclear", "☢", "Arsenais nucleares", "Quantas ogivas cada país tem, quantas estão instaladas e quantas guardadas (FAS)", "nuclear ogivas bomba atomica arsenal armas nucleares"),
         Tool("alliances", "🕸", "Quem apoia quem", "Rede de alianças, apoios e rivalidades entre países e grupos", "aliancas aliados apoio rivais rede grupos"),
         Tool("method", "🔬", "Como sabemos?", "Como o Argos junta notícias, mede confiança e calcula a tensão", "metodologia confianca calculo transparencia fontes"),
     ),

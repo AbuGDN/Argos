@@ -1,0 +1,2 @@
+# Só para os geradores de backend/tools (rodam no PC, não no GitHub Actions).
+openpyxl==3.1.5

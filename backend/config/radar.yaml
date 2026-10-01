@@ -374,3 +374,27 @@ press:
 # Lista consolidada de sanções (OpenSanctions) publicada como sanctions.tsv.gz para a busca do app.
 sanctionlist:
   interval: 1440
+
+# Atenção do mundo: visitas diárias aos artigos da Wikipédia de cada guerra (API de pageviews da
+# Wikimedia, sem chave), somando os idiomas de `langs`. `articles` são títulos da Wikipédia em inglês;
+# os outros idiomas vêm dos links entre idiomas do próprio artigo. `ucdp` são os conflict_id do UCDP
+# (mortes em combate) da mesma guerra: backend/tools/gerar_dados_fixos.py lê esta lista para gerar
+# android/.../data/WarDeaths.kt. Mudou a lista? Rode o gerador de novo.
+attention:
+  interval: 720
+  days: 30
+  langs: [en, es, fr, de, pt, ar, ru, ja]
+  conflicts:
+    - {id: ucrania, name: Ucrânia, tag: ucrania_russia, ucdp: [13243], articles: ["Russo-Ukrainian war (2022–present)"]}
+    - {id: gaza, name: Gaza, tag: gaza, ucdp: [234], articles: ["Gaza war"]}
+    - {id: sudao, name: Sudão, tag: sudao, ucdp: [309], articles: ["Sudanese civil war (2023–present)"]}
+    - {id: congo, name: RD Congo, tag: africa, ucdp: [283, 14692], articles: ["M23 campaign (2022–present)", "Kivu conflict"]}
+    - {id: etiopia, name: Etiópia, tag: africa, ucdp: [16069, 413], articles: ["Fano insurgency", "Oromo conflict"]}
+    - {id: somalia, name: Somália, tag: somalia, ucdp: [337, 14197], articles: ["Somali Civil War (2009–present)"]}
+    - {id: sahel, name: "Sahel (Burkina Faso, Mali, Níger)", tag: africa, ucdp: [360, 13840, 11347, 14113, 16038, 430, 13639], articles: ["War in the Sahel", "Islamist insurgency in Burkina Faso", "Mali War"]}
+    - {id: paquistao, name: Paquistão, tag: asia, ucdp: [404, 325, 13936], articles: ["Insurgency in Khyber Pakhtunkhwa", "Insurgency in Balochistan"]}
+    - {id: nigeria, name: Nigéria, tag: africa, ucdp: [13641, 297, 303], articles: ["Boko Haram insurgency"]}
+    - {id: mianmar, name: Mianmar, tag: asia, ucdp: [222, 221, 223, 231, 253, 439], articles: ["Myanmar civil war (2021–present)"]}
+    - {id: ira_israel, name: Irã × Israel, tag: ira, ucdp: [14609], articles: ["Twelve-Day War"]}
+    - {id: haiti, name: Haiti, ucdp: [381], articles: ["Haitian conflict"]}
+    - {id: iemen, name: Iêmen, tag: iemen, ucdp: [230, 402, 16099, 16470], articles: ["Yemeni civil war (2014–present)", "Red Sea crisis"]}

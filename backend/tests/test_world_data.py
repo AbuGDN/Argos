@@ -175,3 +175,38 @@ def test_collectors_end_to_end():
     press = _client([("cpj", {"pageCount": 1, "data": [{"fullName": "X", "country": "Sudan", "startDisplay": "May 1, 2026"}]})])
     out = radar.collect_press(_ctx(press, {}))
     assert out["killed_this_year"] == 1 and out["recent"][0]["tag"] == "sudao"
+
+
+def test_collect_attention():
+    # Gaza: o título em inglês é redirecionamento; pt vem do link entre idiomas; ar não tem artigo.
+    # Sem título: artigo inexistente -> o conflito some, os outros continuam.
+    def handler(req: httpx.Request):
+        url = req.url
+        if url.path.endswith("/w/api.php"):
+            title = url.params["titles"]
+            if title == "Gaza war":
+                return httpx.Response(200, json={"query": {"pages": [{"title": "Gaza war (2023–present)", "langlinks": [
+                    {"lang": "pt", "title": "Guerra em Gaza"}, {"lang": "fr", "title": "Guerre de Gaza"}]}]}})
+            return httpx.Response(200, json={"query": {"pages": [{"title": title, "missing": True}]}})
+        assert req.headers["user-agent"].startswith("Argos/")
+        path = url.raw_path.decode()
+        if "/en.wikipedia.org/" in path:
+            assert "Gaza_war_%282023%E2%80%93present%29" in path  # título final, espaço vira _
+            items = [{"timestamp": "2026092800", "views": 100}, {"timestamp": "2026092700", "views": 50}]
+        elif "/pt.wikipedia.org/" in path:
+            items = [{"timestamp": "2026092800", "views": 10}]
+        else:
+            return httpx.Response(404, json={"title": "Not found."})
+        return httpx.Response(200, json={"items": items})
+
+    conf = {"days": 30, "langs": ["en", "pt", "ar"], "conflicts": [
+        {"id": "gaza", "name": "Gaza", "tag": "gaza", "articles": ["Gaza war"]},
+        {"id": "x", "name": "X", "articles": ["Nao existe"]},
+    ]}
+    out = radar.collect_attention(_ctx(httpx.Client(transport=httpx.MockTransport(handler)), conf))
+    assert out["start"] == "2026-08-30" and out["end"] == "2026-09-28"  # 30 dias até anteontem
+    assert [c["id"] for c in out["conflicts"]] == ["gaza"]
+    g = out["conflicts"][0]
+    assert len(g["series"]) == 30 and g["series"][-1] == ["2026-09-28", 110] and g["series"][0] == ["2026-08-30", 0]
+    assert g["views_7d"] == 160 and g["views_prev_7d"] == 0 and g["views_total"] == 160
+    assert g["by_lang"] == {"en": 150, "pt": 10} and g["tag"] == "gaza"

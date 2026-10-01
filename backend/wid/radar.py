@@ -20,6 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import yaml
@@ -1975,6 +1976,92 @@ def collect_sanctionlist(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Atenção do mundo: visitas aos artigos da Wikipédia de cada guerra (Wikimedia, sem chave)
+# ---------------------------------------------------------------------------
+
+WIKI_API = "https://{lang}.wikipedia.org/w/api.php"
+PAGEVIEWS = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{lang}.wikipedia.org/all-access/user/"
+             "{title}/daily/{start}/{end}")
+# A Wikimedia pede um user-agent que identifique o programa (só ASCII).
+WIKI_HEADERS = {"User-Agent": "Argos/1.0 (https://github.com/AbuGDN/Argos; app pessoal de noticias)"}
+
+
+def wiki_titles(client: httpx.Client, title: str, langs: list[str]) -> dict[str, str]:
+    """Título em inglês -> {idioma: título} do mesmo artigo. Segue redirecionamento: as visitas
+    contam só no título exato, e um redirecionamento teria quase zero."""
+    data = _get_json(client, WIKI_API.format(lang="en"), headers=WIKI_HEADERS, params={
+        "action": "query", "titles": title, "redirects": 1, "prop": "langlinks", "lllimit": "max",
+        "format": "json", "formatversion": 2})
+    page = (data.get("query", {}).get("pages") or [{}])[0]
+    if page.get("missing") or not page.get("title"):
+        raise RuntimeError(f"artigo não existe: {title}")
+    links = {ll["lang"]: ll["title"] for ll in page.get("langlinks", [])}
+    out = {"en": page["title"]} if "en" in langs else {}
+    out.update({lang: links[lang] for lang in langs if lang != "en" and lang in links})
+    return out
+
+
+def wiki_daily_views(client: httpx.Client, lang: str, title: str, start: str, end: str) -> dict[str, int]:
+    """{AAAA-MM-DD: visitas de pessoas} entre start e end (AAAAMMDD). Sem dado no período: {}."""
+    url = PAGEVIEWS.format(lang=lang, title=quote(title.replace(" ", "_"), safe=""), start=start, end=end)
+    resp = client.get(url, headers=WIKI_HEADERS)
+    if resp.status_code == 404:  # artigo sem visitas registradas no período
+        return {}
+    resp.raise_for_status()
+    out = {}
+    for it in resp.json().get("items", []):
+        ts = str(it.get("timestamp") or "")
+        if len(ts) >= 8:
+            out[f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}"] = int(it.get("views") or 0)
+    return out
+
+
+def attention_summary(daily: dict[str, int], dates: list[str], by_lang: dict[str, int]) -> dict:
+    """Série diária (dias sem dado = 0) e as somas de 7, 7 anteriores e 30 dias."""
+    series = [daily.get(d, 0) for d in dates]
+    return {"views_7d": sum(series[-7:]), "views_prev_7d": sum(series[-14:-7]), "views_total": sum(series),
+            "series": [[d, v] for d, v in zip(dates, series)],
+            "by_lang": dict(sorted(by_lang.items(), key=lambda kv: kv[1], reverse=True))}
+
+
+def collect_attention(ctx: Ctx) -> dict:
+    days = int(ctx.conf.get("days", 30))
+    langs = list(ctx.conf.get("langs") or ["en"])
+    # A Wikimedia fecha o dia em UTC e publica com algumas horas de atraso: vai até anteontem.
+    last = (ctx.now - timedelta(days=2)).date()
+    dates = [(last - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+    start, end = dates[0].replace("-", ""), dates[-1].replace("-", "")
+    out = []
+    for c in ctx.conf["conflicts"]:
+        daily: dict[str, int] = {}
+        by_lang: dict[str, int] = {}
+        found = 0
+        for article in c.get("articles", []):
+            try:
+                titles = wiki_titles(ctx.client, article, langs)
+            except Exception as exc:
+                log.info("atenção %s (%s): %s", c["id"], article, exc)
+                continue
+            for lang, title in titles.items():
+                try:
+                    views = wiki_daily_views(ctx.client, lang, title, start, end)
+                except Exception as exc:
+                    log.info("atenção %s %s:%s: %s", c["id"], lang, title, exc)
+                    continue
+                found += 1
+                for d, v in views.items():
+                    daily[d] = daily.get(d, 0) + v
+                by_lang[lang] = by_lang.get(lang, 0) + sum(views.values())
+        if not found:
+            continue
+        out.append({"id": c["id"], "name": c["name"], "tag": c.get("tag"), **attention_summary(daily, dates, by_lang)})
+    if not out:
+        raise RuntimeError("Wikimedia sem dados")
+    out.sort(key=lambda r: r["views_7d"], reverse=True)
+    return {"start": dates[0], "end": dates[-1], "langs": langs, "conflicts": out}
+
+
+# ---------------------------------------------------------------------------
 # Orquestração
 # ---------------------------------------------------------------------------
 
@@ -2008,6 +2095,7 @@ COLLECTORS = {
     "gas": collect_gas,
     "press": collect_press,
     "sanctionlist": collect_sanctionlist,
+    "attention": collect_attention,
 }
 
 

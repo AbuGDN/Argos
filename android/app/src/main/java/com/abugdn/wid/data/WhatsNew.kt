@@ -11,6 +11,16 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        45,
+        listOf(
+            "👀 Atenção do mundo: quantas pessoas leem sobre cada guerra na Wikipédia em 8 idiomas, com a semana comparada à anterior (Ferramentas → Radar).",
+            "🕯 Guerras esquecidas: a parte de cada guerra nas mortes em combate e na atenção do mundo; no topo, as que matam muito e quase ninguém lê (Ferramentas → Radar).",
+            "💰 Gastos militares: quem mais gasta, quem gasta mais em relação à economia e a evolução desde 2000 dos países em guerra e do Brasil (Ferramentas → Aprender).",
+            "☢ Arsenais nucleares: quantas ogivas cada país tem, quantas estão instaladas e quantas guardadas (Ferramentas → Aprender).",
+            "🚫 Quem está sancionado? agora mostra quem sancionou cada nome (antes a linha vinha vazia).",
+        ),
+    ),
+    ChangelogEntry(
         44,
         listOf(
             "🌾 Fome nas zonas de guerra: quantas pessoas estão em crise alimentar ou catástrofe (IPC) e quanto subiu o preço da comida (Radar → Números).",

@@ -233,7 +233,7 @@ private fun App(
             "clock" -> { closeAll(); clockOpen = true }
             "tools" -> { closeAll(); toolsOpen = true }
             "sirens", "deadlines", "scale", "course", "contradictions", "method", "rules", "compare", "sources", "alliances", "diplomacy", "topic", "monthly",
-            "sanctions", "arms", "verify", "satellite" -> {
+            "sanctions", "arms", "verify", "satellite", "attention", "milex", "nuclear" -> {
                 closeAll(); page = route.substringBefore(':'); pageArg = arg
             }
             "settings" -> { closeAll(); settingsOpen = true }
@@ -356,6 +356,9 @@ private fun App(
                         "arms" -> ArmsScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it })
                         "verify" -> VerifyImageScreen(pageArg, onBack = { page = null })
                         "satellite" -> SatelliteScreen(pageArg, onBack = { page = null })
+                        "attention" -> AttentionScreen(pageArg.toIntOrNull() ?: 0, onBack = { page = null }, onRegion = { page = null; regionOpen = it })
+                        "milex" -> MilexScreen(onBack = { page = null })
+                        "nuclear" -> NuclearScreen(onBack = { page = null })
                         else -> CourseScreen(onBack = { page = null }, onRegion = { page = null; regionOpen = it }, initial = pageArg.ifBlank { null })
                     }
                 }
