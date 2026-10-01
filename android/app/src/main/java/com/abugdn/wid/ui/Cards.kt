@@ -163,3 +163,27 @@ fun LoadingCards(message: String, count: Int = 3) {
     }
 }
 
+/**
+ * Abas do Argos: sem o recuo lateral do `text =` do Tab (com ele, em tela estreita os nomes quebravam
+ * em duas linhas: "Sensor/es", "Guerras e/Brasil"). [dots]: abas com bolinha vermelha de alerta.
+ */
+@Composable
+fun ArgosTabs(
+    titles: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    dots: Set<Int> = emptySet(),
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelLarge,
+) {
+    androidx.compose.material3.TabRow(selectedTabIndex = selected) {
+        titles.forEachIndexed { i, label ->
+            androidx.compose.material3.Tab(selected = selected == i, onClick = { onSelect(i) }) {
+                Row(Modifier.padding(horizontal = 4.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, style = style, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    if (i in dots) Text(" ●", color = Alert, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+

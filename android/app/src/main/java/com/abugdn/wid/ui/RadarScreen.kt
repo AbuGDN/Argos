@@ -150,20 +150,8 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
             }
             val sensorsAlert = radar?.let { radarAlerts(it).isNotEmpty() } == true
             val analysisAlert = radar?.crisiswatch?.let { it.deteriorated.isNotEmpty() || it.risk.isNotEmpty() } == true
-            TabRow(selectedTabIndex = tab) {
-                RADAR_TABS.forEachIndexed { i, label ->
-                    // Bolinha vermelha na categoria que tem alerta agora.
-                    val dot = (i == 0 && sensorsAlert) || (i == 3 && analysisAlert)
-                    // Conteúdo próprio (sem o recuo lateral do `text =` do Tab): com o recuo, em tela
-                    // estreita "Sensores" quebrava em duas linhas.
-                    Tab(selected = tab == i, onClick = { onTab(i) }) {
-                        Row(Modifier.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
-                            if (dot) Text(" ●", color = Alert, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
+            // Bolinha vermelha na categoria que tem alerta agora.
+            ArgosTabs(RADAR_TABS, tab, onTab, dots = setOfNotNull(0.takeIf { sensorsAlert }, 3.takeIf { analysisAlert }))
             val data = radar
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp)) {
                 if (data == null) {

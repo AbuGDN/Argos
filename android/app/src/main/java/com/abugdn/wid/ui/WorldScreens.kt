@@ -215,11 +215,7 @@ fun ArmsScreen(onBack: () -> Unit, onRegion: (String) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     SimpleScaffold("Quem arma quem", onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Quem vende") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Quem compra") })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("De quem") })
-            }
+            ArgosTabs(listOf("Quem vende", "Quem compra", "De quem"), tab, { tab = it })
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 24.dp)) {
                 when (tab) {
                     0 -> {

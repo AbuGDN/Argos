@@ -98,10 +98,7 @@ fun AttentionScreen(initialTab: Int, onBack: () -> Unit, onRegion: (String) -> U
     val forgotten = remember(attention) { forgottenRows(attention) }
     SimpleScaffold("Atenção do mundo", onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("O que o mundo lê") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Guerras esquecidas") })
-            }
+            ArgosTabs(listOf("O que o mundo lê", "Guerras esquecidas"), tab, { tab = it })
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 24.dp)) {
                 if (tab == 0) {
                     item {
@@ -230,11 +227,7 @@ fun MilexScreen(onBack: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     SimpleScaffold("Gastos militares", onBack) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Quem mais gasta") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("% do PIB") })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Guerras e Brasil") })
-            }
+            ArgosTabs(listOf("Quem mais gasta", "% do PIB", "Guerras e Brasil"), tab, { tab = it }, style = MaterialTheme.typography.labelMedium)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 24.dp)) {
                 when (tab) {
                     0 -> {
@@ -303,7 +296,7 @@ fun NuclearScreen(onBack: () -> Unit) {
                         "Instaladas = prontas em mísseis e bases; estoque = as que podem ser usadas; o resto são aposentadas à espera de desmonte.",
                 )
             }
-            items(NUCLEAR_FORCES, key = { "n-" + it.country }) { NuclearRow(it, max) }
+            items(NUCLEAR_FORCES.sortedByDescending { it.total ?: 0 }, key = { "n-" + it.country }) { NuclearRow(it, max) }
             item {
                 Note(
                     "Fonte: Federation of American Scientists (FAS), Status of World Nuclear Forces, $NUCLEAR_AS_OF. São estimativas: " +

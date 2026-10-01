@@ -45,6 +45,8 @@ ICONS = {
     "🧮": ["calculate"], "🕘": ["schedule"], "🛒": ["shopping_cart"], "📦": ["inventory_2"],
     "🧾": ["receipt_long"], "📱": ["smartphone"], "🖥": ["computer"],
     "▶": ["play_circle"],
+    # Temas da tela Hoje (TOPIC_LABELS em Models.kt).
+    "🛸": ["drone", "flight"], "🚀": ["rocket_launch"], "🩹": ["healing"], "💻": ["laptop", "computer"],
 }
 
 

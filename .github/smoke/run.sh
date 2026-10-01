@@ -41,7 +41,7 @@ tap "Radar" 3; tap "Mapa" 6; shot 04g-mapa-de-volta-2
 tap "Radar" 5; shot 05-radar
 for t in Mercados "Números" Vozes; do tap "$t" 4; shot "06-radar-$t"; done
 # Vozes termina com a Análise; Números com o Contexto (eram abas à parte até a 1.0.45).
-for i in 1 2 3 4 5 6; do swipeup 1; done; shot 06b-radar-vozes-analise
+for i in $(seq 1 25); do python3 .github/smoke/tap.py "ANÁLISE" >/dev/null && break; swipeup 1; done; shot 06b-radar-vozes-analise
 tap "Números" 4
 for i in 1 2 3 4 5 6 7 8; do swipeup 1; done; shot 06c-radar-numeros-contexto
 tap "Israel" 6; shot 07-quem-manda
