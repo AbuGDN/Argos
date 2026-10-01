@@ -39,6 +39,15 @@ para continuar o trabalho sem redescobrir tudo.
     todas as linhas (corrigido no `ad4a331`). **press**: a base pública do CPJ não recebe mortos desde
     15/01/2025 (2023: 103, 2024: 124, 2025: 7, 2026: 0); o código consulta certo, a fonte parou. O cartão
     mostra "0 neste ano" como se fosse dado real — decisão pendente do dono.
+  - Fontes para features novas, medidas do PC e do GitHub (Diagnóstico de fontes, run 36798568135):
+    ✅ Wikimedia pageviews (GitHub ok, CORS *); ✅ SIPRI milex `SIPRI-Milex-data-1949-2025_v1.2.xlsx`
+    (fixo); ✅ FAS "Status of World Nuclear Forces" (início de 2026, fixo); ✅ UCDP downloads públicos
+    (`ucdp-brd-conf-261-csv.zip`, mortes em combate até 2025; a API pede token). ⚠️ CFR Cyber Operations:
+    CSV público ok no GitHub, mas o registro mais novo é de 19/12/2023. ⚠️ Assembleia Geral: listagem do
+    press.un.org ok no GitHub, a página do comunicado dá desafio anti-robô (3 KB); placar só pelo RSS
+    (não provado: nenhum item de votação no RSS no dia do teste); digitallibrary.un.org bloqueia tudo (202
+    vazio). ❌ GDELT: 429 a partir do GitHub (GEO 2.0 dá 404). ❌ ACLED (403) e API da UCDP (401) pedem
+    cadastro/chave. ❌ NOTAM da FAA: 403 (Akamai); a API oficial pede cadastro.
 - Fora do app: `web/carrossel/` (slides do Instagram, só para o dono) e um vídeo de apresentação de 30 s
   (vertical, feito com a skill "motion-graphics-video" do próprio dono; o vídeo e o código dele não
   estão no repositório).
