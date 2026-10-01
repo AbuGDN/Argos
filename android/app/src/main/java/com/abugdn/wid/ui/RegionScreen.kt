@@ -58,9 +58,12 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit, onRo
     val trend = stats?.days.orEmpty().takeLast(14).map { it.counts[tag] ?: 0 }
     val tensionDays = stats?.days.orEmpty().takeLast(30).mapNotNull { d -> d.tension[tag]?.let { d.date to it } }
     val vigil by repo.vigil.collectAsStateWithLifecycle()
-    val peaks = vigil.filter { it.region == tag && (it.kind == "tension" || it.kind == "spike") }.take(5)
-
     val stat = feed?.regions?.get(tag)
+    // A alta incomum de agora já aparece em destaque no topo: na lista de picos, só as anteriores.
+    val recent = System.currentTimeMillis() - 6 * 3_600_000L
+    val peaks = vigil.filter { it.region == tag && (it.kind == "tension" || it.kind == "spike") }
+        .filterNot { stat?.spike == true && it.kind == "spike" && it.time >= recent }
+        .take(5)
     val radar by repo.radar.collectAsStateWithLifecycle()
     val context = LocalContext.current
     Scaffold(
@@ -103,12 +106,12 @@ fun RegionScreen(tag: String, onBack: () -> Unit, onOpen: (String) -> Unit, onRo
                         Modifier.padding(top = 12.dp),
                         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
                     ) {
-                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:at:$tag") }, label = { Text("🗺 Ver no mapa") })
-                        androidx.compose.material3.AssistChip(onClick = { onRoute("radar:0") }, label = { Text("📡 Radar") })
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:at:$tag") }, label = { IconText("🗺 Ver no mapa") })
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("radar:0") }, label = { IconText("📡 Radar") })
                         if (tag == "ucrania_russia") {
                             androidx.compose.material3.AssistChip(onClick = { onRoute("map:frontline") }, label = { Text("🇺🇦 Linha de frente") })
                         }
-                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:trend") }, label = { Text("📊 Tendência") })
+                        androidx.compose.material3.AssistChip(onClick = { onRoute("map:trend") }, label = { IconText("📊 Tendência") })
                     }
                     TruceCards(tag)
                     RegionRadarCard(tag)

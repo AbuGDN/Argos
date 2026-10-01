@@ -97,7 +97,7 @@ fun DossiersTab(onOpen: (String) -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("🗂 ${d.title}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    IconText("🗂 ${d.title}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         "${d.entries.size} notícias · termos: ${d.terms.joinToString(", ")}",
                         style = MaterialTheme.typography.labelSmall,
@@ -257,7 +257,7 @@ fun PredictionsTab() {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("🎯 SEU PLACAR", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+                    IconText("🎯 SEU PLACAR", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
                     if (s.total == 0) {
                         Text("Registre um palpite sobre as guerras. Na data, o Argos pergunta se você acertou.", style = MaterialTheme.typography.bodyMedium)
                     } else {

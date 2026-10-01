@@ -182,7 +182,7 @@ fun TensionBreakdown(stat: RegionStat, modifier: Modifier = Modifier) {
             Text("• Radar: ${s.name} (${s.status})", style = MaterialTheme.typography.bodySmall, color = Alert, modifier = Modifier.padding(top = 2.dp))
         }
         if (stat.spike) {
-            Text(
+            IconText(
                 "⚠ Alta incomum: ${stat.last6} histórias nas últimas 6 h, ritmo de ${stat.spikeRatio}× o normal (o alerta dispara a partir de 3×).",
                 style = MaterialTheme.typography.bodySmall,
                 color = Alert,

@@ -26,7 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,7 +93,17 @@ private val intFmt: NumberFormat = NumberFormat.getIntegerInstance(ptBR)
 private fun fmt(n: Number) = intFmt.format(n)
 
 /** Categorias da aba Radar. */
-private val RADAR_TABS = listOf("Sensores", "Mercados", "Números", "Vozes", "Análise", "Contexto")
+// Eram 6 abas e as duas últimas ficavam escondidas fora da tela: Contexto entrou no fim de Números e
+// Análise no fim de Vozes. Rotas antigas ("radar:4", "radar:5") são traduzidas em [radarTabFor].
+private val RADAR_TABS = listOf("Sensores", "Mercados", "Números", "Vozes")
+
+/** Aba da rota "radar:N", aceitando os números de antes da junção (4 = Análise, 5 = Contexto). */
+fun radarTabFor(n: Int): Int = when (n) {
+    4 -> 3
+    5 -> 2
+    in RADAR_TABS.indices -> n
+    else -> 0
+}
 
 private val Moss = Color(0xFF6E8B6A)
 private val Copper = Color(0xFFC8662B)
@@ -140,10 +150,10 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
             }
             val sensorsAlert = radar?.let { radarAlerts(it).isNotEmpty() } == true
             val analysisAlert = radar?.crisiswatch?.let { it.deteriorated.isNotEmpty() || it.risk.isNotEmpty() } == true
-            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
+            TabRow(selectedTabIndex = tab) {
                 RADAR_TABS.forEachIndexed { i, label ->
                     // Bolinha vermelha na categoria que tem alerta agora.
-                    val dot = (i == 0 && sensorsAlert) || (i == 4 && analysisAlert)
+                    val dot = (i == 0 && sensorsAlert) || (i == 3 && analysisAlert)
                     Tab(selected = tab == i, onClick = { onTab(i) }, text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(label)
@@ -154,22 +164,22 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
             }
             val data = radar
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 24.dp)) {
-                if (data == null && tab < 5) {
-                    item {
-                        Text(
-                            "O Radar ainda não foi baixado. Puxe o feed na tela Hoje ou toque em atualizar; " +
-                                "os dados chegam junto com as notícias.",
-                            modifier = Modifier.padding(vertical = 16.dp),
-                        )
-                    }
+                if (data == null) {
+                    item { LoadingCards("Baixando o Radar: os dados chegam junto com as notícias. Se demorar, toque em atualizar.", count = 2) }
                 }
                 when (tab) {
                     0 -> data?.let { sensors(it, onRegion) }
                     1 -> data?.let { markets(it) }
-                    2 -> numbers(data, onOpen, onRegion)
-                    3 -> data?.let { voices(it, onRegion) }
-                    4 -> data?.let { analysis(it, onOpen, onRegion) }
-                    else -> contextTab(data, onRegion)
+                    2 -> {
+                        numbers(data, onOpen, onRegion)
+                        tabSection("Contexto")
+                        contextTab(data, onRegion)
+                    }
+                    else -> data?.let {
+                        voices(it, onRegion)
+                        tabSection("Análise")
+                        analysis(it, onOpen, onRegion)
+                    }
                 }
             }
         }
@@ -178,6 +188,26 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
 
 // ---------------------------------------------------------------------------
 // Blocos comuns
+// ---------------------------------------------------------------------------
+
+/** Divisória com título entre as duas partes de uma aba (Números → Contexto, Vozes → Análise). */
+private fun LazyListScope.tabSection(title: String) {
+    item(key = "secao-$title") {
+        Column(Modifier.fillMaxWidth().padding(top = 24.dp)) {
+            HorizontalDivider()
+            Text(
+                title.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = Accent,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cartões usados por mais de uma aba
 // ---------------------------------------------------------------------------
 
 /** "O que mudou desde a última vez" que a pessoa abriu o Radar. */

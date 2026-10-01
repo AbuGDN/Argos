@@ -18,6 +18,11 @@ val CHANGELOG = listOf(
             "💰 Gastos militares: quem mais gasta, quem gasta mais em relação à economia e a evolução desde 2000 dos países em guerra e do Brasil (Ferramentas → Aprender).",
             "☢ Arsenais nucleares: quantas ogivas cada país tem, quantas estão instaladas e quantas guardadas (Ferramentas → Aprender).",
             "🚫 Quem está sancionado? agora mostra quem sancionou cada nome (antes a linha vinha vazia).",
+            "🗺 Mapa escuro, combinando com o app, e com os nomes dos lugares em inglês (antes vinham no idioma local, como árabe e hebraico).",
+            "✨ Ícones dourados no lugar dos emojis nos títulos, botões e ferramentas.",
+            "📡 Radar com 4 abas que cabem na tela: a Análise agora fica no fim de Vozes, e o Contexto no fim de Números.",
+            "🧰 Ferramentas com busca, \"Mais usadas por você\" e grupos que você pode recolher.",
+            "🏠 Tela Hoje mais limpa: os temas viraram um botão na fileira das regiões, e na primeira abertura as notícias carregam sozinhas.",
         ),
     ),
     ChangelogEntry(

@@ -131,7 +131,7 @@ fun HungerCard(radar: RadarData, onRegion: (String) -> Unit) {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (ipc.phase5 > 0) {
-                        Text("⚠ ${bigNumber(ipc.phase5)} em catástrofe (fase 5)", style = MaterialTheme.typography.bodySmall, color = Alert, fontWeight = FontWeight.Bold)
+                        IconText("⚠ ${bigNumber(ipc.phase5)} em catástrofe (fase 5)", style = MaterialTheme.typography.bodySmall, color = Alert, fontWeight = FontWeight.Bold)
                     } else if (ipc.phase4 > 0) {
                         Text("${bigNumber(ipc.phase4)} em emergência (fase 4)", style = MaterialTheme.typography.bodySmall)
                     }
@@ -144,7 +144,7 @@ fun HungerCard(radar: RadarData, onRegion: (String) -> Unit) {
                 }
                 c.prices.forEach { p ->
                     Row(Modifier.fillMaxWidth()) {
-                        Text("🛒 ${p.name}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                        IconText("🛒 ${p.name}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                         Text(
                             (if (p.change >= 0) "+" else "") + "%.0f%%".format(ptBR, p.change) + " desde ${monthYear(p.from)}",
                             style = MaterialTheme.typography.labelMedium,

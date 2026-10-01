@@ -5,15 +5,21 @@ import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 
@@ -40,7 +46,7 @@ private fun newSmallMap(context: Context, center: GeoPoint, zoom: Double, minZoo
         osmdroidTileCache = java.io.File(osmdroidBasePath, "tiles")
     }
     return MapView(context).apply {
-        setTileSource(TileSourceFactory.MAPNIK)
+        useArgosTiles()
         setMultiTouchControls(true)
         setDestroyMode(false)
         isHorizontalMapRepetitionEnabled = false
@@ -60,16 +66,26 @@ private fun newSmallMap(context: Context, center: GeoPoint, zoom: Double, minZoo
 
 @Composable
 fun SmallMap(map: MapView, modifier: Modifier = Modifier, update: (MapView) -> Unit) {
-    AndroidView(
-        factory = { ctx ->
-            (map.parent as? ViewGroup)?.removeView(map)
-            FrameLayout(ctx).apply {
-                clipChildren = true
-                clipToPadding = true
-                addView(map, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            }
-        },
-        modifier = modifier.clipToBounds(),
-        update = { _ -> runCatching { update(map); map.invalidate() } },
-    )
+    Box(modifier.clipToBounds()) {
+        AndroidView(
+            factory = { ctx ->
+                (map.parent as? ViewGroup)?.removeView(map)
+                FrameLayout(ctx).apply {
+                    clipChildren = true
+                    clipToPadding = true
+                    addView(map, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                }
+            },
+            modifier = Modifier.matchParentSize().clipToBounds(),
+            update = { _ -> runCatching { update(map); map.invalidate() } },
+        )
+        // A Esri pede o crédito visível no próprio mapa.
+        Text(
+            DARK_MAP_CREDIT,
+            style = MaterialTheme.typography.labelSmall,
+            color = Bone.copy(alpha = 0.7f),
+            maxLines = 1,
+            modifier = Modifier.align(Alignment.BottomStart).background(Ink.copy(alpha = 0.6f)).padding(horizontal = 4.dp),
+        )
+    }
 }

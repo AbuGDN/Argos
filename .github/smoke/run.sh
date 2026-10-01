@@ -4,8 +4,14 @@ set -x
 APK=android/app/build/outputs/apk/release/app-release.apk
 PKG=com.abugdn.wid
 tap() { python3 .github/smoke/tap.py "$1"; sleep "${2:-4}"; }
-# Rola a tela para baixo até achar o texto (lista longa, como Ferramentas) e toca nele.
-scrolltap() { for i in 1 2 3 4 5 6 7 8 9 10; do python3 .github/smoke/tap.py "$1" && { sleep "${2:-5}"; return; }; adb shell input swipe 500 1500 500 700 300; sleep 1; done; echo "NAO ACHOU $1"; }
+# O emulador padrão tem 320x640: coordenadas fixas (y=1500) caíam fora da tela. Tudo relativo ao tamanho real.
+read -r W H < <(adb shell wm size | head -1 | sed -E 's/.*: ([0-9]+)x([0-9]+).*/\1 \2/')
+echo "tela ${W}x${H}"
+swipeup() { adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 400; sleep "${1:-2}"; }
+# Reabre o app na frente e fecha o pop-up de novidades, se aparecer.
+reopen() { adb shell am start -n $PKG/.ui.MainActivity; sleep 6; tap "Entendi" 2; }
+# Abre uma ferramenta pela busca da tela Ferramentas.
+tool() { tap "Hoje" 3; tap "Ferramentas" 3; tap "Buscar ferramenta" 2; adb shell input text "$1"; sleep 2; adb shell input keyevent KEYCODE_BACK; sleep 1; tap "$2" 5; }
 shot() { adb exec-out screencap -p > "shots/$1.png"; }
 mkdir -p shots
 adb install -r "$APK"
@@ -27,11 +33,11 @@ tap "Frente" 8; shot 04e-frente
 tap "Tendência" 3; tap "Mapa" 6; shot 04f-mapa-de-volta
 tap "Radar" 3; tap "Mapa" 6; shot 04g-mapa-de-volta-2
 tap "Radar" 5; shot 05-radar
-for t in Mercados "Números" Vozes "Análise" Contexto; do tap "$t" 4; shot "06-radar-$t"; done
-adb shell input swipe 500 1800 500 500 400; sleep 2
-adb shell input swipe 500 1800 500 500 400; sleep 2
-adb shell input swipe 500 1800 500 400 400; sleep 2
-adb shell input swipe 500 1800 500 400 400; sleep 2
+for t in Mercados "Números" Vozes; do tap "$t" 4; shot "06-radar-$t"; done
+# Vozes termina com a Análise; Números com o Contexto (eram abas à parte até a 1.0.45).
+for i in 1 2 3 4 5 6; do swipeup 1; done; shot 06b-radar-vozes-analise
+tap "Números" 4
+for i in 1 2 3 4 5 6 7 8; do swipeup 1; done; shot 06c-radar-numeros-contexto
 tap "Israel" 6; shot 07-quem-manda
 tap "Benjamin Netanyahu" 8; shot 08-cartao-pessoa
 adb shell input keyevent KEYCODE_BACK; sleep 2
@@ -53,29 +59,28 @@ adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell input keyevent KEYCODE_BACK; sleep 2
 # Os dois "voltar" acima fecham o app (o roteiro seguia na tela inicial do Android desde o passo 15):
 # reabre antes de continuar.
-adb shell am start -n $PKG/.ui.MainActivity; sleep 6
+reopen
 tap "PRINCIPAL DO DIA" 6; shot 15-noticia   # abre a principal do dia
 tap "Cobertura" 3; shot 16-noticia-cobertura
 tap "Contexto" 3; shot 17-noticia-contexto
-adb shell input swipe 500 1600 500 700 300; sleep 2; shot 18-noticia-rolada
+swipeup; shot 18-noticia-rolada
 adb shell input keyevent KEYCODE_BACK; sleep 2
-adb shell input tap 540 1700; sleep 6; shot 19-noticia-lista   # uma notícia da lista
-# Telas da 1.0.45: atenção do mundo, guerras esquecidas, gastos militares, arsenais nucleares.
-# Fecha a notícia (sem ela a barra de baixo volta) e garante o app na frente.
+adb shell input tap $((W/2)) $((H*2/3)); sleep 6; shot 19-noticia-lista   # uma notícia da lista
+# Telas da 1.0.45: atenção do mundo, guerras esquecidas, gastos militares, arsenais nucleares,
+# busca e grupos das Ferramentas, temas da tela Hoje.
 adb shell input keyevent KEYCODE_BACK; sleep 2
-adb shell am start -n $PKG/.ui.MainActivity; sleep 6
-tap "Hoje" 3; tap "Ferramentas" 3
-scrolltap "Atenção do mundo"; shot 20-atencao
+reopen
+tap "Hoje" 3; tap "Temas" 3; shot 20a-temas; adb shell input keyevent KEYCODE_BACK; sleep 2
+tap "Ferramentas" 3; shot 20b-ferramentas-grupos; adb shell input keyevent KEYCODE_BACK; sleep 2
+tool "wikipedia" "Atenção do mundo"; shot 20-atencao
 tap "Guerras esquecidas" 3; shot 21-esquecidas
-adb shell input swipe 500 1600 500 600 300; sleep 2; shot 21b-esquecidas-rolada
+swipeup; shot 21b-esquecidas-rolada
 adb shell input keyevent KEYCODE_BACK; sleep 2
-tap "Hoje" 3; tap "Ferramentas" 3
-scrolltap "Gastos militares"; shot 22-gastos
+tool "gastos" "Gastos militares"; shot 22-gastos
 tap "% do PIB" 3; shot 22b-gastos-pib
 tap "Guerras e Brasil" 3; shot 22c-gastos-brasil
 adb shell input keyevent KEYCODE_BACK; sleep 2
-tap "Hoje" 3; tap "Ferramentas" 3
-scrolltap "Arsenais nucleares"; shot 23-nuclear
+tool "ogivas" "Arsenais nucleares"; shot 23-nuclear
 adb shell input keyevent KEYCODE_BACK; sleep 2
 sleep 20
 echo "=== processo vivo? ==="

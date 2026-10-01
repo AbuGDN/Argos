@@ -174,7 +174,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                 TextButton(
                     onClick = { openUrl(context, "https://lens.google.com/uploadbyurl?url=" + java.net.URLEncoder.encode(image, "UTF-8")) },
                     modifier = Modifier.padding(start = 8.dp),
-                ) { Text("🔍 Checar esta imagem (busca reversa)", style = MaterialTheme.typography.labelMedium) }
+                ) { IconText("🔍 Checar esta imagem (busca reversa)", style = MaterialTheme.typography.labelMedium) }
             }
             Column(Modifier.padding(16.dp)) {
                 if (cluster.urgent) {
@@ -248,7 +248,7 @@ fun DetailScreen(cluster: Cluster, onBack: () -> Unit, onOpen: (String) -> Unit,
                         cluster.tags.firstOrNull { it in com.abugdn.wid.data.TAG_LABELS }?.let { tag ->
                             RegionRadarCard(tag)
                             TextButton(onClick = { onRegion(tag) }) {
-                                Text("🌍 Tudo sobre ${com.abugdn.wid.data.TAG_LABELS[tag]}")
+                                IconText("🌍 Tudo sobre ${com.abugdn.wid.data.TAG_LABELS[tag]}")
                             }
                         }
                     }

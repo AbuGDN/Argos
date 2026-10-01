@@ -237,7 +237,7 @@ private fun App(
                 closeAll(); page = route.substringBefore(':'); pageArg = arg
             }
             "settings" -> { closeAll(); settingsOpen = true }
-            "radar" -> { closeAll(); radarTab = arg.toIntOrNull() ?: 0; tab = Tab.RADAR }
+            "radar" -> { closeAll(); radarTab = radarTabFor(arg.toIntOrNull() ?: 0); tab = Tab.RADAR }
             "region" -> { closeAll(); regionOpen = arg }
             "map" -> {
                 closeAll()

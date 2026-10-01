@@ -124,7 +124,7 @@ private fun RuleEditor(markets: List<Pair<String, String>>, onDismiss: () -> Uni
                     conditions.forEachIndexed { i, c ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text((if (i > 0) "E " else "SE ") + c.describe(null), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { conditions.removeAt(i) }) { Text("✕") }
+                            TextButton(onClick = { conditions.removeAt(i) }) { IconText("✕") }
                         }
                     }
                 }

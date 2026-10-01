@@ -136,7 +136,7 @@ private fun SavedNews(onOpen: (String) -> Unit) {
                     ) {
                         item { FilterChip(selected = folder == null, onClick = { folder = null }, label = { Text("Tudo") }) }
                         items(folders) { f ->
-                            FilterChip(selected = folder == f, onClick = { folder = if (folder == f) null else f }, label = { Text("📁 $f") })
+                            FilterChip(selected = folder == f, onClick = { folder = if (folder == f) null else f }, label = { IconText("📁 $f") })
                         }
                         if (hasLoose) {
                             item {

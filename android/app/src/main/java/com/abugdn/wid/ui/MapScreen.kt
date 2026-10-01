@@ -58,7 +58,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abugdn.wid.data.TAG_LABELS
 import com.abugdn.wid.repository
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -134,7 +133,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             osmdroidTileCache = java.io.File(osmdroidBasePath, "tiles")
         }
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            useArgosTiles()
             setMultiTouchControls(true)
             // Por padrão o osmdroid se destrói ao sair da tela (trocar para Tendência, abrir outra
             // tela por cima) e o MapView guardado volta quebrado: desenhar nele derrubava o app.
@@ -264,11 +263,11 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
             ) {
-                FilterChip(selected = satellite, onClick = { satellite = !satellite }, label = { Text("🛰 Satélite") })
+                FilterChip(selected = satellite, onClick = { satellite = !satellite }, label = { IconText("🛰 Satélite") })
                 FilterChip(
                     selected = byCity,
                     onClick = { byCity = !byCity },
-                    label = { Text("📍 Por cidade") },
+                    label = { IconText("📍 Por cidade") },
                 )
                 FilterChip(
                     selected = showBases,
@@ -276,7 +275,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         showBases = !showBases
                         if (showBases) mapView.controller.animateTo(GeoPoint(30.0, 42.0), 3.0, 600L)
                     },
-                    label = { Text("🪖 Bases") },
+                    label = { IconText("🪖 Bases") },
                 )
                 FilterChip(
                     selected = showRanges,
@@ -285,13 +284,13 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         highlight = null
                         if (showRanges) mapView.controller.animateTo(GeoPoint(30.0, 42.0), 3.6, 600L)
                     },
-                    label = { Text("🎯 Alcances") },
+                    label = { IconText("🎯 Alcances") },
                 )
                 if (fireZones.isNotEmpty()) {
                     FilterChip(
                         selected = showFires,
                         onClick = { showFires = !showFires },
-                        label = { Text("🔥 Focos") },
+                        label = { IconText("🔥 Focos") },
                     )
                 }
                 if (militaryZones.isNotEmpty()) {
@@ -301,7 +300,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             showMilitary = !showMilitary
                             if (showMilitary) mapView.controller.animateTo(GeoPoint(33.0, 40.0), 3.6, 600L)
                         },
-                        label = { Text("✈ Militares") },
+                        label = { IconText("✈ Militares") },
                     )
                 }
                 if (carriers.isNotEmpty()) {
@@ -311,7 +310,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             showCarriers = !showCarriers
                             if (showCarriers) mapView.controller.animateTo(GeoPoint(25.0, 30.0), 2.6, 600L)
                         },
-                        label = { Text("⚓ Porta-aviões") },
+                        label = { IconText("⚓ Porta-aviões") },
                     )
                 }
                 if (radar?.frontline != null) {
@@ -321,7 +320,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             showFront = !showFront
                             if (showFront) mapView.controller.animateTo(GeoPoint(47.8, 36.5), 5.5, 600L)
                         },
-                        label = { Text("🗺 Frente (Ucrânia)") },
+                        label = { IconText("🗺 Frente (Ucrânia)") },
                     )
                 }
             }
@@ -339,8 +338,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().weight(0.6f).clipToBounds(),
                 update = { _ -> runCatching {
                     val map = mapView
-                    val source = if (satellite) EsriImagery else TileSourceFactory.MAPNIK
-                    if (map.tileProvider.tileSource.name() != source.name()) map.setTileSource(source)
+                    map.useArgosTiles(satellite)
                     map.overlays.removeAll { it is Marker || it is Polygon || it is SimpleFastPointOverlay || it is PulseOverlay }
                     // Área ocupada (vermelho) e cinzenta, por baixo de tudo.
                     if (showFront) front?.let { shapes ->
@@ -416,14 +414,12 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     map.invalidate()
                 }.onFailure { android.util.Log.w("Argos", "mapa: falha ao desenhar as camadas", it) } },
             )
-            if (satellite) {
-                Text(
-                    "Imagens de satélite © Esri, Maxar, Earthstar Geographics",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-                )
-            }
+            Text(
+                if (satellite) SATELLITE_CREDIT else DARK_MAP_CREDIT,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+            )
             Text(
                 "Toque no marcador para ver o nome; toque de novo (ou na lista) para abrir as notícias.",
                 style = MaterialTheme.typography.labelSmall,
@@ -441,7 +437,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 .clickable { mapView.controller.animateTo(GeoPoint(city.lat, city.lon), 7.0, 600L) }
                                 .padding(16.dp, 10.dp),
                         ) {
-                            Text(
+                            IconText(
                                 "📍 ${city.name} · ${if (stories.size == 1) "1 história" else "${stories.size} histórias"}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
@@ -462,7 +458,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     item {
                         radar?.frontline?.let { f ->
                             Column(Modifier.padding(16.dp, 10.dp)) {
-                                Text("🗺 Área ocupada: ${formatKm2(f.occupiedKm2)}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                                IconText("🗺 Área ocupada: ${formatKm2(f.occupiedKm2)}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                                 f.change7dKm2?.let { d ->
                                     Text(
                                         (if (d > 0) "▲ +${formatKm2(d)}" else if (d < 0) "▼ ${formatKm2(d)}" else "sem mudança") + " em 7 dias",
@@ -514,7 +510,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 .padding(16.dp, 10.dp),
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("⚓ ${ship.name}", style = MaterialTheme.typography.bodyLarge)
+                                IconText("⚓ ${ship.name}", style = MaterialTheme.typography.bodyLarge)
                                 Text(ship.hull, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -538,7 +534,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                                 .clickable { fireCenter(z)?.let { mapView.controller.animateTo(it, 7.0, 600L) } }
                                 .padding(16.dp, 10.dp),
                         ) {
-                            Text("🔥 ${z.name}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            IconText("🔥 ${z.name}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                             Text("${z.count} focos", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -638,17 +634,6 @@ private class PulseOverlay(
     }
 }
 
-/** Imagem de satélite da Esri (World Imagery): URL no formato z/y/x. */
-private object EsriImagery : org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase(
-    "EsriWorldImagery", 0, 18, 256, ".jpg",
-    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
-    "Esri",
-) {
-    override fun getTileURLString(pMapTileIndex: Long): String =
-        baseUrl + org.osmdroid.util.MapTileIndex.getZoom(pMapTileIndex) + "/" +
-            org.osmdroid.util.MapTileIndex.getY(pMapTileIndex) + "/" + org.osmdroid.util.MapTileIndex.getX(pMapTileIndex)
-}
-
 /** Polígono da frente: anel externo + buracos, em [lat, lon]. */
 private fun frontPolygon(map: MapView, rings: List<List<List<Double>>>, occupied: Boolean): Polygon = Polygon(map).apply {
     points = rings.first().map { GeoPoint(it[0], it[1]) }
@@ -684,7 +669,7 @@ fun formatKm2(km2: Long): String = java.text.NumberFormat.getIntegerInstance(jav
 @Composable
 private fun MilitaryZoneRow(z: com.abugdn.wid.data.MilitaryZone, labels: Map<String, String>) {
     Column(Modifier.fillMaxWidth().padding(16.dp, 10.dp)) {
-        Text(
+        IconText(
             "✈ ${z.name} · ${z.count} no ar" + if (z.unusual) " · ⚠ acima do normal" else "",
             style = MaterialTheme.typography.bodyLarge,
             color = if (z.unusual) Alert else MaterialTheme.colorScheme.onSurface,

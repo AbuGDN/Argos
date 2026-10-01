@@ -1,5 +1,11 @@
 package com.abugdn.wid.ui
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -95,8 +101,8 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("radar:3", "🇺🇳", "Conselho de Segurança da ONU", "Reuniões, resoluções aprovadas, vetos e votações previstas", "onu veto resolucao conselho seguranca"),
         Tool("radar:0", "🌦", "Tempo nas zonas de conflito", "Vento, chuva, neve e tempestade de areia no front", "clima tempo chuva vento areia neve"),
         Tool("radar:3", "🏛", "Vozes", "O que governos dizem nos próprios canais e sanções", "oficial governo sancoes"),
-        Tool("radar:4", "🧠", "Análise", "CrisisWatch, checagens e institutos de análise", "crisiswatch checagem isw fatos"),
-        Tool("radar:5", "📅", "Contexto", "Alertas de viagem, agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres viagem turismo"),
+        Tool("radar:3", "🧠", "Análise", "CrisisWatch, checagens e institutos de análise", "crisiswatch checagem isw fatos"),
+        Tool("radar:2", "📅", "Contexto", "Alertas de viagem, agenda, neste dia, hora nas capitais e quem manda", "agenda datas capitais horario lideres viagem turismo"),
     ),
     "Aprender" to listOf(
         Tool("course", "🎓", "Curso rápido", "Lições curtas para entender cada guerra", "aprender curso licao entender historia"),
@@ -137,7 +143,12 @@ fun ToolRow(tool: Tool, onRoute: (String) -> Unit) {
         Modifier.fillMaxWidth().clickable { onRoute(tool.route) }.padding(16.dp, 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(tool.icon, style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(40.dp))
+        val icon = emojiIcon(tool.icon)
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.width(40.dp).padding(end = 16.dp))
+        } else {
+            Text(tool.icon, style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(40.dp))
+        }
         Column(Modifier.weight(1f)) {
             Text(tool.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             Text(tool.desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -159,10 +170,47 @@ fun ToolsScreen(onBack: () -> Unit, onRoute: (String) -> Unit) {
             )
         },
     ) { padding ->
+        val context = LocalContext.current
+        val usage = remember { ToolUsage(context) }
+        var query by rememberSaveable { mutableStateOf("") }
+        var collapsed by remember { mutableStateOf(usage.collapsed()) }
+        val favorites = remember { usage.mostUsed() }
+        val open: (Tool) -> Unit = { t -> usage.count(t); onRoute(t.route) }
         LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Buscar ferramenta (ex.: sirene, nuclear, mapa)") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = if (query.isNotEmpty()) {
+                        { IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Limpar busca") } }
+                    } else null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp, 4.dp, 16.dp, 8.dp),
+                )
+            }
+            if (query.isNotBlank()) {
+                val found = toolsMatching(query)
+                if (found.isEmpty()) {
+                    item { Text("Nenhuma ferramenta com esse nome.", modifier = Modifier.padding(16.dp)) }
+                }
+                items(found, key = { "q|" + it.route + "|" + it.name }) { ToolRow(it) { _ -> open(it) } }
+                return@LazyColumn
+            }
+            if (favorites.isNotEmpty()) {
+                item { GroupHeader("Mais usadas por você") }
+                items(favorites, key = { "fav|" + it.route + "|" + it.name }) { ToolRow(it) { _ -> open(it) } }
+            }
             TOOL_GROUPS.forEach { (group, tools) ->
-                item { GroupHeader(group) }
-                items(tools, key = { it.route + "|" + it.name }) { ToolRow(it, onRoute) }
+                val isCollapsed = group in collapsed
+                item(key = "grupo|$group") {
+                    GroupHeader(group, count = tools.size, collapsed = isCollapsed) {
+                        collapsed = if (isCollapsed) collapsed - group else collapsed + group
+                        usage.setCollapsed(collapsed)
+                    }
+                }
+                if (!isCollapsed) items(tools, key = { it.route + "|" + it.name }) { ToolRow(it) { _ -> open(it) } }
             }
             item { GroupHeader("Regiões") }
             item {
@@ -180,17 +228,54 @@ fun ToolsScreen(onBack: () -> Unit, onRoute: (String) -> Unit) {
     }
 }
 
+/** Título de grupo; com [onToggle], toca para recolher/abrir e mostra quantas ferramentas tem. */
 @Composable
-private fun GroupHeader(text: String) {
-    Column {
+private fun GroupHeader(text: String, count: Int? = null, collapsed: Boolean = false, onToggle: (() -> Unit)? = null) {
+    Column(Modifier.fillMaxWidth().let { if (onToggle != null) it.clickable(onClick = onToggle) else it }) {
         HorizontalDivider(Modifier.padding(top = 8.dp))
-        Text(
-            text.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = Accent,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 2.dp),
-        )
+        Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = Accent,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (onToggle != null) {
+                Text(
+                    (if (collapsed) "${count ?: ""} ▸" else "▾").trim(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * O que a pessoa abre nas Ferramentas (para "Mais usadas por você") e os grupos que ela recolheu.
+ * Fica só no celular, em SharedPreferences.
+ */
+private class ToolUsage(context: android.content.Context) {
+    private val prefs = context.getSharedPreferences("argos_tools", android.content.Context.MODE_PRIVATE)
+    private fun id(t: Tool) = t.route + "|" + t.name
+
+    fun count(t: Tool) {
+        prefs.edit().putInt("uso_" + id(t), prefs.getInt("uso_" + id(t), 0) + 1).apply()
+    }
+
+    /** Até 4 ferramentas abertas pelo menos 2 vezes, da mais usada para a menos. */
+    fun mostUsed(): List<Tool> = TOOL_GROUPS.flatMap { it.second }.distinctBy { id(it) }
+        .map { it to prefs.getInt("uso_" + id(it), 0) }
+        .filter { it.second >= 2 }
+        .sortedByDescending { it.second }
+        .take(4)
+        .map { it.first }
+
+    fun collapsed(): Set<String> = prefs.getStringSet("recolhidos", emptySet()).orEmpty()
+
+    fun setCollapsed(groups: Set<String>) {
+        prefs.edit().putStringSet("recolhidos", groups).apply()
     }
 }
 
@@ -260,7 +345,7 @@ fun HomePanel(order: List<String>, hidden: Set<String>, onRoute: (String) -> Uni
                         },
                         sub = e.text,
                         valueColor = if (days <= 2) Alert else null,
-                        onClick = { onRoute("radar:5") },
+                        onClick = { onRoute("radar:2") },
                     )
                 }
                 "vigil" -> {

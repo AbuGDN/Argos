@@ -143,7 +143,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                             Modifier.fillMaxWidth().clickable { page = pg.id }.padding(16.dp, 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(pg.icon, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(end = 16.dp))
+                            val pgIcon = emojiIcon(pg.icon)
+                            if (pgIcon != null) {
+                                Icon(pgIcon, contentDescription = null, tint = Accent, modifier = Modifier.padding(end = 16.dp))
+                            } else {
+                                Text(pg.icon, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(end = 16.dp))
+                            }
                             Column(Modifier.weight(1f)) {
                                 Text(pg.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                                 Text(
@@ -168,7 +173,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     androidx.compose.material3.TextButton(
                         onClick = { goRoute("rules") },
                         modifier = Modifier.padding(horizontal = 8.dp),
-                    ) { Text("🔔 Regras de alerta suas (se isso e aquilo, me avise) →") }
+                    ) { IconText("🔔 Regras de alerta suas (se isso e aquilo, me avise) →") }
                     Toggle("Sirenes em Israel", "Resumo dos alertas de foguete e drone (pode chegar até 30 min depois; ao vivo, abra a tela Sirenes)", s.notifySirens) {
                         update { st -> st.copy(notifySirens = it) }
                     }

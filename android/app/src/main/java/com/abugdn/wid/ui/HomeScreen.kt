@@ -97,6 +97,7 @@ fun HomeScreen(
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var showRead by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    var topicsOpen by rememberSaveable { mutableStateOf(false) }
     // Atalho "Buscar" do ícone do app.
     LaunchedEffect(searchRequest) { if (searchRequest > 0) searchOpen = true }
     val saved by repo.saved.collectAsStateWithLifecycle()
@@ -117,6 +118,15 @@ fun HomeScreen(
         refreshing = true
         error = repo.refresh().exceptionOrNull()?.let { "Sem conexão — mostrando o que está salvo" }
         refreshing = false
+    }
+    // Primeira abertura (nada salvo ainda): carrega sozinho, em vez de pedir para puxar a tela.
+    LaunchedEffect(Unit) { if (repo.feed.value == null) refresh() }
+    if (topicsOpen) {
+        val topicsPresent = TOPIC_LABELS.keys.filter { key -> feed?.clusters.orEmpty().any { key in it.topics } }
+        TopicsSheet(topicsPresent, onDismiss = { topicsOpen = false }) { key ->
+            topicsOpen = false
+            onRoute("topic:$key")
+        }
     }
 
     Scaffold(
@@ -202,11 +212,10 @@ fun HomeScreen(
                 error?.let { item { Text(it, color = Accent, modifier = Modifier.padding(16.dp, 8.dp)) } }
                 item { UpdateBanner(Modifier.padding(16.dp, 8.dp)) }
                 if (data == null) {
-                    item {
-                        Text(
-                            if (refreshing) "Carregando…" else "Puxe para baixo para carregar as notícias.",
-                            modifier = Modifier.padding(24.dp),
-                        )
+                    if (refreshing || error == null) {
+                        item { LoadingCards("Baixando as notícias pela primeira vez…") }
+                    } else {
+                        item { Text("Puxe para baixo para tentar de novo.", modifier = Modifier.padding(24.dp)) }
                     }
                 }
                 if (searching) {
@@ -254,6 +263,9 @@ fun HomeScreen(
                                 item(key = "panel") { HomePanel(settings.panelOrder, settings.panelHidden, onRoute) }
                             }
                             "filters" -> if (tagsPresent.isNotEmpty()) {
+                                // Uma fileira só: regiões (filtram a lista) e, no fim, "Temas", que abre a
+                                // lista de temas (cada um tem página própria). Eram duas fileiras roláveis.
+                                val topicsPresent = TOPIC_LABELS.keys.filter { key -> data?.clusters.orEmpty().any { key in it.topics } }
                                 item(key = "filters") {
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -270,21 +282,11 @@ fun HomeScreen(
                                                 label = { Text(TAG_LABELS.getValue(key)) },
                                             )
                                         }
-                                    }
-                                }
-                                // Temas atravessam as regiões: cada um abre a própria página.
-                                val topicsPresent = TOPIC_LABELS.keys.filter { key -> data?.clusters.orEmpty().any { key in it.topics } }
-                                if (topicsPresent.isNotEmpty()) {
-                                    item(key = "topics") {
-                                        LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.padding(top = 4.dp),
-                                        ) {
-                                            items(topicsPresent) { key ->
+                                        if (topicsPresent.isNotEmpty()) {
+                                            item {
                                                 androidx.compose.material3.AssistChip(
-                                                    onClick = { onRoute("topic:$key") },
-                                                    label = { Text(TOPIC_LABELS.getValue(key)) },
+                                                    onClick = { topicsOpen = true },
+                                                    label = { IconText("🧩 Temas · ${topicsPresent.size}") },
                                                 )
                                             }
                                         }
@@ -295,7 +297,7 @@ fun HomeScreen(
                                         androidx.compose.material3.TextButton(
                                             onClick = { onRegion(tag) },
                                             modifier = Modifier.padding(start = 8.dp),
-                                        ) { Text("🌍 Tudo sobre ${TAG_LABELS[tag] ?: tag}: tensão, Radar, mapa e 30 dias") }
+                                        ) { IconText("🌍 Tudo sobre ${TAG_LABELS[tag] ?: tag}: tensão, Radar, mapa e 30 dias") }
                                     }
                                 }
                             }
@@ -585,3 +587,26 @@ fun search(clusters: List<Cluster>, query: String, translated: (String) -> Strin
 /** Quantos veículos entraram na história depois da última vez que ela foi lida. */
 fun newSinceRead(c: Cluster, snapshot: Set<String>?): Int =
     if (snapshot == null) 0 else c.articles.map { it.source to it.id }.filter { it.second !in snapshot }.map { it.first }.distinct().size
+
+/** Lista de temas presentes nas notícias de agora; cada um abre a página do tema. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopicsSheet(topics: List<String>, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            "TEMAS",
+            style = MaterialTheme.typography.labelMedium,
+            color = Accent,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+        )
+        topics.forEach { key ->
+            IconText(
+                TOPIC_LABELS.getValue(key),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.fillMaxWidth().clickable { onPick(key) }.padding(24.dp, 14.dp),
+            )
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = 24.dp))
+    }
+}

@@ -31,7 +31,9 @@ para continuar o trabalho sem redescobrir tudo.
   43 (correção: crash ao rolar Ferramentas, chave repetida `radar:2`); 44 (fome/IPC, deslocados/ACNUR,
   imprensa/CPJ, gás na Europa, busca de sanções, quem arma quem, bases no mapa, verificar imagem,
   antes e depois por satélite); 45 (feito no PC: atenção do mundo e guerras esquecidas — Wikipédia +
-  UCDP —, gastos militares/SIPRI, arsenais nucleares/FAS, e "quem sancionou" que vinha vazio).
+  UCDP —, gastos militares/SIPRI, arsenais nucleares/FAS, "quem sancionou" que vinha vazio; e visual: mapa
+  escuro da Esri com nomes em inglês, ícones no lugar de emojis, Radar com 4 abas, Ferramentas com busca/
+  mais usadas/grupos recolhíveis, temas num botão da tela Hoje, carregamento sozinho na 1ª abertura).
 - Pendências para o dono decidir: o cartão da imprensa (CPJ parado, ver abaixo) e atualizar `Arms.kt` para
   o SIPRI 2021–25. Features recusadas por falta de fonte (ver lista abaixo): mapa de eventos (ACLED/GDELT),
   NOTAMs, ciberataques (CFR parado em 2023), votos da Assembleia Geral (só placar, não provado).
@@ -149,6 +151,14 @@ android/app/src/main/java/com/abugdn/wid/
   data/Attention.kt      espelho de radar.json → attention e forgottenRows() (parte nas mortes × parte na atenção);
                          ui/WarDataScreens.kt: Atenção do mundo (rota "attention:0"), Guerras esquecidas
                          ("attention:1"), Gastos militares ("milex") e Arsenais nucleares ("nuclear")
+  ui/MapTiles.kt         fundo do mapa: Esri World_Dark_Gray_Base + camada de nomes World_Dark_Gray_Reference
+                         (mesmos do painel web, sem chave) e satélite; `MapView.useArgosTiles()`. Crédito da Esri
+                         visível (DARK_MAP_CREDIT). Não volte ao MAPNIK: claro e com nomes na língua local
+  ui/ArgosIcons.kt       emoji no começo de título de cartão (ArgosCard), botão, chip ou ferramenta vira ícone
+                         (IconText/emojiIcon); desenhos em ArgosIconPaths.kt, GERADO por
+                         backend/tools/gerar_icones.py (Material Symbols, Apache-2.0). Emoji novo como ícone:
+                         acrescente no gerador; sem desenho ele continua como emoji. O teste IconsAndRoutesTest
+                         falha se uma ferramenta ficar sem ícone (bandeiras ficam como emoji de propósito)
   data/Course.kt         Curso rápido (lições); ui/CourseScreen.kt
   data/WorldData.kt      espelho de refugees/hunger/gas/press/sanctionlist do radar.json; ui/WorldDataCards.kt: cartões
                          (Números: fome, deslocados, imprensa; Mercados: gás). data/Arms.kt (SIPRI 2020–24, fixo) e
@@ -169,7 +179,8 @@ android/app/src/main/java/com/abugdn/wid/
   ui/HomeScreen.kt       search()/parseSearch(): filtros região:, fonte:, lado:, antes:, depois:, tipo:
   Compartilhar           intent SEND text/plain → Repository.findShared (link, depois palavras do título/og:title)
   ui/ScaleScreen.kt      "E se fosse no Brasil?"; ui/SmallMap.kt: mapa osmdroid com as proteções do MapScreen
-  ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números, Vozes, Análise, Contexto; em Sensores os
+  ui/RadarScreen.kt      aba Radar: Sensores, Mercados, Números (+ Contexto no fim), Vozes (+ Análise no fim);
+                         rotas antigas "radar:4"/"radar:5" passam por radarTabFor(); em Sensores os
                          cartões em alerta sobem e os calmos vêm recolhidos
   ui/Cards.kt            ArgosCard: cartão padrão (título, "fonte · atualizado há X", ⓘ com a explicação,
                          recolhível). Cartão novo usa ele; texto longo de fonte vai no `info`, não no corpo
@@ -274,6 +285,10 @@ web/                     página de download (index.html, icon.svg), status.html
 - **SIPRI recusa conexões às vezes** (01/10/2026: TLS cortado no site inteiro, do Python e do curl, enquanto
   UCDP e Google respondiam; na véspera o curl baixava). O gerador aceita o arquivo baixado pelo navegador:
   `tools/gerar_dados_fixos.py --milex arquivo.xlsx` (também `--ucdp`, `--fas`).
+- **Emulador do teste de fumaça tem 320×640**: coordenada fixa (y=1500) cai fora da tela e o passo "passa"
+  sem fazer nada. run.sh usa W/H de `wm size` (swipeup, tap relativo) e `tool "busca" "Nome"` para abrir
+  ferramenta pela busca. Até 01/10/2026 o roteiro saía do app no passo 15 e as telas seguintes não eram
+  testadas; verde do workflow não prova tela: confira as capturas (artefato "smoke").
 - **Teste de fumaça sem publicar**: push que mexe em `android/` publica release em QUALQUER branch. Para testar
   antes, mande para uma branch de teste com um commit vazio `[skip ci]` no topo (nenhum workflow de push
   roda), dispare "Teste de fumaça" nessa branch e só depois mande o commit real para a base.

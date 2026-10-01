@@ -1,5 +1,9 @@
 package com.abugdn.wid.ui
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -63,7 +67,7 @@ fun ArgosCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(Modifier.weight(1f).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
+                    IconText(
                         title,
                         style = MaterialTheme.typography.labelMedium,
                         color = titleColor ?: if (alert) Alert else Accent,
@@ -126,3 +130,36 @@ fun ArgosCard(
         )
     }
 }
+
+/**
+ * Cartões-fantasma pulsando enquanto o primeiro download não chega (tela Hoje, Radar). Com "reduzir
+ * animações" ligado, ficam parados.
+ */
+@Composable
+fun LoadingCards(message: String, count: Int = 3) {
+    val reduce = LocalReduceMotion.current
+    val alpha = if (reduce) {
+        0.5f
+    } else {
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "pulso").animateFloat(
+            initialValue = 0.25f,
+            targetValue = 0.6f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                androidx.compose.animation.core.tween(900),
+                androidx.compose.animation.core.RepeatMode.Reverse,
+            ),
+            label = "pulso",
+        ).value
+    }
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        repeat(count) { i ->
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxWidth().padding(top = 12.dp).height(if (i == 0) 160.dp else 72.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)),
+            )
+        }
+    }
+}
+

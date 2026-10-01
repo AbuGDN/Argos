@@ -112,7 +112,7 @@ fun WeatherCard(radar: RadarData, onRegion: (String) -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (p.flags.isNotEmpty()) {
-                        Text("⚠ " + p.flags.joinToString(", "), style = MaterialTheme.typography.labelSmall, color = Alert, fontWeight = FontWeight.Bold)
+                        IconText("⚠ " + p.flags.joinToString(", "), style = MaterialTheme.typography.labelSmall, color = Alert, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(p.temp?.let { "${it.toInt()}°" } ?: "–", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

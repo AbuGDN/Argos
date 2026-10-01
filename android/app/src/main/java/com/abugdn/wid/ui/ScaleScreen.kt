@@ -141,7 +141,7 @@ fun ScaleScreen(onBack: () -> Unit) {
                     OutlinedButton(onClick = {
                         val c = map.mapCenter
                         custom = c.latitude to c.longitude
-                    }) { Text("📍 Centralizar no meio do mapa") }
+                    }) { IconText("📍 Centralizar no meio do mapa") }
                     Text(
                         "Arraste o mapa até o lugar que quiser (sua cidade, seu bairro) e toque no botão.",
                         style = MaterialTheme.typography.bodySmall,

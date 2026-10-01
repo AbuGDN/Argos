@@ -378,7 +378,7 @@ fun VerifyImageScreen(initial: String, onBack: () -> Unit) {
                             e.software?.let { Text("🖥 Editada com: $it", style = MaterialTheme.typography.bodyMedium) }
                             e.gps?.let { (lat, lon) ->
                                 TextButton(onClick = { runCatching { uriHandler.openUri("https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=14/$lat/$lon") } }) {
-                                    Text("📍 Local gravado: %.4f, %.4f (ver no mapa)".format(java.util.Locale.US, lat, lon))
+                                    IconText("📍 Local gravado: %.4f, %.4f (ver no mapa)".format(java.util.Locale.US, lat, lon))
                                 }
                             }
                         }
@@ -459,7 +459,7 @@ fun SatelliteScreen(initialCity: String, onBack: () -> Unit) {
     SimpleScaffold("Antes e depois por satélite", onBack) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize(), contentPadding = PaddingValues(16.dp, 0.dp, 16.dp, 24.dp)) {
             item {
-                OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) { Text("📍 ${city.name} · trocar lugar") }
+                OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) { IconText("📍 ${city.name} · trocar lugar") }
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(8.0 to "8 km", 20.0 to "20 km", 60.0 to "60 km", 250.0 to "250 km").forEach { (v, l) ->
                         FilterChip(selected = km == v, onClick = { km = v; if (v >= 250 && layerIdx != 2) layerIdx = 2 }, label = { Text(l) })

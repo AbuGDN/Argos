@@ -152,7 +152,7 @@ private fun WeaponSheetBlock(sheet: WeaponSheet, onMap: (String) -> Unit) {
         }
     }
     sheet.rangeId?.let { id ->
-        TextButton(onClick = { onMap(id) }, modifier = Modifier.padding(top = 4.dp)) { Text("🎯 Ver alcance no mapa") }
+        TextButton(onClick = { onMap(id) }, modifier = Modifier.padding(top = 4.dp)) { IconText("🎯 Ver alcance no mapa") }
     }
 }
 

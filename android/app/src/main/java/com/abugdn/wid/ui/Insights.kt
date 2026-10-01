@@ -75,7 +75,7 @@ fun TensionGauge(stat: RegionStat, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(top = 6.dp),
         )
         if (stat.spike) {
-            Text(
+            IconText(
                 "⚠ Alta incomum: ritmo ${"%.1f".format(stat.spikeRatio)}× o normal nas últimas 6 h",
                 style = MaterialTheme.typography.labelMedium,
                 color = Alert,
@@ -92,13 +92,8 @@ fun TensionGauge(stat: RegionStat, modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
-        Text(
-            "Combina volume, palavras de escalada (míssil, invasão, nuclear), urgência e cobertura, comparado com a média da própria região. " +
-                "Apagão de internet e espaço aéreo fechado (Radar) somam pontos.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+        // Como o índice é calculado fica no ⓘ do cartão "De onde vem a tensão", logo abaixo (antes este
+        // parágrafo ocupava o meio da página da região).
     }
 }
 
@@ -379,7 +374,7 @@ fun ArgosClock(clock: com.abugdn.wid.data.GlobalClock, modifier: Modifier = Modi
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("👁 RELÓGIO DO ARGOS · ${clock.level.uppercase()}", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+                IconText("👁 RELÓGIO DO ARGOS · ${clock.level.uppercase()}", style = MaterialTheme.typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
                 val grow = rememberGrow()
                 LinearProgressIndicator(
                     progress = { clock.index / 100f * grow },

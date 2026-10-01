@@ -9,19 +9,24 @@ import sys
 
 target = sys.argv[1]
 xml = subprocess.run(["adb", "exec-out", "uiautomator", "dump", "/dev/tty"], capture_output=True, text=True).stdout
+nodes = []
 for node in re.finditer(r"<node [^>]*>", xml):
     attrs = node.group(0)
     text = re.search(r'text="([^"]*)"', attrs).group(1)
     desc = re.search(r'content-desc="([^"]*)"', attrs).group(1)
-    if target in text or target in desc:
-        x1, y1, x2, y2 = map(int, re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', attrs).groups())
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        if len(sys.argv) > 2 and sys.argv[2] == "swipe":
-            subprocess.run(["adb", "shell", "input", "swipe", str(cx), str(cy), str(max(cx - 700, 10)), str(cy), "400"])
-            print(f"arrastou a partir de '{target}'")
-        else:
-            subprocess.run(["adb", "shell", "input", "tap", str(cx), str(cy)])
-            print(f"tocou em '{target}'")
-        sys.exit(0)
+    nodes.append((attrs, text, desc))
+# Texto exato primeiro: "Ferramentas" achava antes um trecho maior que só continha a palavra.
+exact = [n for n in nodes if target in (n[1], n[2])]
+partial = [n for n in nodes if target in n[1] or target in n[2]]
+for attrs, text, desc in (exact + partial)[:1]:
+    x1, y1, x2, y2 = map(int, re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', attrs).groups())
+    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+    if len(sys.argv) > 2 and sys.argv[2] == "swipe":
+        subprocess.run(["adb", "shell", "input", "swipe", str(cx), str(cy), str(max(cx - 700, 10)), str(cy), "400"])
+        print(f"arrastou a partir de '{target}'")
+    else:
+        subprocess.run(["adb", "shell", "input", "tap", str(cx), str(cy)])
+        print(f"tocou em '{target}'")
+    sys.exit(0)
 print(f"não achou '{target}'")
-sys.exit(1)  # o run.sh usa o código para rolar a lista até achar
+sys.exit(1)  # não achou: o run.sh pode testar o código
