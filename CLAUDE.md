@@ -31,9 +31,14 @@ para continuar o trabalho sem redescobrir tudo.
   43 (correção: crash ao rolar Ferramentas, chave repetida `radar:2`); 44 (fome/IPC, deslocados/ACNUR,
   imprensa/CPJ, gás na Europa, busca de sanções, quem arma quem, bases no mapa, verificar imagem,
   antes e depois por satélite).
-- Pendências conhecidas: os percentuais de `data/Arms.kt` foram escritos de memória (fact sheet do
-  SIPRI de mar/2025) e precisam ser conferidos na fonte; as seções novas do Radar (refugees, hunger,
-  gas, press, sanctionlist) rodaram pela primeira vez em 30/09 — conferir `status` no radar.json.
+- Conferido em 30/09/2026 (no PC, com internet):
+  - `data/Arms.kt`: os 30 números batem com as tabelas 1 e 2 do fact sheet do SIPRI de mar/2025
+    (2020–24). **Já existe o de mar/2026 (2021–25)**: `sipri.org/sites/default/files/2026-03/fs_2603_at_2025.pdf`.
+    Nele a fatia russa na Índia **sobe** (36 → 40%): a nota "a fatia russa caiu" deixaria de valer.
+  - Radar: refugees, hunger e gas com dados coerentes. **sanctionlist** tinha "quem sancionou" vazio em
+    todas as linhas (corrigido no `ad4a331`). **press**: a base pública do CPJ não recebe mortos desde
+    15/01/2025 (2023: 103, 2024: 124, 2025: 7, 2026: 0); o código consulta certo, a fonte parou. O cartão
+    mostra "0 neste ano" como se fosse dado real — decisão pendente do dono.
 - Fora do app: `web/carrossel/` (slides do Instagram, só para o dono) e um vídeo de apresentação de 30 s
   (vertical, feito com a skill "motion-graphics-video" do próprio dono; o vídeo e o código dele não
   estão no repositório).
