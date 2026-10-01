@@ -10,8 +10,14 @@ echo "tela ${W}x${H}"
 swipeup() { adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 400; sleep "${1:-2}"; }
 # Reabre o app na frente e fecha o pop-up de novidades, se aparecer.
 reopen() { adb shell am start -n $PKG/.ui.MainActivity; sleep 6; tap "Entendi" 2; }
-# Abre uma ferramenta pela busca da tela Ferramentas.
-tool() { tap "Hoje" 3; tap "Ferramentas" 3; tap "Buscar ferramenta" 2; adb shell input text "$1"; sleep 2; adb shell input keyevent KEYCODE_BACK; sleep 1; tap "$2" 5; }
+# Volta para a tela Hoje: "voltar" só enquanto a barra de baixo não aparece (tela por cima); se o app
+# saiu, reabre. Apertar "voltar" às cegas na tela Hoje fechava o app e o resto do roteiro rodava fora dele.
+home() {
+  for i in 1 2 3; do python3 .github/smoke/tap.py "Hoje" && { sleep 3; return; }; adb shell input keyevent KEYCODE_BACK; sleep 2; done
+  reopen; tap "Hoje" 3
+}
+# Abre uma ferramenta pela busca da tela Ferramentas ($1 = o que digitar, $2 = nome da ferramenta).
+tool() { home; tap "Ferramentas" 3; tap "Buscar ferramenta" 2; adb shell input text "$1"; sleep 2; adb shell input keyevent KEYCODE_BACK; sleep 1; tap "$2" 5; }
 shot() { adb exec-out screencap -p > "shots/$1.png"; }
 mkdir -p shots
 adb install -r "$APK"
@@ -51,8 +57,8 @@ python3 .github/smoke/tap.py "Previsões" swipe; sleep 2
 tap "Lidas" 3; shot 09e-lidas
 tap "Hoje" 4; shot 10-hoje-painel
 tap "Ferramentas" 3; shot 11-ferramentas
-tap "Linha de frente" 8; shot 12-ferramenta-frente
-tap "Hoje" 3
+tool "frente" "Linha de frente"; sleep 4; shot 12-ferramenta-frente
+home
 tap "Ajustes" 3; shot 13-ajustes
 tap "Tela Hoje" 3; shot 14-ajustes-tela-hoje
 adb shell input keyevent KEYCODE_BACK; sleep 2
@@ -68,10 +74,9 @@ adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell input tap $((W/2)) $((H*2/3)); sleep 6; shot 19-noticia-lista   # uma notícia da lista
 # Telas da 1.0.45: atenção do mundo, guerras esquecidas, gastos militares, arsenais nucleares,
 # busca e grupos das Ferramentas, temas da tela Hoje.
-adb shell input keyevent KEYCODE_BACK; sleep 2
-reopen
-tap "Hoje" 3; tap "Temas" 3; shot 20a-temas; adb shell input keyevent KEYCODE_BACK; sleep 2
-tap "Ferramentas" 3; shot 20b-ferramentas-grupos; adb shell input keyevent KEYCODE_BACK; sleep 2
+home
+tap "Temas" 3; shot 20a-temas; adb shell input keyevent KEYCODE_BACK; sleep 2
+home; tap "Ferramentas" 3; tap "AGORA" 2; shot 20b-ferramentas-grupo-recolhido; tap "AGORA" 2
 tool "wikipedia" "Atenção do mundo"; shot 20-atencao
 tap "Guerras esquecidas" 3; shot 21-esquecidas
 swipeup; shot 21b-esquecidas-rolada

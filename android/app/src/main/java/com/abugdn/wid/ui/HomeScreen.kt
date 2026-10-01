@@ -263,8 +263,8 @@ fun HomeScreen(
                                 item(key = "panel") { HomePanel(settings.panelOrder, settings.panelHidden, onRoute) }
                             }
                             "filters" -> if (tagsPresent.isNotEmpty()) {
-                                // Uma fileira só: regiões (filtram a lista) e, no fim, "Temas", que abre a
-                                // lista de temas (cada um tem página própria). Eram duas fileiras roláveis.
+                                // Uma fileira só: "Temas" (abre a lista de temas, cada um com página própria) e as
+                                // regiões, que filtram a lista. Eram duas fileiras roláveis.
                                 val topicsPresent = TOPIC_LABELS.keys.filter { key -> data?.clusters.orEmpty().any { key in it.topics } }
                                 item(key = "filters") {
                                     LazyRow(
@@ -272,6 +272,15 @@ fun HomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier.padding(top = 8.dp),
                                     ) {
+                                        // "Temas" primeiro: no fim da fileira ficava fora da tela e ninguém via.
+                                        if (topicsPresent.isNotEmpty()) {
+                                            item {
+                                                androidx.compose.material3.AssistChip(
+                                                    onClick = { topicsOpen = true },
+                                                    label = { IconText("🧩 Temas") },
+                                                )
+                                            }
+                                        }
                                         item {
                                             FilterChip(selected = tag == null, onClick = { onTag(null) }, label = { Text("Tudo") })
                                         }
@@ -281,14 +290,6 @@ fun HomeScreen(
                                                 onClick = { onTag(if (tag == key) null else key) },
                                                 label = { Text(TAG_LABELS.getValue(key)) },
                                             )
-                                        }
-                                        if (topicsPresent.isNotEmpty()) {
-                                            item {
-                                                androidx.compose.material3.AssistChip(
-                                                    onClick = { topicsOpen = true },
-                                                    label = { IconText("🧩 Temas · ${topicsPresent.size}") },
-                                                )
-                                            }
                                         }
                                     }
                                 }

@@ -154,12 +154,14 @@ fun RadarScreen(onOpen: (String) -> Unit, onRegion: (String) -> Unit, tab: Int =
                 RADAR_TABS.forEachIndexed { i, label ->
                     // Bolinha vermelha na categoria que tem alerta agora.
                     val dot = (i == 0 && sensorsAlert) || (i == 3 && analysisAlert)
-                    Tab(selected = tab == i, onClick = { onTab(i) }, text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(label)
+                    // Conteúdo próprio (sem o recuo lateral do `text =` do Tab): com o recuo, em tela
+                    // estreita "Sensores" quebrava em duas linhas.
+                    Tab(selected = tab == i, onClick = { onTab(i) }) {
+                        Row(Modifier.padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
                             if (dot) Text(" ●", color = Alert, style = MaterialTheme.typography.labelSmall)
                         }
-                    })
+                    }
                 }
             }
             val data = radar
