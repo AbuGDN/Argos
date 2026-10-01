@@ -1901,13 +1901,25 @@ def collect_press(ctx: Ctx) -> dict:
 
 SANCTIONS_INDEX = "https://data.opensanctions.org/datasets/latest/sanctions/index.json"
 SANCTIONS_FILE = "sanctions.tsv.gz"
-AUTHORITY = [  # prefixo do dataset -> quem sancionou
-    ("us_", "EUA"), ("eu_", "União Europeia"), ("gb_", "Reino Unido"), ("un_", "ONU"), ("ca_", "Canadá"),
-    ("ch_", "Suíça"), ("au_", "Austrália"), ("jp_", "Japão"), ("ua_", "Ucrânia"), ("nz_", "Nova Zelândia"),
-    ("fr_", "França"), ("be_", "Bélgica"), ("nl_", "Países Baixos"), ("pl_", "Polônia"), ("lt_", "Lituânia"),
-    ("lv_", "Letônia"), ("ee_", "Estônia"), ("cz_", "Tchéquia"), ("sg_", "Singapura"), ("kr_", "Coreia do Sul"),
-    ("tw_", "Taiwan"), ("il_", "Israel"), ("ru_", "Rússia"), ("cn_", "China"), ("ae_", "Emirados"), ("qa_", "Catar"),
-    ("worldbank", "Banco Mundial"), ("adb_", "BAD"), ("afdb", "BAfD"), ("eb_", "BERD"), ("iadb", "BID"),
+# A coluna "dataset" do targets.simple.csv traz o TÍTULO de cada lista ("US OFAC Specially Designated
+# Nationals (SDN) List;UK FCDO Sanctions List"), não o código (us_ofac_sdn). O título começa por quem
+# sancionou: casa pelo começo. Medido em 30/09/2026: 93 listas, todas cobertas abaixo. Lista nova que
+# não casa só fica sem "quem" (a pessoa continua na busca).
+AUTHORITY = [  # começo do título da lista -> quem sancionou
+    ("US ", "EUA"), ("EU ", "União Europeia"), ("UK ", "Reino Unido"), ("UN ", "ONU"), ("Ukraine", "Ucrânia"),
+    ("Canadian", "Canadá"), ("Swiss", "Suíça"), ("Switzerland", "Suíça"), ("Australia", "Austrália"),
+    ("Japan", "Japão"), ("New Zealand", "Nova Zelândia"), ("French", "França"), ("Belgian", "Bélgica"),
+    ("Netherlands", "Países Baixos"), ("Polish", "Polônia"), ("Lithuania", "Lituânia"), ("Latvia", "Letônia"),
+    ("Estonia", "Estônia"), ("Czech", "Tchéquia"), ("Singapore", "Singapura"), ("Taiwan", "Taiwan"),
+    ("Israel", "Israel"), ("Russia", "Rússia"), ("China", "China"), ("United Arab Emirates", "Emirados"),
+    ("Qatar", "Catar"), ("Monaco", "Mônaco"), ("Iraq", "Iraque"), ("Pakistan", "Paquistão"), ("Türkiye", "Turquia"),
+    ("Kyrgyz", "Quirguistão"), ("South Africa", "África do Sul"), ("Moldova", "Moldávia"), ("Argentina", "Argentina"),
+    ("Bulgaria", "Bulgária"), ("Indonesia", "Indonésia"), ("Iran", "Irã"), ("Thailand", "Tailândia"),
+    ("Saudi Arabia", "Arábia Saudita"), ("Romania", "Romênia"), ("Tunisia", "Tunísia"), ("Indian", "Índia"),
+    ("Philippines", "Filipinas"), ("Malaysia", "Malásia"), ("Nigeria", "Nigéria"), ("Nepal", "Nepal"),
+    ("Austria", "Áustria"), ("Kingdom of Jordan", "Jordânia"), ("Azerbaijan", "Azerbaijão"), ("Georgia", "Geórgia"),
+    ("Vietnam", "Vietnã"), ("Germany", "Alemanha"), ("Kenya", "Quênia"), ("Serbia", "Sérvia"),
+    ("Palestine", "Palestina"), ("Ireland", "Irlanda"),
 ]
 SCHEMA_PT = {"Person": "pessoa", "Company": "empresa", "Organization": "organização", "LegalEntity": "entidade",
              "Vessel": "navio", "Airplane": "avião", "CryptoWallet": "carteira cripto", "Security": "título"}
@@ -1916,7 +1928,7 @@ SCHEMA_PT = {"Person": "pessoa", "Company": "empresa", "Organization": "organiza
 def _authorities(datasets: str) -> list[str]:
     out = []
     for d in datasets.split(";"):
-        d = d.strip().lower()
+        d = d.strip()
         for prefix, label in AUTHORITY:
             if d.startswith(prefix) and label not in out:
                 out.append(label)

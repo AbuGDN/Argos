@@ -88,27 +88,35 @@ def test_press_summary_counts_and_tags():
     assert {c["country"] for c in s["countries"]} == {"Israel and the Occupied Palestinian Territory", "Ukraine"}
 
 
+# Formato real do targets.simple.csv (cabeçalho e títulos copiados da fonte em 30/09/2026). Um exemplo
+# antigo usava códigos (us_ofac_sdn) que a fonte não tem: o teste passava e a coluna "quem" saía vazia.
 CSV = (
-    "id,schema,name,aliases,birth_date,countries,addresses,identifiers,sanctions,phones,emails,dataset,first_seen,last_seen,last_change\n"
-    'x1,Person,Ivan Petrov,"Иван Петров;I. Petrov",,ru,,,"x",,,"us_ofac_sdn;eu_fsf;gb_hmt_sanctions",2022-03-01T00:00:00,,\n'
-    "x2,Vessel,SEA\tSTAR,,,ir,,,,,,un_sc_sanctions,2023-01-02T00:00:00,,\n"
-    ",Company,,,,,,,,,,us_ofac_sdn,,,\n"
+    "id,schema,name,aliases,birth_date,countries,addresses,identifiers,sanctions,phones,emails,program_ids,"
+    "dataset,first_seen,last_seen,last_change\n"
+    'x1,Person,Ivan Petrov,"Иван Петров;I. Petrov",,ru,,,"x",,,US-RUS,"US OFAC Specially Designated Nationals (SDN) List;'
+    'US Trade Consolidated Screening List (CSL);EU Financial Sanctions Files (FSF);UK FCDO Sanctions List",'
+    "2022-03-01T00:00:00,,\n"
+    "x2,Vessel,SEA\tSTAR,,,ir,,,,,,,UN Security Council 1718 Designated Vessels List,2023-01-02T00:00:00,,\n"
+    "x3,Organization,Hamas,,,ps,,,,,,,Türkiye Asset Freezing Sanctions List (MASAK),2023-01-02T00:00:00,,\n"
+    ",Company,,,,,,,,,,,US OFAC Specially Designated Nationals (SDN) List,,,\n"
 )
 
 
 def test_sanctions_rows():
     rows, by_auth = radar.sanctions_rows(io.StringIO(CSV))
-    assert len(rows) == 2
+    assert len(rows) == 3
     ivan = next(r for r in rows if r.startswith("Ivan")).split("\t")
-    assert ivan[1] == "pessoa" and ivan[2] == "ru" and ivan[3] == "EUA, União Europeia, Reino Unido"
+    assert ivan[1] == "pessoa" and ivan[2] == "ru" and ivan[3] == "EUA, União Europeia, Reino Unido"  # 2 listas dos EUA = 1
     assert ivan[4] == "2022-03-01" and "Иван Петров" in ivan[5]
     ship = next(r for r in rows if r.startswith("SEA")).split("\t")
     assert ship[0] == "SEA STAR" and ship[1] == "navio" and ship[3] == "ONU"  # tab interno vira espaço
+    assert next(r for r in rows if r.startswith("Hamas")).split("\t")[3] == "Turquia"
     assert by_auth["EUA"] == 1 and by_auth["ONU"] == 1
 
 
 def test_collect_sanctionlist_writes_gzip(tmp_path: Path):
-    big = CSV + "".join(f"y{i},Company,Empresa {i},,,,,,,,,eu_fsf,2024-01-01,,\n" for i in range(1200))
+    big = CSV + "".join(f"y{i},Company,Empresa {i},,,,,,,,,,EU Financial Sanctions Files (FSF),2024-01-01,,\n"
+                        for i in range(1200))
 
     def handler(req: httpx.Request):
         if req.url.path.endswith("index.json"):
@@ -119,9 +127,10 @@ def test_collect_sanctionlist_writes_gzip(tmp_path: Path):
     client = httpx.Client(transport=httpx.MockTransport(handler))
     ctx = radar.Ctx(client, NOW, None, {}, None, {}, tmp_path)
     out = radar.collect_sanctionlist(ctx)
-    assert out["count"] == 1202
+    assert out["count"] == 1203
+    assert out["by_authority"][0] == {"name": "União Europeia", "count": 1201}  # vazio no ar até 30/09/2026
     lines = gzip.decompress((tmp_path / radar.SANCTIONS_FILE).read_bytes()).decode().splitlines()
-    assert len(lines) == 1202 and lines == sorted(lines)
+    assert len(lines) == 1203 and lines == sorted(lines)
 
 
 def _client(routes):
