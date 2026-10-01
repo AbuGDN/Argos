@@ -51,14 +51,19 @@ tap "Ajustes" 3; shot 13-ajustes
 tap "Tela Hoje" 3; shot 14-ajustes-tela-hoje
 adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell input keyevent KEYCODE_BACK; sleep 2
+# Os dois "voltar" acima fecham o app (o roteiro seguia na tela inicial do Android desde o passo 15):
+# reabre antes de continuar.
+adb shell am start -n $PKG/.ui.MainActivity; sleep 6
 tap "PRINCIPAL DO DIA" 6; shot 15-noticia   # abre a principal do dia
 tap "Cobertura" 3; shot 16-noticia-cobertura
 tap "Contexto" 3; shot 17-noticia-contexto
 adb shell input swipe 500 1600 500 700 300; sleep 2; shot 18-noticia-rolada
 adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell input tap 540 1700; sleep 6; shot 19-noticia-lista   # uma notícia da lista
-adb shell input keyevent KEYCODE_BACK; sleep 2
 # Telas da 1.0.45: atenção do mundo, guerras esquecidas, gastos militares, arsenais nucleares.
+# Fecha a notícia (sem ela a barra de baixo volta) e garante o app na frente.
+adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell am start -n $PKG/.ui.MainActivity; sleep 6
 tap "Hoje" 3; tap "Ferramentas" 3
 scrolltap "Atenção do mundo"; shot 20-atencao
 tap "Guerras esquecidas" 3; shot 21-esquecidas
