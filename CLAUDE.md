@@ -192,6 +192,10 @@ web/                     página de download (index.html, icon.svg), status.html
 
 - **Não havia Android SDK na sessão em nuvem**: o app só era compilado no CI. No PC dá para compilar
   localmente (`cd android && ./gradlew assembleDebug`); ainda assim confira o Actions depois do push.
+- **No PC Windows** (desde 30/09/2026: Python 3.11, Temurin 17, Android Studio + SDK 35): o Windows
+  não tem o banco de fusos do `zoneinfo`, e `ZoneInfo("America/Sao_Paulo")` em `wid/build.py` derrubava
+  os testes. O `requirements.txt` instala `tzdata` só no Windows. O Gradle acha o SDK pelo
+  `android/local.properties` (`sdk.dir=...`), que é da máquina e fica fora do git.
 - **Sessão em nuvem sem acesso à maioria dos sites** (o proxy recusa): para saber se uma fonte funciona,
   use o workflow "Diagnóstico de fontes" (edite `.github/diagnose/urls.txt` e dê push; o log mostra
   código HTTP, CORS e trechos). No PC com internet dá para testar direto com curl.

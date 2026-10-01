@@ -1,3 +1,5 @@
 feedparser==6.0.14
 httpx==0.28.1
 PyYAML==6.0.1
+# Windows nao tem o banco de fusos que o zoneinfo usa (America/Sao_Paulo em wid/build.py)
+tzdata==2026.4; sys_platform == "win32"
