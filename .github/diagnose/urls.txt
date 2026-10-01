@@ -1,16 +1,7 @@
-https://api.unhcr.org/population/v1/population/?limit=20&yearFrom=2023&yearTo=2025&coo=SDN&coa_all=true	"refugees"	200
-https://api.unhcr.org/population/v1/population/?limit=20&yearFrom=2023&yearTo=2025&coo_all=true&coa=TUR	"refugees"	200
-https://api.unhcr.org/population/v1/population/?limit=20&yearFrom=2024&yearTo=2025&coo=UKR&cf_type=ISO	"idps"	200
-https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security?location_code=SDN&output_format=json&limit=5&app_identifier=YXJnb3M6YXJnb3MtYXBwQHVzZXJzLm5vcmVwbHkuZ2l0aHViLmNvbQ==	"ipc_phase"	300
-https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-prices-market-monitor?location_code=SDN&output_format=json&limit=5&app_identifier=YXJnb3M6YXJnb3MtYXBwQHVzZXJzLm5vcmVwbHkuZ2l0aHViLmNvbQ==	"commodity"	300
-https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security?location_code=PSE&output_format=json&limit=5&app_identifier=YXJnb3M6YXJnb3MtYXBwQHVzZXJzLm5vcmVwbHkuZ2l0aHViLmNvbQ==	"ipc_phase"	300
-https://transparency.entsog.eu/api/v1/operationaldatas?limit=5&indicator=Physical%20Flow&periodType=day&timezone=UTC&pointDirection=bg-tso-0001itp-00549entry&from=2025-09-01&to=2025-09-05	"value"	300
-https://transparency.entsog.eu/api/v1/interconnections?limit=3	"pointLabel"	300
-https://agsi.gie.eu/api?type=eu	"full"	300
-https://data.opensanctions.org/datasets/latest/sanctions/index.json	"targets.simple.csv"	300
-https://data.opensanctions.org/datasets/latest/sanctions/names.txt	""	100
-https://www.treasury.gov/ofac/downloads/sdn.csv	""	100
-https://datamanager.cpj.org/api/datamanager/reports/entries?distinct(personId)&includes=organizations,fullName,location,status,typeOfDeath,country,type,startDisplay&sort=fullName&pageNum=1&pageSize=5&in(status,%27Killed%27)&ge(year,2024)	"fullName"	300
-https://cpj.org/data/killed/?status=Killed&motiveConfirmed%5B%5D=Confirmed&type%5B%5D=Journalist&start_year=2024&end_year=2025	"api"	300
-https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=HLS_S30_Nadir_BRDF_Adjusted_Reflectance&CRS=EPSG:4326&BBOX=31.4,34.3,31.6,34.55&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg&TIME=2025-09-01	""	50
-https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor&CRS=EPSG:4326&BBOX=31.0,34.0,32.0,35.0&WIDTH=256&HEIGHT=256&FORMAT=image/jpeg&TIME=2025-09-01	""	50
+https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/user/Russian_invasion_of_Ukraine/daily/20260901/20260903	"views"	120
+https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/pt.wikipedia.org/all-access/user/Guerra_Russo-Ucraniana/daily/20260901/20260903	"views"	120
+https://api.gdeltproject.org/api/v2/doc/doc?query=sudan%20sourcelang:english&mode=timelinevol&timespan=7d&format=json	"value"	120
+https://static.cfr.org/cyber-operations/data/cyber-operations-incidents.csv	"20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]"	80
+https://press.un.org/en/content/general-assembly/meetings-coverage	"ga[0-9]+\.doc\.htm"	150
+https://press.un.org/en/2026/ga12784.doc.htm	"recorded vote"	250
+https://digitallibrary.un.org/search?ln=en&cc=Voting+Data&p=Gaza&of=xm&rg=2	"record"	200
