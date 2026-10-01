@@ -107,7 +107,130 @@ def _entry_time(entry, now: datetime) -> datetime:
     return now
 
 
+# --- Fotos: tamanho certo --------------------------------------------------------------------
+# Medido em 01/10/2026 baixando as fotos do feed publicado (largura real de cada arquivo):
+#   pequenas, borravam em tela cheia: The Guardian 140 px, CNN Brasil 200, BBC 240, Ynet 320;
+#   pesadas: Defense News 4-5 mil px (até 12 MB), NPR e G1 até 6 mil px;
+#   quebradas: Estadão (&amp; no endereço -> HTTP 400), Walla (403 para qualquer cliente), NPR às vezes
+#   manda o pixel de rastreamento 1x1 ou o texto "undefined";
+#   sem foto no RSS: Al Jazeera, Folha, DW, Poder360, boa parte do Middle East Eye.
+# O que tem conserto no endereço vai em better_image; o resto, pela foto da página (page_image).
+# G1 continua pesado: o endereço é assinado (thumbor) e a página não traz versão menor.
+_BBC_SIZE = re.compile(r"(ichef\.bbci\.co\.uk/(?:ace/)?(?:standard|ws)/)(\d+)(/)")
+_NPR_SIZE = re.compile(r"(brightspotcdn\.com/.*/resize/)(\d+)x(\d+)!?(/)")
+_CNN_BR_SIZE = re.compile(r"^(https://admin\.cnnbrasil\.com\.br/.*[?&]w=)(\d+)")
+_YNET_SIZE = re.compile(r"^(https://ynet-pic\d*\.yit\.co\.il/.*_)(small|medium|large)(\.\w+)$")
+_GUARDIAN_THUMB = re.compile(r"^https://i\.guim\.co\.uk/img/media/([0-9a-f]+)/[^?]*\?(?:.*&)?width=(\d+)")
+_GUARDIAN_SRC = re.compile(r"https://i\.guim\.co\.uk/img/media/([0-9a-f]+)/[^\"'\s]+")
+# Fotos que não abrem fora do site (403) ou que não são foto.
+_DEAD_IMAGE = re.compile(r"^https?://images\.wcdn\.co\.il/|/tracking/|rss-pixel")
+# Originais gigantes sem tamanho no endereço: melhor a foto da página (Defense News: 1200 px, ~100 KB).
+_HUGE_IMAGE = re.compile(r"^https://cloudfront-[\w-]+\.images\.arcpublishing\.com/")
+# Página que não ajuda: link do Google News (a "foto" é o logo dele) e sites que não respondem a robô.
+_NO_PAGE = re.compile(r"^https?://(?:news\.google\.com|(?:www\.)?washingtonpost\.com)/")
+IMAGE_WIDTH = 976  # largura pedida quando o servidor aceita escolher (o app mostra até a largura da tela)
+
+
+def better_image(url: str | None) -> str | None:
+    """Conserta o endereço da foto quando dá: miniatura -> foto grande, original gigante -> tamanho de tela,
+    endereço quebrado -> certo, foto que não abre -> None. Guardian é assinado: ver guardian_large_image."""
+    if not url:
+        return None
+    url = url.strip().replace("&amp;", "&")
+    if not url.startswith("http") or _DEAD_IMAGE.search(url):
+        return None
+    m = _BBC_SIZE.search(url)
+    if m and int(m.group(2)) < IMAGE_WIDTH:
+        return url[:m.start(2)] + str(IMAGE_WIDTH) + url[m.end(2):]
+    m = _NPR_SIZE.search(url)
+    if m and int(m.group(2)) > 1600:
+        return url[:m.start(2)] + "1200" + url[m.end(4) - 1:]
+    m = _CNN_BR_SIZE.search(url)
+    if m and int(m.group(2)) < IMAGE_WIDTH:
+        return url[:m.start(2)] + str(IMAGE_WIDTH) + url[m.end(2):]
+    m = _YNET_SIZE.match(url)
+    if m:
+        return m.group(1) + "x-large" + m.group(3)
+    return url
+
+
+def is_guardian_thumb(url: str | None) -> bool:
+    m = _GUARDIAN_THUMB.match(url or "")
+    return bool(m) and int(m.group(2)) < 400
+
+
+def guardian_large_image(html: str, thumb: str) -> str | None:
+    """Na página da notícia, a mesma foto (mesmo id de mídia) em versão grande, já assinada pelo site e
+    sem o selo do jornal (o og:image vem com o logo por cima): a maior com width entre 600 e 1300."""
+    m = _GUARDIAN_THUMB.match(thumb)
+    if not m:
+        return None
+    best, best_w = None, 0
+    for found in _GUARDIAN_SRC.finditer(html.replace("&amp;", "&")):
+        src = found.group(0)
+        w = re.search(r"[?&]width=(\d+)", src)
+        if found.group(1) != m.group(1) or not w or "overlay" in src or "fit=max" not in src:
+            continue
+        width = int(w.group(1))
+        if 600 <= width <= 1300 and width > best_w:
+            best, best_w = src, width
+    return best
+
+
+_META = re.compile(r"<meta\b[^>]*>", re.I)
+
+
+def page_image(html: str) -> str | None:
+    """Foto que a página declara para compartilhamento (og:image, ou twitter:image), em qualquer ordem
+    de atributos (a DW escreve content antes de property)."""
+    found = {}
+    for tag in _META.findall(html):
+        key = re.search(r"(?:property|name)\s*=\s*[\"']([^\"']+)", tag, re.I)
+        val = re.search(r"content\s*=\s*[\"']([^\"']+)", tag, re.I)
+        if key and val and key.group(1).lower() in ("og:image", "og:image:url", "twitter:image"):
+            found.setdefault(key.group(1).lower(), val.group(1))
+    url = found.get("og:image") or found.get("og:image:url") or found.get("twitter:image")
+    return better_image(url)
+
+
+def needs_page_image(art: "Article") -> bool:
+    if _NO_PAGE.match(art.url or ""):
+        return False
+    return not art.image or is_guardian_thumb(art.image) or bool(_HUGE_IMAGE.match(art.image or ""))
+
+
+def upgrade_images(articles: list["Article"], get_html, checked: dict | None = None, now: datetime | None = None,
+                   limit: int = 40) -> int:
+    """Busca na página da notícia a foto que faltou ou veio ruim (no máximo [limit] páginas por rodada).
+    [checked] guarda {url: quando} das páginas já tentadas, para não baixar de novo a cada 30 min; o
+    registro da notícia também é mantido entre rodadas, então a foto achada fica."""
+    checked = checked if checked is not None else {}
+    todo = [a for a in articles if needs_page_image(a) and a.url not in checked][:limit]
+
+    def one(art):
+        try:
+            html = get_html(art.url)
+        except Exception as exc:
+            log.info("foto da página (%s): %s", art.url, exc)
+            return art, None
+        if is_guardian_thumb(art.image):
+            return art, guardian_large_image(html, art.image)
+        return art, page_image(html)
+
+    stamp = iso(now) if now else ""
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for art, found in pool.map(one, todo):
+            checked[art.url] = stamp
+            if found:
+                art.image = found
+    return len(todo)
+
+
 def _entry_image(entry) -> str | None:
+    return better_image(_entry_image_raw(entry))
+
+
+def _entry_image_raw(entry) -> str | None:
     for key in ("media_content", "media_thumbnail"):
         for media in entry.get(key) or []:
             if media.get("url") and media.get("medium", "image") == "image":

@@ -267,6 +267,12 @@ web/                     página de download (index.html, icon.svg), status.html
 - **Regex em loop trava o app**: nunca compile `Regex(...)` dentro de funções chamadas por notícia
   (cartão de pessoa travava assim). Use `wordRegex()` (Settings.kt, com cache) e tire buscas no feed
   inteiro da thread principal (`produceState` + `Dispatchers.Default`).
+- **Fotos das notícias** (backend, `wid/fetch.py`): `better_image()` conserta o endereço (BBC 240→976,
+  CNN Brasil w=200→976, Ynet _medium→_x-large, NPR original→1200, Estadão `&amp;`; Walla dá 403 e vira sem
+  foto) e `upgrade_images()` busca na página da notícia a foto que faltou (og:image) ou a versão grande do
+  Guardian (srcset; a URL dele é assinada e o og:image tem o selo do jornal). Até 40 páginas por rodada;
+  as já tentadas ficam 3 dias em `stats/image_checked.json`. Link do Google News (Times of Israel, Haaretz,
+  Al Arabiya) e Washington Post não têm foto. Medido em 01/10/2026 baixando as fotos de cada fonte.
 - **Fotos**: `WIKI_TITLES`/`REGION_FLAGS` em `data/Images.kt`; Wikimedia exige o user-agent do Coil
   configurado em `WidApp.newImageLoader()`. **Cabeçalhos HTTP só em ASCII**: um acento no User-Agent
   fez o OkHttp derrubar o app a cada foto (há teste).

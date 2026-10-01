@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import httpx
 import yaml
 
 from .analysis import (
@@ -24,7 +25,7 @@ from .analysis import (
     update_sagas,
 )
 from .cluster import build_clusters, cluster_json, is_urgent
-from .fetch import Article, fetch_all, iso, parse_iso
+from .fetch import USER_AGENT, Article, better_image, fetch_all, iso, parse_iso, upgrade_images
 from .keywords import Keywords
 from . import radar as radar_mod
 from .deadlines import update_deadlines
@@ -171,8 +172,9 @@ def copy_web(out: Path, web: Path = WEB_DIR) -> None:
 
 def build(
     out: Path, now: datetime, sources: list[dict], kw: Keywords, fetched: list[Article], status: dict,
-    radar: dict | None = None,
+    radar: dict | None = None, get_html=None,
 ) -> dict:
+    """[get_html]: url -> HTML da página, para trocar miniaturas por foto grande (None = sem rede, nos testes)."""
     weights = {s["name"]: float(s.get("weight", 1.0)) for s in sources}
     origins = {s["name"]: s["origin"] for s in sources if "origin" in s}
     articles = merge(load_previous(out, weights, origins), fetched, now)
@@ -180,6 +182,20 @@ def build(
         a for a in articles
         if now - a.published <= KEEP_WINDOW and kw.match(a.title, a.summary).relevant
     ]
+    for a in articles:  # notícias guardadas antes da regra também ganham a foto do tamanho certo
+        a.image = better_image(a.image)
+    if get_html is not None:
+        # Páginas já consultadas atrás de foto (vale 3 dias): sem isso, notícia sem foto na página seria
+        # baixada de novo a cada rodada.
+        checked_path = out / "stats" / "image_checked.json"
+        try:
+            checked = json.loads(checked_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            checked = {}
+        checked = {u: t for u, t in checked.items() if t and now - parse_iso(t) <= timedelta(days=3)}
+        n = upgrade_images(articles, get_html, checked, now)
+        log.info("fotos: %d páginas consultadas", n)
+        write_json(checked_path, checked)
 
     clusters = build_clusters(articles, kw)
     items = [
@@ -281,7 +297,12 @@ def main() -> None:
     except Exception as exc:  # o Radar nunca derruba a coleta de notícias
         log.warning("radar falhou: %s", exc)
         radar = None
-    feed = build(args.out, now, sources, kw, fetched, status, radar)
+    with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=15, follow_redirects=True) as client:
+        def get_html(url: str) -> str:
+            resp = client.get(url)
+            resp.raise_for_status()
+            return resp.text
+        feed = build(args.out, now, sources, kw, fetched, status, radar, get_html=get_html)
     top = feed["top_of_day"]
     log.info("%d histórias; principal: %s", len(feed["clusters"]), top["title"] if top else "—")
 
