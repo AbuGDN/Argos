@@ -75,6 +75,12 @@ que publica JSON na branch `gh-pages`; app Kotlin/Compose que lê esse JSON.
   time-lapse/replay, modo "sala de situação"/Modo Evento/TV, sons, quiz, podcasts/vídeos no app, QR
   "continuar no PC", luzes da noite por satélite no app, igualar o painel web ao app, "dieta de notícias"
   (tempo de leitura/pausas). Não re-sugerir.
+- **Tradução com modelo de IA no servidor: testada e descartada (01/10/2026).** O dono perguntou e pediu
+  o teste; NLLB-200 distilled 600M (Meta) em 35 manchetes reais: inglês bem melhor que o ML Kit ("Renee
+  Good", "ICE" certos), mas corta a 2ª frase e erra sentidos ("midair stabbing" -> "ataque aéreo");
+  hebraico e árabe ruins ("סוכל" -> "focado", "مسيرة" drone -> "manifestação"); 9 s por texto num Ryzen
+  5 2600 (6 núcleos), o Actions tem 4. Decisão do dono: "deixar quieto". Não re-sugerir; Hugging Face
+  Spaces também descartado (dorme, lento em CPU).
 - Pediu sugestões de **features novas**, não complementos de coisas que já existem.
 - Autorizou sem perguntar: abrir PR, conferir o build e fazer o merge. Teste de fumaça só em mudança
   grande de UI (não rodar em correção pequena).
