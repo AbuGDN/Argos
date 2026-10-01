@@ -210,3 +210,37 @@ def test_collect_attention():
     assert len(g["series"]) == 30 and g["series"][-1] == ["2026-09-28", 110] and g["series"][0] == ["2026-08-30", 0]
     assert g["views_7d"] == 160 and g["views_prev_7d"] == 0 and g["views_total"] == 160
     assert g["by_lang"] == {"en": 150, "pt": 10} and g["tag"] == "gaza"
+
+
+def test_attention_survives_wikipedia_429(monkeypatch):
+    monkeypatch.setattr(radar.time, "sleep", lambda s: None)
+    api_calls = []
+
+    def handler(req: httpx.Request):
+        if req.url.path.endswith("/w/api.php"):
+            title = req.url.params["titles"]
+            api_calls.append(title)
+            if title == "Gaza war" and api_calls.count(title) == 1:
+                return httpx.Response(429, headers={"retry-after": "1"})  # primeira tentativa: limite
+            if title == "Yemeni civil war":
+                return httpx.Response(429)  # sempre limitado
+            return httpx.Response(200, json={"query": {"pages": [{"title": title, "langlinks": []}]}})
+        return httpx.Response(200, json={"items": [{"timestamp": "2026092800", "views": 7}]})
+
+    conf = {"days": 30, "langs": ["en"], "conflicts": [
+        {"id": "gaza", "name": "Gaza", "articles": ["Gaza war"]},
+        {"id": "iemen", "name": "Iêmen", "articles": ["Yemeni civil war"]},
+    ]}
+    prev = {"conflicts": [{"id": "iemen", "name": "Iêmen", "views_7d": 99, "series": []}]}
+    state: dict = {}
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    out = radar.collect_attention(radar.Ctx(client, NOW, None, conf, prev, state, None))
+    by_id = {c["id"]: c for c in out["conflicts"]}
+    assert by_id["gaza"]["views_7d"] == 7  # passou na segunda tentativa
+    assert by_id["iemen"]["views_7d"] == 99 and by_id["iemen"]["stale"]  # ficou o último dado bom
+    assert state["titles"]["Gaza war"]["titles"] == {"en": "Gaza war"}
+
+    # Próxima coleta: o título guardado evita a chamada à API (só as visitas são consultadas).
+    api_calls.clear()
+    radar.collect_attention(radar.Ctx(client, NOW, None, conf, prev, state, None))
+    assert "Gaza war" not in api_calls

@@ -16,6 +16,7 @@ import math
 import os
 import re
 import statistics
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -1986,12 +1987,32 @@ PAGEVIEWS = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{l
 WIKI_HEADERS = {"User-Agent": "Argos/1.0 (https://github.com/AbuGDN/Argos; app pessoal de noticias)"}
 
 
-def wiki_titles(client: httpx.Client, title: str, langs: list[str]) -> dict[str, str]:
+WIKI_TITLES_TTL = timedelta(days=7)
+
+
+def _wiki_get(client: httpx.Client, url: str, sleep=None, **kw) -> httpx.Response:
+    """GET com uma segunda tentativa depois de 429 (respeitando Retry-After, no máximo 15 s): a API da
+    Wikipédia limita os IPs compartilhados do GitHub Actions (medido em 01/10/2026: 4 das 13 guerras
+    caíram por 429 na primeira coleta)."""
+    resp = client.get(url, headers=WIKI_HEADERS, **kw)
+    if resp.status_code == 429:
+        try:
+            wait = min(15.0, float(resp.headers.get("retry-after", "5")))
+        except ValueError:
+            wait = 5.0
+        (sleep or time.sleep)(wait)
+        resp = client.get(url, headers=WIKI_HEADERS, **kw)
+    return resp
+
+
+def wiki_titles(client: httpx.Client, title: str, langs: list[str], sleep=None) -> dict[str, str]:
     """Título em inglês -> {idioma: título} do mesmo artigo. Segue redirecionamento: as visitas
     contam só no título exato, e um redirecionamento teria quase zero."""
-    data = _get_json(client, WIKI_API.format(lang="en"), headers=WIKI_HEADERS, params={
+    resp = _wiki_get(client, WIKI_API.format(lang="en"), sleep=sleep, params={
         "action": "query", "titles": title, "redirects": 1, "prop": "langlinks", "lllimit": "max",
         "format": "json", "formatversion": 2})
+    resp.raise_for_status()
+    data = resp.json()
     page = (data.get("query", {}).get("pages") or [{}])[0]
     if page.get("missing") or not page.get("title"):
         raise RuntimeError(f"artigo não existe: {title}")
@@ -2004,7 +2025,7 @@ def wiki_titles(client: httpx.Client, title: str, langs: list[str]) -> dict[str,
 def wiki_daily_views(client: httpx.Client, lang: str, title: str, start: str, end: str) -> dict[str, int]:
     """{AAAA-MM-DD: visitas de pessoas} entre start e end (AAAAMMDD). Sem dado no período: {}."""
     url = PAGEVIEWS.format(lang=lang, title=quote(title.replace(" ", "_"), safe=""), start=start, end=end)
-    resp = client.get(url, headers=WIKI_HEADERS)
+    resp = _wiki_get(client, url)
     if resp.status_code == 404:  # artigo sem visitas registradas no período
         return {}
     resp.raise_for_status()
@@ -2031,17 +2052,28 @@ def collect_attention(ctx: Ctx) -> dict:
     last = (ctx.now - timedelta(days=2)).date()
     dates = [(last - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
     start, end = dates[0].replace("-", ""), dates[-1].replace("-", "")
+    # Títulos de cada idioma guardados no estado do Radar por uma semana: quase nunca mudam, e era a
+    # consulta que mais levava 429 do GitHub.
+    cache = ctx.state.setdefault("titles", {})
+    prev_by_id = {p["id"]: p for p in (ctx.prev or {}).get("conflicts", [])}
     out = []
     for c in ctx.conf["conflicts"]:
         daily: dict[str, int] = {}
         by_lang: dict[str, int] = {}
         found = 0
         for article in c.get("articles", []):
-            try:
-                titles = wiki_titles(ctx.client, article, langs)
-            except Exception as exc:
-                log.info("atenção %s (%s): %s", c["id"], article, exc)
-                continue
+            hit = cache.get(article)
+            if hit and ctx.now - parse_iso(hit["at"]) <= WIKI_TITLES_TTL and set(langs) <= set(hit.get("langs", [])):
+                titles = hit["titles"]
+            else:
+                try:
+                    titles = wiki_titles(ctx.client, article, langs)
+                    cache[article] = {"at": iso(ctx.now), "langs": langs, "titles": titles}
+                except Exception as exc:
+                    log.info("atenção %s (%s): %s", c["id"], article, exc)
+                    if not hit:
+                        continue
+                    titles = hit["titles"]  # título velho é melhor que guerra nenhuma
             for lang, title in titles.items():
                 try:
                     views = wiki_daily_views(ctx.client, lang, title, start, end)
@@ -2053,6 +2085,9 @@ def collect_attention(ctx: Ctx) -> dict:
                     daily[d] = daily.get(d, 0) + v
                 by_lang[lang] = by_lang.get(lang, 0) + sum(views.values())
         if not found:
+            # Falhou agora: fica o último dado bom desta guerra (com a data dele), em vez de ela sumir.
+            if c["id"] in prev_by_id:
+                out.append({**prev_by_id[c["id"]], "stale": True})
             continue
         out.append({"id": c["id"], "name": c["name"], "tag": c.get("tag"), **attention_summary(daily, dates, by_lang)})
     if not out:
