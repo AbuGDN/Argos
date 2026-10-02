@@ -10,10 +10,11 @@ package com.abugdn.wid.data
  * - [postprocess] age no português DEPOIS: corrige termos militares, formas de Portugal
  *   (o ML Kit mistura pt-PT), nomes que ficaram em inglês e artigos.
  *
- * Ao mudar as regras, aumente [VERSION]: o app descarta as traduções guardadas e retraduz.
+ * Ao mudar as regras (ou o [NameGuard]), aumente [VERSION]: o app descarta as traduções guardadas
+ * e retraduz.
  */
 object TranslationGlossary {
-    const val VERSION = 1
+    const val VERSION = 2
 
     private class Rule(val rx: Regex, val replace: (MatchResult) -> String)
 
