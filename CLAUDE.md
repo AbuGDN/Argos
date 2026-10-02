@@ -141,6 +141,7 @@ android/app/src/main/java/com/abugdn/wid/
   data/Context.kt        textos fixos: ACTORS, PEOPLE, GLOSSARY, REGION_CONTEXT, SOURCE_PROFILES
   data/Milestones.kt, Conflicts.kt, WhatsNew.kt (CHANGELOG por versionCode)
   data/Translator.kt     ML Kit en/he/ar→pt; idioma detectado pelo alfabeto; um modelo por idioma
+  data/NameGuard.kt      protege nomes de pessoas e siglas do ML Kit (marcadores ZQXA…)
   data/Vigil.kt          registro de vigília (alertas com data/hora, vigil.json); Bulletin.kt: boletim semanal
   data/Ranges.kt         alcance de mísseis/defesas desenhado no mapa; Weapons.kt: fichas das armas
   data/Cities.kt         cidades para o mapa "por cidade"; Truces.kt: contador de tréguas
@@ -265,6 +266,17 @@ web/                     página de download (index.html, icon.svg), status.html
   viram a forma por extenso; pós: pt-PT→pt-BR, termos militares, nomes em inglês, concordância com
   "Estados Unidos"). Testes em `android/app/src/test/` (rodam no CI). Ao mudar regras, aumente
   `VERSION` — o app descarta e refaz as traduções guardadas.
+- **Nomes e siglas na tradução** (`data/NameGuard.kt`, 1.0.46): no inglês, entre o glossário e o ML Kit,
+  nomes de pessoas e siglas viram marcadores `ZQXA`…`ZQXH` e voltam depois (a volta ignora a caixa: o
+  ML Kit às vezes devolve "zqxa"). Nomes aprendidos dos textos do lote (2+ palavras com maiúscula no
+  meio de frase normal), **só os que têm palavra comum do inglês** ("Renee Good", "Condoleezza Rice");
+  siglas de 2 a 4 letras, menos as que o tradutor já acerta (`KNOWN_ACRONYMS`: BBC, CIA, FBI, RAF…);
+  "Trump" sempre (`ALWAYS`: saía "trunfats"). Falso positivo novo ("Most Americans") vai para
+  `NOT_PERSON`; confira rodando `learn()` sobre o feed.json da gh-pages. Medido
+  no emulador em 01/10/2026: proteger o que já saía certo piorava ("diz ao BBC"); sobrenome inventado
+  como marcador bagunçava frases; pôr a manchete em minúsculas não muda nada no ML Kit. Hebraico e árabe
+  não passam por ele. Para medir o ML Kit de novo: `ProbeTest` instrumentado numa branch de teste com o
+  `smoke.yml` trocado por `connectedDebugAndroidTest` (feito na branch `teste-nomes-mlkit`).
 - **Radar**: do GitHub, Yahoo dá 429, Stooq pede JavaScript, FRED não responde (Brent vem da tabela do
   EIA) e crisisgroup.org dá 403 (CrisisWatch vem da cópia do Internet Archive). Para testar uma fonte
   nova a partir dos servidores do GitHub: `.github/diagnose/urls.txt` + workflow "Diagnóstico de fontes". Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita

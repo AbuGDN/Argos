@@ -11,6 +11,14 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        46,
+        listOf(
+            "🔤 Tradução sem traduzir nomes: \"Renee Good\" não vira mais \"Renee Bom\", nem a sigla ICE vira \"gelo\". Vale para nomes de pessoas que são palavras do inglês e para siglas.",
+            "🔄 As traduções guardadas são refeitas uma vez, já com a correção.",
+            "🖼 Fotos das notícias maiores e mais nítidas (BBC, CNN Brasil, Ynet, NPR, Guardian), e agora também em notícias que vinham sem foto.",
+        ),
+    ),
+    ChangelogEntry(
         45,
         listOf(
             "👀 Atenção do mundo: quantas pessoas leem sobre cada guerra na Wikipédia em 8 idiomas, com a semana comparada à anterior (Ferramentas → Radar).",

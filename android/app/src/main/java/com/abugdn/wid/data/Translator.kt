@@ -56,16 +56,23 @@ class Translator(private val storage: Storage) {
         return ok
     }
 
-    /** ML Kit com o glossário de guerra em volta (siglas e nomes do inglês; ajustes do português em todos). */
-    private suspend fun translateOne(text: String, lang: String): String {
-        val input = if (lang == TranslateLanguage.ENGLISH) TranslationGlossary.preprocess(text) else text
-        return TranslationGlossary.postprocess(client(lang).translate(input).await())
+    /**
+     * ML Kit com o glossário de guerra em volta (siglas e nomes do inglês; ajustes do português em
+     * todos) e, no inglês, nomes de pessoas e siglas protegidos ([NameGuard]).
+     */
+    private suspend fun translateOne(text: String, lang: String, names: Set<String>): String {
+        if (lang != TranslateLanguage.ENGLISH) return TranslationGlossary.postprocess(client(lang).translate(text).await())
+        val guarded = NameGuard.protect(TranslationGlossary.preprocess(text), names)
+        val out = client(lang).translate(guarded.text).await()
+        return TranslationGlossary.postprocess(NameGuard.restore(out, guarded))
     }
 
     /** Traduz e guarda no cache o que ainda não foi traduzido. */
     suspend fun translateAll(texts: Collection<String>): Boolean {
         val missing = texts.filter { it.isNotBlank() && it !in storage.translations }.distinct()
         if (missing.isEmpty()) return true
+        // Os resumos ensinam os nomes que as manchetes Em Maiúsculas não deixam ver.
+        val names = NameGuard.learn(texts)
         var allOk = true
         mutex.withLock {
             for ((lang, group) in missing.groupBy(::sourceLanguage)) {
@@ -74,7 +81,7 @@ class Translator(private val storage: Storage) {
                     continue
                 }
                 for (text in group) {
-                    runCatching { translateOne(text, lang) }
+                    runCatching { translateOne(text, lang, names) }
                         .onSuccess { storage.translations[text] = it }
                 }
             }
@@ -87,7 +94,8 @@ class Translator(private val storage: Storage) {
         val lang = sourceLanguage(texts.joinToString(" ").take(2000))
         return mutex.withLock {
             if (!ensureModel(lang)) return@withLock null
-            texts.map { runCatching { translateOne(it, lang) }.getOrDefault(it) }
+            val names = NameGuard.learn(texts)
+            texts.map { runCatching { translateOne(it, lang, names) }.getOrDefault(it) }
         }
     }
 }
