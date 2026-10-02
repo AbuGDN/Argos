@@ -45,7 +45,7 @@ class ProbeTest {
 
     private val dummies = listOf("Kowalski", "Nakamura", "Okafor", "Lindqvist")
     private fun sub(text: String, protect: List<String>, token: (Int) -> String): String =
-        protect.foldIndexed(text) { i, acc, p -> Regex("(?<![\p{L}\d])${Regex.escape(p)}(?![\p{L}\d])").replace(acc, token(i)) }
+        protect.foldIndexed(text) { i, acc, p -> Regex("""(?<![\p{L}\d])""" + Regex.escape(p) + """(?![\p{L}\d])""").replace(acc, token(i)) }
 
     @Test fun probe() {
         val client = Translation.getClient(TranslatorOptions.Builder()
