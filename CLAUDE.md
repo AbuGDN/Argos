@@ -17,8 +17,8 @@ para continuar o trabalho sem redescobrir tudo.
 
 ## Onde estamos (01/10/2026)
 
-- App na **versão 1.0.45** (versionCode = run_number do workflow "App Android"; a próxima entrada do
-  CHANGELOG é **46**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
+- App na **versão 1.0.46** (versionCode = run_number do workflow "App Android"; a próxima entrada do
+  CHANGELOG é **47**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
 - Fluxo usado nas sessões em nuvem: trabalho na branch `claude/app-information-suggestions-8g3ca9`
   (recriada a partir da base a cada rodada) → PR para a base → build "App Android" verde → merge com
   **`[skip ci]` no título do merge** (senão o merge gera uma segunda release igual). Mudanças só em
@@ -276,7 +276,9 @@ web/                     página de download (index.html, icon.svg), status.html
   no emulador em 01/10/2026: proteger o que já saía certo piorava ("diz ao BBC"); sobrenome inventado
   como marcador bagunçava frases; pôr a manchete em minúsculas não muda nada no ML Kit. Hebraico e árabe
   não passam por ele. Para medir o ML Kit de novo: `ProbeTest` instrumentado numa branch de teste com o
-  `smoke.yml` trocado por `connectedDebugAndroidTest` (feito na branch `teste-nomes-mlkit`).
+  `smoke.yml` trocado por `connectedDebugAndroidTest`. Pronto na branch `teste-nomes-mlkit` (mantida de
+  propósito): edite `ProbeTest.kt` lá, commit `[skip ci]` no topo, dispare "Teste de fumaça" nela e
+  baixe o artefato "probe".
 - **Radar**: do GitHub, Yahoo dá 429, Stooq pede JavaScript, FRED não responde (Brent vem da tabela do
   EIA) e crisisgroup.org dá 403 (CrisisWatch vem da cópia do Internet Archive). Para testar uma fonte
   nova a partir dos servidores do GitHub: `.github/diagnose/urls.txt` + workflow "Diagnóstico de fontes". Focos de calor precisam do secret `FIRMS_MAP_KEY`; OpenSky aceita
