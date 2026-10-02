@@ -18,6 +18,7 @@ android {
         versionName = "1.0.${System.getenv("WID_VERSION_CODE") ?: "0"}"
         // Só processadores de celular: corta as bibliotecas nativas x86 do ML Kit.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // Chave fixa no repositório: app de uso pessoal, e assim toda build (local ou CI)
@@ -81,4 +82,6 @@ dependencies {
     implementation("net.dankito.readability4j:readability4j:1.0.8")
 
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
