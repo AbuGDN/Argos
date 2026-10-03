@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Argos · Painel</title>
+<meta name="description" content="Argos: o mundo em guerra num globo. Tensão por região, notícias, sensores e mapas, em português.">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map" aria-label="Globo com as regiões acompanhadas"></div>
+<div id="splash" aria-hidden="true">
+  <svg viewBox="0 0 108 108"><g fill="none" stroke="#C9A227" stroke-linejoin="round" stroke-linecap="round">
+    <path class="tri" pathLength="1" d="M54 27 L77.5 68.5 L30.5 68.5 Z" stroke-width="2.4"/>
+    <path class="eye" pathLength="1" d="M42 57 Q54 47 66 57 Q54 67 42 57 Z" stroke-width="1.8"/>
+    <circle class="iris" cx="54" cy="57" r="4.2" fill="#C9A227" stroke="none"/></g></svg>
+  <div class="word">ARGOS</div>
+</div>
+
+<header class="top">
+  <a class="brand" href="./" title="Argos · Painel">
+    <svg viewBox="0 0 108 108" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M54 27 L77.5 68.5 L30.5 68.5 Z" stroke-width="4"/>
+      <path d="M42 57 Q54 47 66 57 Q54 67 42 57 Z" stroke-width="3"/>
+      <circle cx="54" cy="57" r="4.7" fill="currentColor" stroke="none"/></g></svg>
+    <span class="name">ARGOS</span>
+  </a>
+  <button class="clock" id="clock" type="button" title="Relógio do Argos: tensão global">
+    <span class="clock-n" id="clock-n">··</span>
+    <span class="clock-t"><b id="clock-level">Relógio do Argos</b><small id="clock-sub">carregando…</small></span>
+  </button>
+  <div class="search">
+    <input id="q" type="search" placeholder="Buscar região, cidade ou notícia  ( / )" autocomplete="off" spellcheck="false">
+    <div id="results" class="results" hidden></div>
+  </div>
+  <div class="actions">
+    <span id="updated" class="updated"></span>
+    <button class="btn" type="button" data-action="share" title="Imagem do globo para compartilhar (I)">📷 Imagem</button>
+    <button id="btn-layers" class="btn" type="button" aria-expanded="false">Camadas</button>
+    <a class="btn gold" href="../">Baixar o app</a>
+  </div>
+</header>
+
+<aside class="panel left" id="left">
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="regions" class="on">Regiões</button>
+    <button role="tab" data-tab="news">Notícias</button>
+    <button role="tab" data-tab="radar">Radar</button>
+    <button role="tab" data-tab="archive">Arquivo</button>
+  </nav>
+  <div class="tr-banner" id="tr-banner" hidden></div>
+  <div class="scroll" id="left-body"></div>
+</aside>
+
+<aside class="panel right" id="detail" hidden>
+  <button class="close" id="detail-close" type="button" aria-label="Fechar">✕</button>
+  <div class="scroll" id="detail-body"></div>
+</aside>
+
+<div class="popover" id="layers" hidden>
+  <h3>Camadas</h3>
+  <label><input type="checkbox" data-layer="regions" checked> Regiões e tensão</label>
+  <label><input type="checkbox" data-layer="cities" checked> Cidades citadas</label>
+  <label><input type="checkbox" data-layer="arcs" checked> Ligações entre regiões</label>
+  <label><input type="checkbox" data-layer="straits" checked> Estreitos (navios)</label>
+  <label><input type="checkbox" data-layer="night" checked> Dia e noite + hora nas capitais</label>
+  <label><input type="checkbox" data-layer="sirens" checked> Sirenes em Israel (24 h)</label>
+  <label><input type="checkbox" data-layer="quakes"> Sismógrafo (7 dias)</label>
+  <label><input type="checkbox" data-layer="fires"> Focos de calor (24 h)</label>
+  <label><input type="checkbox" data-layer="aircraft"> Aviões militares</label>
+  <label><input type="checkbox" data-layer="carriers"> Porta-aviões dos EUA</label>
+  <label><input type="checkbox" data-layer="front"> Linha de frente (Ucrânia)</label>
+  <label><input type="checkbox" data-layer="ranges"> Alcance de mísseis e defesas</label>
+  <h3>Detalhe</h3>
+  <label title="Relevo 3D e prédios 3D. Ligado de fábrica só em computadores fortes."><input type="checkbox" data-opt="hq"> <b>Alta qualidade</b></label>
+  <label><input type="checkbox" data-layer="terrain"> Relevo 3D (montanhas)</label>
+  <label><input type="checkbox" data-layer="buildings"> Prédios 3D, ruas e nomes</label>
+  <label><input type="checkbox" data-layer="clouds"> Nuvens agora (Meteosat)</label>
+  <label><input type="checkbox" data-layer="lights"> Luzes das cidades à noite</label>
+  <h3>Fundo</h3>
+  <label><input type="radio" name="base" value="dark" checked> Mapa escuro</label>
+  <label><input type="radio" name="base" value="sat"> Satélite</label>
+  <label title="Foto de ontem inteira do planeta, com as nuvens (NASA)"><input type="radio" name="base" value="nasa"> Satélite de ontem (NASA)</label>
+  <label><input type="radio" name="base" value="none"> Só contornos</label>
+  <h3>Globo</h3>
+  <label><input type="checkbox" data-opt="rotate" checked> Girar sozinho quando parado</label>
+</div>
+
+<footer class="ticker" id="ticker" hidden>
+  <span class="live">◉ AO VIVO</span>
+  <div class="track"><div class="marquee" id="marquee"></div></div>
+</footer>
+
+<div class="hud" id="hud"><span id="hud-pos">—</span><span id="hud-utc"></span><button type="button" data-action="help" class="hud-help">? atalhos</button></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="app.js"></script>
+<script src="features.js"></script>
+<script src="motion.js"></script>
+<script src="detail.js"></script>
+</body>
+</html>
