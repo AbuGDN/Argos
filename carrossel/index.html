@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Argos · Carrossel</title>
+<link rel="icon" href="../icon.svg">
+<style>
+  :root { --ink: #050505; --card: #121110; --line: #2a2720; --gold: #C9A227; --bone: #E8E2D0; --ash: #8A8578; --blood: #B3122E; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--bone); font: 15px/1.45 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--ink); z-index: 2; flex-wrap: wrap; }
+  header h1 { font: 700 20px Georgia, serif; letter-spacing: .2em; color: var(--gold); margin: 0; }
+  header .sp { flex: 1; }
+  button, .btn { background: var(--card); color: var(--bone); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
+  button.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 700; }
+  button:disabled { opacity: .5; cursor: default; }
+  main { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 58px); }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } #pick { max-height: 45vh; } }
+  #pick { border-right: 1px solid var(--line); overflow: auto; padding: 12px; }
+  #q { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--bone); font: inherit; margin-bottom: 10px; }
+  .story { padding: 9px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .story:hover { background: var(--card); }
+  .story.on { border-color: var(--gold); background: var(--card); }
+  .story .m { font-size: 12px; color: var(--ash); }
+  #work { padding: 16px; overflow: auto; }
+  .hint { color: var(--ash); font-size: 13px; margin: 0 0 12px; }
+  .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+  .slide { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .slide.off canvas { opacity: .3; }
+  .slide canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+  .slide label { display: block; font-size: 12px; color: var(--ash); margin: 8px 0 3px; }
+  .slide input[type=text], .slide textarea { width: 100%; background: var(--ink); color: var(--bone); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; font: 14px/1.4 system-ui, sans-serif; }
+  .slide textarea { min-height: 110px; resize: vertical; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .row .k { font-size: 12px; color: var(--gold); font-weight: 700; letter-spacing: .08em; }
+  .note { color: var(--ash); font-size: 12px; }
+  .empty { color: var(--ash); padding: 40px 0; text-align: center; }
+  .imgrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .imgrow button { padding: 6px 10px; font-size: 13px; }
+  dialog { background: var(--card); color: var(--bone); border: 1px solid var(--gold); border-radius: 12px; width: min(920px, 96vw); max-height: 90vh; padding: 16px; }
+  dialog::backdrop { background: rgba(0,0,0,.7); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chips button { font-size: 13px; padding: 5px 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 52vh; overflow: auto; margin-top: 8px; }
+  .grid figure { margin: 0; cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; background: var(--ink); }
+  .grid figure:hover { border-color: var(--gold); }
+  .grid img { width: 100%; height: 110px; object-fit: cover; display: block; }
+  .grid figcaption { font-size: 11px; color: var(--ash); padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pq { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--ink); color: var(--bone); font: inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ARGOS · CARROSSEL</h1>
+  <span class="note" id="status">Carregando…</span>
+  <span class="sp"></span>
+  <label class="note"><input type="checkbox" id="showUrl"> endereço do Argos no último slide</label>
+  <button id="translate" hidden>Traduzir textos</button>
+  <button id="caption" disabled>Legenda</button>
+  <button id="share" disabled>Compartilhar</button>
+  <button id="download" class="gold" disabled>Baixar imagens</button>
+</header>
+<main>
+  <aside id="pick">
+    <input id="q" placeholder="Buscar história…" autocomplete="off">
+    <div id="list"></div>
+  </aside>
+  <section id="work">
+    <p class="hint">Escolha uma história. Os slides saem prontos com os dados do Argos; edite o texto de cada um antes de baixar e desmarque os que não quiser. Tamanho do Instagram (1080×1350). Escreva *entre asteriscos* para destacar palavras em dourado. O botão Legenda monta o texto do post com link e hashtags.</p>
+    <div class="slides" id="slides"><div class="empty">Nenhuma história escolhida.</div></div>
+  </section>
+</main>
+<datalist id="selos"><option value="URGENTE"><option value="ATUALIZAÇÃO"><option value="ANÁLISE"><option value="EXCLUSIVO"></datalist>
+<dialog id="capdlg">
+  <div class="row" style="margin:0"><strong style="color:var(--gold)">Legenda do post</strong><button id="capclose">Fechar</button></div>
+  <textarea id="captext" style="width:100%;min-height:340px;margin-top:10px;background:var(--ink);color:var(--bone);border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.45 system-ui,sans-serif"></textarea>
+  <div class="row"><span class="note" id="capmsg">Edite à vontade antes de copiar.</span><button id="capcopy" class="gold">Copiar</button></div>
+</dialog>
+<dialog id="picker">
+  <div class="row" style="margin:0"><strong style="color:var(--gold)">Imagem do slide</strong><button id="pclose">Fechar</button></div>
+  <p class="note">Fotos livres do Wikimedia Commons (o crédito do autor e a licença entram na imagem), uma imagem sua ou a foto da notícia, quando o site do jornal permitir.</p>
+  <div class="row" style="justify-content:flex-start"><input id="pq" placeholder="Buscar no Wikimedia Commons (ex.: Kyiv, Gaza, Netanyahu)"><button id="psearch" class="gold">Buscar</button></div>
+  <div class="chips" id="pchips"></div>
+  <div class="row" style="justify-content:flex-start">
+    <label class="btn" style="margin:0">📱 Imagem do aparelho<input type="file" id="pfile" accept="image/*" hidden></label>
+    <button id="pnews">📰 Foto da notícia</button>
+    <span class="note" id="pmsg"></span>
+  </div>
+  <div class="grid" id="pgrid"></div>
+</dialog>
+<script>
+'use strict';
+// Ferramenta pessoal: gera o carrossel do Instagram de uma história do Argos (feed.json + painel/geo.json).
+// Não aparece no app nem nos links do site. Tradução pelo Translator do Chrome, com o mesmo cache do painel.
+
+const W = 1080, H = 1350, M = 84;
+const C = { ink: '#050505', gold: '#C9A227', bone: '#E8E2D0', ash: '#8A8578', blood: '#B3122E', line: '#2A2720', green: '#6E8B6A' };
+const SERIF = 'Georgia, "Times New Roman", serif';
+const SANS = 'system-ui, "Segoe UI", Roboto, sans-serif';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = (s) => String(s ?? '').normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
+const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem espaço */ } },
+};
+
+const S = { feed: null, geo: null, world: null, story: null, slides: [], flags: {} };
+
+// --- Tradução (mesmo cache do painel: argos_tr_v1) ---------------------------------------
+const TR = {
+  cache: store.get('argos_tr_v1', {}),
+  engines: {},
+  supported: 'Translator' in self,
+  get(text, lang) { return !text || lang === 'pt' ? text : this.cache[`${lang}|${text}`] || null; },
+  show(text, lang) { return this.get(text, lang) || text; },
+  async engine(lang) {
+    if (this.engines[lang]) return this.engines[lang];
+    try {
+      const av = await self.Translator.availability({ sourceLanguage: lang, targetLanguage: 'pt' });
+      if (av === 'unavailable') return null;
+      this.engines[lang] = await self.Translator.create({ sourceLanguage: lang, targetLanguage: 'pt' });
+      return this.engines[lang];
+    } catch { return null; }
+  },
+  /** Traduz os textos da história escolhida. Devolve quantos faltaram. */
+  async story(c) {
+    if (!this.supported) return -1;
+    const todo = [[c.title, c.lang], [c.summary, c.lang], ...c.articles.map((a) => [a.title, a.lang]), ...c.articles.map((a) => [a.summary, a.lang])]
+      .filter(([t, l]) => t && l !== 'pt' && !this.get(t, l));
+    let missing = 0;
+    for (const [t, l] of todo) {
+      const eng = await this.engine(l);
+      if (!eng) { missing++; continue; }
+      try { this.cache[`${l}|${t}`] = await eng.translate(t); } catch { missing++; }
+    }
+    store.set('argos_tr_v1', this.cache);
+    return missing;
+  },
+};
+
+// --- Dados ------------------------------------------------------------------------------
+async function getJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+async function load() {
+  try {
+    [S.feed, S.geo] = await Promise.all([getJSON('../feed.json'), getJSON('../painel/geo.json')]);
+  } catch (e) {
+    $('#status').textContent = 'Não consegui ler os dados do Argos.';
+    return;
+  }
+  $('#status').textContent = `${S.feed.clusters.length} histórias · atualizado ${fmtDate(S.feed.generated_at)}`;
+  renderList();
+  const id = location.hash.slice(1);
+  if (id) pick(id);
+}
+
+const label = (tag) => S.geo?.labels?.[tag] || tag;
+const BROAD = ['eua', 'otan', 'asia', 'africa', 'ice', 'brasil', 'mediterraneo'];
+const mainTag = (c) => c.tags.find((t) => !BROAD.includes(t)) || c.tags[0];
+
+function renderList() {
+  const q = norm($('#q').value);
+  const list = [...S.feed.clusters].sort((a, b) => b.score - a.score)
+    .filter((c) => !q || norm(TR.show(c.title, c.lang) + ' ' + c.title).includes(q)).slice(0, 80);
+  $('#list').innerHTML = list.map((c) => `<div class="story${S.story?.id === c.id ? ' on' : ''}" data-id="${c.id}">
+      <div class="m">${esc(c.tags.map(label).slice(0, 2).join(' · '))} · ${c.sources_count} veículos</div>
+      <div>${esc(TR.show(c.title, c.lang))}</div></div>`).join('') || '<div class="note">Nada encontrado.</div>';
+}
+
+// --- Montagem dos slides (texto editável) ---------------------------------------------------
+function citiesOf(c) {
+  const text = norm([c.title, c.summary, ...c.articles.map((a) => a.title)].join(' '));
+  return (S.geo?.cities || []).filter((city) => city.terms.some((t) => new RegExp(`(^|[^\\p{L}])${norm(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'u').test(text)));
+}
+
+/** Link da matéria principal, sem "https://www." (os redirecionamentos do Google News não servem). */
+function storyLink(c) {
+  const url = [c.url, ...c.articles.map((a) => a.url)].find((u) => u && !/news\.google\./.test(u));
+  return url ? url.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').replace(/\/$/, '') : '';
+}
+
+const FOLLOW_KEYS = { title: 'car_follow_title', body: 'car_follow_body2', handle: 'car_follow_handle' };
+
+function buildSlides(c) {
+  const tag = mainTag(c);
+  const slides = [];
+  const title = TR.show(c.title, c.lang);
+  const kicker = `${label(tag).toUpperCase()} · ${fmtDate(c.published)}`;
+  slides.push({ kind: 'capa', kicker, title, body: c.urgent ? 'URGENTE' : '' });
+
+  // O que aconteceu: resumo (ou as manchetes dos outros veículos).
+  const summary = TR.show(c.summary, c.lang) || '';
+  const others = c.articles.filter((a) => a.source !== c.source).slice(0, 3).map((a) => `${a.source}: “${TR.show(a.title, a.lang)}”`);
+  // Frase-chave: a primeira frase vira o título grande; o resto fica menor embaixo.
+  const oneLine = summary.length > 60 && summary.length <= 280 && !/[.!?]\s+\S/.test(summary);
+  const key = summary.length > 60 && summary.match(/^(.{20,200}?[.!?])\s+(\S[\s\S]*)$/);
+  slides.push({
+    kind: 'texto', kicker: 'O QUE ACONTECEU',
+    title: key ? key[1] : oneLine ? summary : 'O que aconteceu',
+    body: key ? key[2] : oneLine ? '' : summary.length > 60 ? summary : [summary, ...others].filter(Boolean).join('\n\n'),
+  });
+
+  // Chamada para seguir (o texto fica guardado para os próximos carrosséis).
+  slides.push({
+    kind: 'siga', kicker: 'ARGOS', bg: true, question: '',
+    title: store.get(FOLLOW_KEYS.title, 'Siga para mais'),
+    body: store.get(FOLLOW_KEYS.body, 'A geopolítica global no seu feed, todos os dias.'),
+    handle: store.get(FOLLOW_KEYS.handle, ''),
+  });
+
+  // Fontes.
+  const sources = [...new Set(c.articles.map((a) => a.source))];
+  slides.push({ kind: 'fontes', kicker: 'FONTES', title: `${sources.length} ${sources.length === 1 ? 'veículo' : 'veículos'}`, body: sources.join(' · '), link: storyLink(c) });
+  return slides.map((s) => ({ ...s, on: true }));
+}
+
+// --- Desenho --------------------------------------------------------------------------------
+/** Quebra em linhas de palavras; *entre asteriscos* marca o destaque (hl). Linha vazia = []. */
+function layout(ctx, text, maxW) {
+  const lines = [];
+  const sp = ctx.measureText(' ').width;
+  let on = false;
+  for (const para of String(text ?? '').split('\n')) {
+    if (!para.trim()) { lines.push([]); continue; }
+    let line = [], lineW = 0;
+    for (let w of para.split(/\s+/).filter(Boolean)) {
+      let hl = on;
+      if (w.startsWith('*')) { hl = true; w = w.slice(1); }
+      const end = w.match(/\*([^\p{L}\p{N}]*)$/u);
+      if (end) { w = w.slice(0, end.index) + end[1]; on = false; } else on = hl;
+      if (!w) continue;
+      const tw = ctx.measureText(w).width;
+      if (line.length && lineW + sp + tw > maxW) { lines.push(line); line = []; lineW = 0; }
+      lineW += (line.length ? sp : 0) + tw;
+      line.push({ t: w, hl });
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+/** Escreve o texto em até maxH de altura, diminuindo a letra até caber. Devolve a altura usada.
+ *  Respeita ctx.textAlign (left/center); dry = só mede. */
+function fitText(ctx, text, x, y, maxW, maxH, { size = 44, min = 26, font = SANS, weight = '400', color = C.bone, hl = C.gold, lh = 1.32, dry = false } = {}) {
+  let s = size, lines;
+  for (; s >= min; s -= 2) {
+    ctx.font = `${weight} ${s}px ${font}`;
+    lines = layout(ctx, text, maxW);
+    if (lines.length * s * lh <= maxH) break;
+  }
+  s = Math.max(s, min);
+  ctx.font = `${weight} ${s}px ${font}`;
+  lines = layout(ctx, text, maxW);
+  const maxLines = Math.max(1, Math.floor(maxH / (s * lh)));
+  const used = Math.min(lines.length, maxLines) * s * lh;
+  if (dry) return used;
+  const align = ctx.textAlign;
+  const sp = ctx.measureText(' ').width;
+  ctx.textAlign = 'left';
+  lines.slice(0, maxLines).forEach((line, i) => {
+    const words = line.map((w) => ({ ...w }));
+    if (i === maxLines - 1 && lines.length > maxLines && words.length) words[words.length - 1].t += '…';
+    const width = words.reduce((a, w) => a + ctx.measureText(w.t).width, 0) + sp * Math.max(0, words.length - 1);
+    let cx = align === 'center' ? x - width / 2 : x;
+    for (const w of words) {
+      ctx.fillStyle = w.hl ? hl : color;
+      ctx.fillText(w.t, cx, y + s + i * s * lh);
+      cx += ctx.measureText(w.t).width + sp;
+    }
+  });
+  ctx.textAlign = align;
+  return used;
+}
+
+/** Grão, retícula e vinheta: o fundo deixa de ser um preto chapado. */
+let GRAIN = null;
+function texture(ctx) {
+  if (!GRAIN) {
+    GRAIN = document.createElement('canvas');
+    GRAIN.width = GRAIN.height = 220;
+    const g = GRAIN.getContext('2d');
+    const d = g.createImageData(220, 220);
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < d.data.length; i += 4) {
+      const v = rnd() * 255;
+      d.data[i] = d.data[i + 1] = d.data[i + 2] = v;
+      d.data[i + 3] = rnd() < 0.5 ? 16 : 0;
+    }
+    g.putImageData(d, 0, 0);
+  }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(201,162,39,.045)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 54; x < W; x += 54) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+  for (let y = 54; y < H; y += 54) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+  ctx.stroke();
+  ctx.fillStyle = ctx.createPattern(GRAIN, 'repeat');
+  ctx.fillRect(0, 0, W, H);
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.78);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function eye(ctx, cx, cy, size, color) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = size * 0.05; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, cy - size * 0.5); ctx.lineTo(cx + size * 0.55, cy + size * 0.42); ctx.lineTo(cx - size * 0.55, cy + size * 0.42); ctx.closePath(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx, cy + size * 0.08, size * 0.26, size * 0.13, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy + size * 0.08, size * 0.07, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+/** Desenha a imagem cobrindo o retângulo (corta o excesso, como object-fit: cover). */
+function coverImage(ctx, img, x, y, w, h, focusY = 0.4) {
+  const r = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = w / r, sh = h / r;
+  const sx = (img.naturalWidth - sw) / 2, sy = Math.max(0, Math.min(img.naturalHeight - sh, (img.naturalHeight - sh) * focusY));
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function credit(ctx, text, x, y, maxW) {
+  if (!text) return;
+  ctx.save();
+  ctx.font = `500 21px ${SANS}`; ctx.fillStyle = 'rgba(232,226,208,.85)';
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+  let t = text;
+  while (ctx.measureText(t).width > maxW && t.length > 10) t = t.slice(0, -2);
+  if (t !== text) t = t.slice(0, -1) + '…';
+  ctx.fillText(t, x, y);
+  ctx.restore();
+}
+
+function frame(ctx, s, index, total) {
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 3; ctx.strokeRect(28, 28, W - 56, H - 56);
+  // Rodapé: marca e contador.
+  eye(ctx, M + 18, H - 96, 44, C.gold);
+  ctx.fillStyle = C.gold; ctx.font = `700 30px ${SERIF}`; ctx.letterSpacing = '6px';
+  ctx.fillText('ARGOS', M + 58, H - 82);
+  ctx.letterSpacing = '0px';
+  // Barra de progresso no lugar do "1/4".
+  const bw = 220, bx = W - M - bw, by = H - 99;
+  ctx.fillStyle = C.line; ctx.beginPath(); ctx.roundRect(bx, by, bw, 8, 4); ctx.fill();
+  ctx.fillStyle = C.gold; ctx.beginPath(); ctx.roundRect(bx, by, Math.max(8, bw * (index + 1) / total), 8, 4); ctx.fill();
+  // Cabeçalho do slide.
+  if (s.kind !== 'capa' && s.kind !== 'siga') {
+    ctx.fillStyle = C.gold; ctx.font = `700 28px ${SANS}`; ctx.letterSpacing = '3px';
+    ctx.fillText(s.kicker, M, 120);
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = C.gold; ctx.fillRect(M, 142, 90, 4);
+  }
+}
+
+function drawCover(ctx, s, c) {
+  if (s.img) {
+    // Foto de fundo com escurecimento para o texto ler bem; a manchete desce para a parte de baixo.
+    coverImage(ctx, s.img.el, 0, 0, W, H, 0.35);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(5,5,5,.72)'); g.addColorStop(0.28, 'rgba(5,5,5,.25)'); g.addColorStop(0.55, 'rgba(5,5,5,.55)'); g.addColorStop(1, 'rgba(5,5,5,.96)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.fillStyle = C.gold; ctx.font = `700 30px ${SANS}`; ctx.letterSpacing = '4px';
+  ctx.fillText(s.kicker, M, 170);
+  ctx.letterSpacing = '0px';
+  const flag = S.flags[mainTag(c)];
+  if (flag) ctx.drawImage(flag, W - M - 150, 110, 150, Math.round(150 * flag.naturalHeight / flag.naturalWidth));
+  if (s.body.trim()) {
+    // Vermelho só para URGENTE; os outros selos em dourado.
+    const red = /urgente/i.test(s.body);
+    const txt = s.body.trim().toUpperCase();
+    ctx.font = `800 30px ${SANS}`; ctx.letterSpacing = '2px';
+    ctx.fillStyle = red ? C.blood : C.gold; ctx.fillRect(M, 220, ctx.measureText(txt).width + 40, 52);
+    ctx.fillStyle = red ? C.bone : C.ink; ctx.fillText(txt, M + 20, 257);
+    ctx.letterSpacing = '0px';
+  }
+  // Mede antes (sem pintar) para centralizar a manchete na altura livre.
+  const opts = { size: 86, min: 50, font: SERIF, weight: '700', lh: 1.16 };
+  const h = fitText(ctx, s.title, M, 0, W - M * 2, 760, { ...opts, dry: true });
+  const top = s.body.trim() ? 300 : 230;
+  const y = s.img ? H - 250 - h : top + Math.max(0, (H - 260 - top - h) / 2);
+  fitText(ctx, s.title, M, y, W - M * 2, 760, opts);
+  if (s.img) credit(ctx, s.img.credit, M, 70, W - M * 2);
+  ctx.fillStyle = C.ash; ctx.font = `500 28px ${SANS}`;
+  ctx.fillText(`${c.sources_count} ${c.sources_count === 1 ? 'veículo' : 'veículos'} · arraste para entender →`, M, H - 190);
+}
+
+function drawText(ctx, s) {
+  let top = 170;
+  if (s.img) {
+    // Faixa de foto no alto do slide, com o crédito por cima.
+    const bh = 470;
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(M, top, W - M * 2, bh, 14); ctx.clip();
+    coverImage(ctx, s.img.el, M, top, W - M * 2, bh, 0.4);
+    const g = ctx.createLinearGradient(0, top + bh - 90, 0, top + bh);
+    g.addColorStop(0, 'rgba(5,5,5,0)'); g.addColorStop(1, 'rgba(5,5,5,.75)');
+    ctx.fillStyle = g; ctx.fillRect(M, top + bh - 90, W - M * 2, 90);
+    ctx.restore();
+    credit(ctx, s.img.credit, M + 16, top + bh - 18, W - M * 2 - 32);
+    top += bh + 34;
+  }
+  const tOpts = { size: s.img ? 50 : 62, min: 36, font: SERIF, weight: '700', lh: 1.18 };
+  const bOpts = { size: s.img ? 32 : 36, min: 24, color: 'rgba(232,226,208,.82)', lh: 1.4 };
+  const tMax = s.img ? 230 : 420;
+  const hasBody = !!s.body.trim();
+  if (!s.img) {
+    // Sem foto, o bloco de texto fica centralizado na altura livre.
+    const th = fitText(ctx, s.title, M, 0, W - M * 2, tMax, { ...tOpts, dry: true });
+    const bh = hasBody ? 50 + fitText(ctx, s.body, M, 0, W - M * 2, H - top - th - 250, { ...bOpts, dry: true }) : 0;
+    top += Math.max(0, (H - 230 - top - th - bh) / 2);
+  }
+  const h = fitText(ctx, s.title, M, top, W - M * 2, tMax, tOpts);
+  if (hasBody) {
+    ctx.fillStyle = C.gold; ctx.fillRect(M, top + h + 34, 60, 3);
+    fitText(ctx, s.body, M, top + h + 50, W - M * 2, H - top - h - 50 - 200, bOpts);
+  }
+}
+
+/** Fundo do "Siga": a foto da capa desfocada e escurecida, para o carrossel parecer uma peça só. */
+function followBackdrop(ctx, s) {
+  const cover = S.slides.find((x) => x.kind === 'capa');
+  if (!s.bg || !cover?.img) return;
+  ctx.save();
+  ctx.filter = 'blur(26px)';
+  coverImage(ctx, cover.img.el, -80, -80, W + 160, H + 160, 0.35);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(5,5,5,.8)'; ctx.fillRect(0, 0, W, H);
+}
+
+function icon(ctx, kind, x, y, s) {
+  ctx.beginPath();
+  if (kind === 'heart') {
+    ctx.moveTo(x, y + s * 0.38);
+    ctx.bezierCurveTo(x - s * 0.62, y - s * 0.02, x - s * 0.34, y - s * 0.58, x, y - s * 0.2);
+    ctx.bezierCurveTo(x + s * 0.34, y - s * 0.58, x + s * 0.62, y - s * 0.02, x, y + s * 0.38);
+  } else if (kind === 'bubble') {
+    ctx.ellipse(x, y - s * 0.04, s * 0.44, s * 0.38, 0, Math.PI * 0.62, Math.PI * 2.52);
+    ctx.lineTo(x - s * 0.42, y + s * 0.44);
+    ctx.closePath();
+  } else if (kind === 'plane') {
+    ctx.moveTo(x - s * 0.46, y - s * 0.08); ctx.lineTo(x + s * 0.46, y - s * 0.42); ctx.lineTo(x + s * 0.1, y + s * 0.44); ctx.lineTo(x - s * 0.04, y + s * 0.04); ctx.closePath();
+    ctx.moveTo(x - s * 0.04, y + s * 0.04); ctx.lineTo(x + s * 0.46, y - s * 0.42);
+  } else {
+    ctx.moveTo(x - s * 0.3, y - s * 0.44); ctx.lineTo(x + s * 0.3, y - s * 0.44); ctx.lineTo(x + s * 0.3, y + s * 0.44); ctx.lineTo(x, y + s * 0.18); ctx.lineTo(x - s * 0.3, y + s * 0.44); ctx.closePath();
+  }
+  ctx.stroke();
+}
+
+function drawFollow(ctx, s) {
+  const cx = W / 2, cy = 300;
+  // Olho da Providência com brilho e raios.
+  const glow = ctx.createRadialGradient(cx, cy, 20, cx, cy, 330);
+  glow.addColorStop(0, 'rgba(201,162,39,.28)'); glow.addColorStop(1, 'rgba(201,162,39,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, 700);
+  ctx.save();
+  ctx.translate(cx, cy + 10);
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2, long = i % 2 === 0;
+    ctx.strokeStyle = long ? 'rgba(201,162,39,.5)' : 'rgba(201,162,39,.25)';
+    ctx.lineWidth = long ? 4 : 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 180, Math.sin(a) * 180);
+    ctx.lineTo(Math.cos(a) * (long ? 262 : 222), Math.sin(a) * (long ? 262 : 222));
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.moveTo(cx, cy - 120); ctx.lineTo(cx + 132, cy + 101); ctx.lineTo(cx - 132, cy + 101); ctx.closePath(); ctx.fill();
+  eye(ctx, cx, cy, 240, C.gold);
+
+  ctx.textAlign = 'center';
+  let y = 590;
+  y += fitText(ctx, s.title, cx, y, W - M * 2, 170, { size: 78, min: 50, font: SERIF, weight: '700', lh: 1.1 }) + 16;
+  y += fitText(ctx, s.body, cx, y, W - M * 2, 100, { size: 36, min: 26, color: C.ash, lh: 1.35 }) + 40;
+
+  // @ do perfil + botão "Seguir".
+  const handle = s.handle.trim() ? (s.handle.trim().startsWith('@') ? s.handle.trim() : '@' + s.handle.trim()) : '';
+  if (handle) {
+    ctx.textAlign = 'left';
+    ctx.font = `700 46px ${SANS}`;
+    const hw = ctx.measureText(handle).width;
+    ctx.font = `700 30px ${SANS}`;
+    const bw = ctx.measureText('Seguir').width + 60, gap = 28;
+    const sx = cx - (hw + gap + bw) / 2;
+    ctx.font = `700 46px ${SANS}`; ctx.fillStyle = C.gold; ctx.fillText(handle, sx, y + 46);
+    ctx.fillStyle = C.gold; ctx.beginPath(); ctx.roundRect(sx + hw + gap, y, bw, 60, 12); ctx.fill();
+    ctx.font = `700 30px ${SANS}`; ctx.fillStyle = C.ink; ctx.fillText('Seguir', sx + hw + gap + 30, y + 41);
+    ctx.textAlign = 'center';
+    y += 100;
+  }
+
+  // Pergunta do dia.
+  if (s.question.trim()) {
+    const opts = { size: 38, min: 28, font: SERIF, weight: 'italic 600', lh: 1.3 };
+    const qh = fitText(ctx, s.question, cx, 0, W - M * 2 - 80, 150, { ...opts, dry: true });
+    ctx.fillStyle = 'rgba(201,162,39,.07)'; ctx.strokeStyle = 'rgba(201,162,39,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(M, y, W - M * 2, qh + 56, 16); ctx.fill(); ctx.stroke();
+    fitText(ctx, s.question, cx, y + 22, W - M * 2 - 80, 150, opts);
+  }
+
+  // Faixa de ações.
+  const ay = H - 262;
+  ctx.fillStyle = C.line; ctx.fillRect(M, ay - 66, W - M * 2, 2);
+  [['heart', 'Curta'], ['bubble', 'Comente'], ['plane', 'Envie'], ['bookmark', 'Salve']].forEach(([k, t], i) => {
+    const x = M + (W - M * 2) * (i + 0.5) / 4;
+    ctx.strokeStyle = C.bone; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+    icon(ctx, k, x, ay, 56);
+    ctx.fillStyle = C.ash; ctx.font = `600 26px ${SANS}`; ctx.fillText(t, x, ay + 76);
+  });
+  ctx.textAlign = 'left';
+}
+
+function drawSources(ctx, s) {
+  fitText(ctx, s.title, M, 170, W - M * 2, 150, { size: 64, min: 44, font: SERIF, weight: '700' });
+  const h = fitText(ctx, s.body, M, 330, W - M * 2, 560, { size: 40, min: 26, lh: 1.4 });
+  if (s.link) {
+    // Link quebrado por caractere: URL não tem espaços para o layout() normal.
+    let y = 330 + h + 70;
+    ctx.fillStyle = C.ash; ctx.font = `600 26px ${SANS}`; ctx.letterSpacing = '3px';
+    ctx.fillText('LEIA A MATÉRIA', M, y);
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = C.gold; ctx.font = `500 32px ${SANS}`;
+    let line = '';
+    for (const ch of s.link) {
+      if (ctx.measureText(line + ch).width > W - M * 2) { y += 44; ctx.fillText(line, M, y); line = ''; }
+      line += ch;
+    }
+    ctx.fillText(line, M, y + 44);
+  }
+  if ($('#showUrl').checked) {
+    ctx.fillStyle = C.gold; ctx.font = `700 34px ${SANS}`;
+    ctx.fillText('abugdn.github.io/Argos', M, H - 200);
+  }
+}
+
+function draw(canvas, s, index, total) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
+  if (s.kind === 'siga') followBackdrop(ctx, s);
+  texture(ctx);
+  // A capa pinta a foto primeiro; a moldura e o rodapé vão por cima.
+  if (s.kind === 'capa') { drawCover(ctx, s, S.story); frame(ctx, s, index, total); return; }
+  frame(ctx, s, index, total);
+  if (s.kind === 'siga') drawFollow(ctx, s);
+  else if (s.kind === 'fontes') drawSources(ctx, s);
+  else drawText(ctx, s);
+}
+
+// --- Tela ------------------------------------------------------------------------------------
+function renderAll() {
+  const active = S.slides.filter((s) => s.on);
+  document.querySelectorAll('.slide').forEach((el) => {
+    const s = S.slides[+el.dataset.i];
+    el.classList.toggle('off', !s.on);
+    const idx = active.indexOf(s);
+    draw(el.querySelector('canvas'), s, idx < 0 ? 0 : idx, active.length);
+  });
+  $('#download').disabled = !active.length;
+  $('#caption').disabled = !S.story;
+  $('#share').disabled = !active.length || !navigator.canShare;
+}
+
+function fields(s) {
+  const text = (label, f) => `<label>${label}</label><input type="text" data-f="${f}" value="${esc(s[f])}">`;
+  const area = (label, f) => `<label>${label}</label><textarea data-f="${f}">${esc(s[f])}</textarea>`;
+  const img = `<div class="imgrow"><button data-img>🖼 ${s.img ? 'Trocar imagem' : 'Pôr imagem'}</button>${s.img ? '<button data-noimg>✕ Tirar</button>' : ''}</div>
+      ${s.img ? `<label>Crédito da imagem</label><input type="text" data-credit value="${esc(s.img.credit)}">` : ''}`;
+  if (s.kind === 'capa') return text('Manchete', 'title') + `<label>Selo (URGENTE sai em vermelho; vazio = sem selo)</label><input type="text" data-f="body" list="selos" value="${esc(s.body)}">` + img;
+  if (s.kind === 'texto') return area('Frase-chave (grande)', 'title') + area('Resto do texto', 'body') + img;
+  if (s.kind === 'siga') return text('Título (fica salvo)', 'title') + text('Frase (fica salva)', 'body') + text('@ do perfil (fica salvo)', 'handle')
+    + text('Pergunta para os comentários (opcional)', 'question')
+    + `<label><input type="checkbox" data-bg ${s.bg ? 'checked' : ''}> fundo com a foto da capa, desfocada</label>`;
+  return text('Título', 'title') + area('Veículos', 'body') + text('Link da matéria', 'link');
+}
+
+function renderSlides() {
+  $('#slides').innerHTML = S.slides.map((s, i) => `<div class="slide" data-i="${i}">
+      <canvas width="${W}" height="${H}"></canvas>
+      <div class="row"><span class="k">${esc(s.kicker.split(' · ')[0])}</span>
+        <label style="margin:0"><input type="checkbox" data-on ${s.on ? 'checked' : ''}> incluir</label></div>
+      ${fields(s)}
+    </div>`).join('');
+  renderAll();
+}
+
+// --- Legenda do post -----------------------------------------------------------------------
+function caption() {
+  const c = S.story;
+  const get = (k) => S.slides.find((x) => x.kind === k && x.on);
+  const clean = (t) => String(t ?? '').replace(/\*/g, '').trim();
+  const capa = get('capa'), txt = get('texto'), fon = get('fontes'), siga = get('siga');
+  const out = [clean(capa?.title || TR.show(c.title, c.lang))];
+  if (txt) out.push('', [txt.title === 'O que aconteceu' ? '' : clean(txt.title), clean(txt.body)].filter(Boolean).join(' '));
+  if (fon) {
+    out.push('', `📰 Fontes: ${clean(fon.body)}`);
+    if (fon.link.trim()) out.push(`🔗 ${/^https?:/.test(fon.link) ? fon.link.trim() : 'https://' + fon.link.trim()}`);
+  }
+  if (siga?.question.trim()) out.push('', `💬 ${clean(siga.question)}`);
+  const handle = siga?.handle.trim();
+  if (handle) out.push('', `Siga ${handle.startsWith('@') ? handle : '@' + handle} para mais.`);
+  const tags = c.tags.flatMap((t) => label(t).split('/')).map((x) => '#' + x.replace(/[^\p{L}\p{N}]/gu, ''));
+  out.push('', [...new Set([...tags, '#geopolítica', '#guerra', '#notícias'])].join(' '));
+  return out.join('\n');
+}
+
+$('#caption').addEventListener('click', () => {
+  $('#captext').value = caption();
+  $('#capmsg').textContent = 'Edite à vontade antes de copiar.';
+  $('#capdlg').showModal();
+});
+$('#capclose').addEventListener('click', () => $('#capdlg').close());
+$('#capcopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('#captext').value); } catch { $('#captext').select(); document.execCommand('copy'); }
+  $('#capmsg').textContent = 'Copiada.';
+});
+
+async function loadFlag(tag) {
+  const file = S.geo?.flags?.[tag]?.[0];
+  if (!file || S.flags[tag] !== undefined) return;
+  S.flags[tag] = null;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { S.flags[tag] = img; renderAll(); };
+  img.src = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=300`;
+}
+
+async function pick(id) {
+  const c = S.feed.clusters.find((x) => x.id === id);
+  if (!c) return;
+  S.story = c;
+  history.replaceState(null, '', `#${id}`);
+  S.slides = buildSlides(c);
+  renderSlides();
+  renderList();
+  loadFlag(mainTag(c));
+  const needs = c.lang !== 'pt' || c.articles.some((a) => a.lang !== 'pt');
+  $('#translate').hidden = !(needs && TR.supported);
+  if (needs && !TR.supported) $('#status').textContent = 'Textos em outro idioma ficam no original (a tradução automática precisa do Chrome no computador).';
+}
+
+$('#list').addEventListener('click', (e) => { const el = e.target.closest('.story'); if (el) pick(el.dataset.id); });
+$('#q').addEventListener('input', renderList);
+$('#showUrl').addEventListener('change', renderAll);
+$('#slides').addEventListener('input', (e) => {
+  const el = e.target.closest('.slide');
+  if (!el) return;
+  const s = S.slides[+el.dataset.i];
+  if (e.target.dataset.f) s[e.target.dataset.f] = e.target.value;
+  if (s.kind === 'siga' && FOLLOW_KEYS[e.target.dataset.f]) store.set(FOLLOW_KEYS[e.target.dataset.f], e.target.value);
+  if (e.target.hasAttribute('data-bg')) s.bg = e.target.checked;
+  if (e.target.hasAttribute('data-on')) s.on = e.target.checked;
+  if (e.target.hasAttribute('data-credit') && s.img) s.img.credit = e.target.value;
+  renderAll();
+});
+$('#slides').addEventListener('click', (e) => {
+  const el = e.target.closest('.slide');
+  if (!el) return;
+  const i = +el.dataset.i;
+  if (e.target.closest('[data-img]')) openPicker(i);
+  if (e.target.closest('[data-noimg]')) { delete S.slides[i].img; renderSlides(); }
+});
+$('#translate').addEventListener('click', async () => {
+  $('#translate').disabled = true;
+  $('#status').textContent = 'Traduzindo…';
+  const missing = await TR.story(S.story);
+  $('#status').textContent = missing > 0 ? `${missing} textos ficaram no original.` : 'Traduzido.';
+  $('#translate').disabled = false;
+  const old = S.slides;
+  S.slides = buildSlides(S.story);
+  S.slides.forEach((sl) => { const o = old.find((x) => x.kicker.split(' · ')[0] === sl.kicker.split(' · ')[0] && x.kind === sl.kind); if (o?.img) sl.img = o.img; });
+  renderSlides();
+  renderList();
+});
+
+async function blobs() {
+  const out = [];
+  let n = 0;
+  for (const el of document.querySelectorAll('.slide')) {
+    if (!S.slides[+el.dataset.i].on) continue;
+    n++;
+    const blob = await new Promise((r) => el.querySelector('canvas').toBlob(r, 'image/png'));
+    out.push(new File([blob], `argos-${S.story.id}-${String(n).padStart(2, '0')}.png`, { type: 'image/png' }));
+  }
+  return out;
+}
+
+$('#download').addEventListener('click', async () => {
+  for (const f of await blobs()) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f);
+    a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    await new Promise((r) => setTimeout(r, 350));
+  }
+});
+$('#share').addEventListener('click', async () => {
+  const files = await blobs();
+  if (navigator.canShare?.({ files })) {
+    try { await navigator.share({ files, title: TR.show(S.story.title, S.story.lang) }); } catch { /* cancelado */ }
+  } else {
+    $('#status').textContent = 'Este navegador não compartilha imagens; use Baixar imagens.';
+  }
+});
+
+// --- Imagens ---------------------------------------------------------------------------------
+const P = { slide: 0 };
+const stripHtml = (h) => { const d = document.createElement('div'); d.innerHTML = h || ''; return (d.textContent || '').replace(/\s+/g, ' ').trim(); };
+
+/** Carrega a imagem pedindo permissão de uso (CORS); sem ela o navegador não deixa exportar o slide. */
+function loadImage(src) {
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => ok(img);
+    img.onerror = () => fail(new Error('bloqueada'));
+    img.src = src;
+  });
+}
+
+function useImage(img, creditText) {
+  S.slides[P.slide].img = { el: img, credit: creditText };
+  $('#picker').close();
+  renderSlides();
+}
+
+/** Sugestões de busca: cidades, pessoas (de "quem manda") e a região da história. */
+function suggestions(c) {
+  const text = norm([c.title, c.summary, ...c.articles.map((a) => a.title)].join(' '));
+  const out = citiesOf(c).map((x) => x.name);
+  for (const side of S.geo.power || []) for (const r of side.roles) {
+    const last = r.name.split(/[ (]/).filter((w) => w.length > 3).pop();
+    if (last && text.includes(norm(last)) && !out.includes(r.name)) out.push(r.name.replace(/\s*\(.*\)/, ''));
+  }
+  c.tags.forEach((t) => out.push(label(t).split('/')[0]));
+  return [...new Set(out)].slice(0, 8);
+}
+
+async function commons(q) {
+  $('#pmsg').textContent = 'Buscando…';
+  $('#pgrid').innerHTML = '';
+  const url = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=30'
+    + `&gsrsearch=${encodeURIComponent(q + ' filetype:bitmap')}&prop=imageinfo&iiprop=url|extmetadata|size&iiurlwidth=1080`;
+  try {
+    const data = await getJSON(url);
+    const items = Object.values(data.query?.pages || {})
+      .map((p) => ({ p, i: p.imageinfo?.[0] }))
+      .filter(({ i }) => i?.thumburl && i.width >= 600)
+      .sort((a, b) => a.p.index - b.p.index)
+      .map(({ p, i }) => {
+        const m = i.extmetadata || {};
+        const author = stripHtml(m.Artist?.value).slice(0, 60);
+        const lic = stripHtml(m.LicenseShortName?.value);
+        return { thumb: i.thumburl, title: p.title.replace(/^File:/, ''), credit: `Foto: ${author || 'autor no Commons'} · ${lic || 'licença livre'} · Wikimedia Commons` };
+      });
+    P.items = items;
+    $('#pgrid').innerHTML = items.map((it, k) => `<figure data-k="${k}"><img src="${esc(it.thumb)}" alt="" loading="lazy" crossorigin="anonymous"><figcaption>${esc(it.title)}</figcaption></figure>`).join('');
+    $('#pmsg').textContent = items.length ? `${items.length} fotos livres` : 'Nada encontrado; tente outro termo (em inglês costuma achar mais).';
+  } catch {
+    $('#pmsg').textContent = 'Não consegui buscar no Wikimedia Commons agora.';
+  }
+}
+
+function openPicker(i) {
+  P.slide = i;
+  const sug = suggestions(S.story);
+  $('#pchips').innerHTML = sug.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  $('#pq').value = sug[0] || '';
+  $('#pmsg').textContent = '';
+  $('#pgrid').innerHTML = '';
+  $('#picker').showModal();
+  if (sug[0]) commons(sug[0]);
+}
+
+$('#pclose').addEventListener('click', () => $('#picker').close());
+$('#psearch').addEventListener('click', () => $('#pq').value.trim() && commons($('#pq').value.trim()));
+$('#pq').addEventListener('keydown', (e) => { if (e.key === 'Enter' && $('#pq').value.trim()) commons($('#pq').value.trim()); });
+$('#pchips').addEventListener('click', (e) => { const b = e.target.closest('[data-q]'); if (b) { $('#pq').value = b.dataset.q; commons(b.dataset.q); } });
+$('#pgrid').addEventListener('click', async (e) => {
+  const f = e.target.closest('figure');
+  if (!f) return;
+  const it = P.items[+f.dataset.k];
+  $('#pmsg').textContent = 'Carregando…';
+  try { useImage(await loadImage(it.thumb), it.credit); } catch { $('#pmsg').textContent = 'Essa imagem não carregou; escolha outra.'; }
+});
+$('#pfile').addEventListener('change', () => {
+  const file = $('#pfile').files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => useImage(img, '');
+  img.src = URL.createObjectURL(file);
+  $('#pfile').value = '';
+});
+$('#pnews').addEventListener('click', async () => {
+  const c = S.story;
+  const cands = [[c.image, c.source], ...c.articles.map((a) => [a.image, a.source])].filter(([u]) => u);
+  if (!cands.length) { $('#pmsg').textContent = 'Esta história não tem foto.'; return; }
+  $('#pmsg').textContent = 'Tentando…';
+  for (const [u, src] of cands) {
+    try {
+      const img = await loadImage(u.replace(/&amp;/g, '&'));
+      useImage(img, `Foto: ${src}`);
+      $('#status').textContent = 'Foto do jornal: os direitos são do veículo. Use com crédito e com cuidado.';
+      return;
+    } catch { /* site não permite: tenta a próxima */ }
+  }
+  $('#pmsg').textContent = 'Os sites desta história não permitem usar a foto aqui. Se tiver direito de uso, baixe e envie pelo botão do aparelho.';
+});
+
+load();
+</script>
+</body>
+</html>
