@@ -38,6 +38,7 @@ tap "Frente" 8; shot 04e-frente
 python3 .github/smoke/tap.py "Militares" swipe; sleep 2
 tap "Estreitos" 4; shot 04h-estreitos
 tap "Sismos" 4; shot 04i-sismos
+tap "Desastres" 4; shot 04k-desastres
 tap "Legenda" 2; shot 04j-legenda-recolhida
 # O mapa sai da tela e volta com as camadas ligadas (derrubava o app na 1.0.27).
 tap "Tendência" 3; tap "Mapa" 6; shot 04f-mapa-de-volta

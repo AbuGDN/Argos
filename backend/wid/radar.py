@@ -1390,6 +1390,91 @@ def collect_quakes(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Desastres no mundo (GDACS, ONU + Comissão Europeia): ciclones, terremotos, enchentes, vulcões,
+# secas e incêndios, com nível de alerta verde/laranja/vermelho. Sem chave; a busca aceita datas.
+# ---------------------------------------------------------------------------
+
+GDACS_SEARCH = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+DISASTER_LEVELS = {"red": 3, "orange": 2, "green": 1}
+# Alerta verde só destes tipos (ciclone com nome, vulcão, terremoto): enchente/seca verde é rotina.
+GREEN_TYPES = {"TC", "VO", "EQ"}
+
+
+def _gdacs_time(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def disaster_items(payload: dict, now: datetime, days: int = 10, active_hours: int = 48, max_green: int = 12) -> list[dict]:
+    """Um item por evento (o GDACS repete o mesmo evento em mais de uma geometria). Laranja e
+    vermelho entram sempre; verde só ciclone, vulcão e terremoto, os mais recentes."""
+    events: dict[str, dict] = {}
+    for f in payload.get("features") or []:
+        p = f.get("properties") or {}
+        geom = f.get("geometry") or {}
+        if geom.get("type") != "Point" or len(geom.get("coordinates") or []) < 2:
+            continue
+        kind = str(p.get("eventtype") or "").upper()
+        level = str(p.get("alertlevel") or "").lower()
+        if kind == "" or level not in DISASTER_LEVELS:
+            continue
+        if level == "green" and kind not in GREEN_TYPES:
+            continue
+        end = _gdacs_time(p.get("todate")) or _gdacs_time(p.get("datemodified"))
+        if end is None or now - end > timedelta(days=days):
+            continue
+        key = f"{kind}{p.get('eventid')}"
+        episode = int(p.get("episodeid") or 0)
+        if key in events and events[key]["_episode"] >= episode:
+            continue
+        lon, lat = float(geom["coordinates"][0]), float(geom["coordinates"][1])
+        countries = [c.get("countryname") for c in p.get("affectedcountries") or [] if c.get("countryname")]
+        if not countries and p.get("country"):
+            countries = [c.strip() for c in str(p["country"]).split(",") if c.strip()]
+        start = _gdacs_time(p.get("fromdate"))
+        events[key] = {
+            "_episode": episode,
+            "id": key,
+            "type": kind,
+            "level": level,
+            "name": str(p.get("eventname") or "").strip(),
+            "countries": countries[:12],
+            "brazil": any(c in ("Brazil", "Brasil") for c in countries),
+            "lat": round(lat, 3),
+            "lon": round(lon, 3),
+            "from": iso(start) if start else "",
+            "to": iso(end),
+            "active": now - end <= timedelta(hours=active_hours),
+            "severity": str((p.get("severitydata") or {}).get("severitytext") or "").strip(),
+            "url": str((p.get("url") or {}).get("report") or ""),
+        }
+    items = [{k: v for k, v in e.items() if k != "_episode"} for e in events.values()]
+    items.sort(key=lambda e: e["to"], reverse=True)
+    items.sort(key=lambda e: (DISASTER_LEVELS[e["level"]], e["active"]), reverse=True)
+    greens = [e for e in items if e["level"] == "green"][:max_green]
+    return [e for e in items if e["level"] != "green"] + greens
+
+
+def collect_disasters(ctx: Ctx) -> dict:
+    days = int(ctx.conf.get("days", 10))
+    # URL montada à mão: o httpx codificaria o ";" da lista de níveis (%3B), testado só cru.
+    url = (f"{ctx.conf.get('url', GDACS_SEARCH)}?alertlevel=Green;Orange;Red"
+           f"&fromdate={(ctx.now - timedelta(days=days)):%Y-%m-%d}&todate={(ctx.now + timedelta(days=1)):%Y-%m-%d}")
+    payload = _get_json(ctx.client, url)
+    items = disaster_items(payload, ctx.now, days=days, max_green=int(ctx.conf.get("max_green", 12)))
+    return {
+        "items": items[: int(ctx.conf.get("max_items", 40))],
+        "red": sum(1 for e in items if e["level"] == "red" and e["active"]),
+        "orange": sum(1 for e in items if e["level"] == "orange" and e["active"]),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Alertas de viagem (Departamento de Estado dos EUA, níveis 1 a 4)
 # ---------------------------------------------------------------------------
 
@@ -2122,6 +2207,7 @@ COLLECTORS = {
     "frontline": collect_frontline,
     "sirens": collect_sirens,
     "quakes": collect_quakes,
+    "disasters": collect_disasters,
     "travel": collect_travel,
     "unsc": collect_unsc,
     "weather": collect_weather,

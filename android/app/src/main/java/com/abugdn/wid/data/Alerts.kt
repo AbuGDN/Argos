@@ -104,6 +104,55 @@ val QUAKE_TYPES = mapOf(
     "quarry blast" to "explosão em pedreira", "mining explosion" to "explosão em mina", "rock burst" to "ruptura de rocha",
 )
 
+// --- Desastres no mundo (radar.json -> disasters, GDACS) ----------------------------------
+
+@Serializable
+data class DisastersSection(
+    val updated: String = "",
+    val items: List<Disaster> = emptyList(),
+    /** Eventos vermelhos e laranja ainda ativos (atualizados nas últimas 48 h). */
+    val red: Int = 0,
+    val orange: Int = 0,
+)
+
+@Serializable
+data class Disaster(
+    val id: String,
+    /** EQ terremoto, TC ciclone, FL enchente, VO vulcão, DR seca, WF incêndio florestal. */
+    val type: String = "",
+    /** green, orange ou red. */
+    val level: String = "green",
+    val name: String = "",
+    val countries: List<String> = emptyList(),
+    val brazil: Boolean = false,
+    val lat: Double = 0.0,
+    val lon: Double = 0.0,
+    val from: String = "",
+    val to: String = "",
+    val active: Boolean = false,
+    val severity: String = "",
+    val url: String = "",
+)
+
+val DISASTER_TYPES = mapOf(
+    "EQ" to "Terremoto", "TC" to "Ciclone", "FL" to "Enchente", "VO" to "Vulcão", "DR" to "Seca", "WF" to "Incêndio florestal",
+)
+
+val DISASTER_LEVELS = mapOf("red" to "alerta vermelho", "orange" to "alerta laranja", "green" to "alerta verde")
+
+private val YEAR_SUFFIX = Regex("-\\d{2}$")
+
+/** "Ciclone FUNG-WONG" (sem o ano que o GDACS cola no nome) ou só o tipo, quando não tem nome. */
+fun Disaster.title(): String {
+    val kind = DISASTER_TYPES[type] ?: type
+    val clean = name.replace(YEAR_SUFFIX, "").trim()
+    return when {
+        type == "TC" && clean.isNotBlank() && !clean.first().isDigit() -> "$kind $clean"
+        type == "VO" && clean.isNotBlank() -> "$kind $clean"
+        else -> kind
+    }
+}
+
 // --- Alertas de viagem (radar.json -> travel) --------------------------------------------
 
 @Serializable

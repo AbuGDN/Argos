@@ -1,5 +1,6 @@
 package com.abugdn.wid.sync
 
+import com.abugdn.wid.data.title
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -220,6 +221,13 @@ object Notifier {
                 .forEach { q ->
                     val kind = com.abugdn.wid.data.QUAKE_TYPES[q.type] ?: q.type
                     add("quake:${q.id}" to "🌋 Sismo suspeito: $kind de magnitude ${q.mag ?: "?"} em ${q.zone}" + (q.site?.let { " (a ${it.km} km de ${it.name})" } ?: ""))
+                }
+            // Desastre com alerta vermelho em andamento: vale para o mundo todo, sem filtro de região.
+            radar.disasters?.items.orEmpty()
+                .filter { it.level == "red" && it.active }
+                .forEach { e ->
+                    val where = e.countries.take(3).joinToString(", ") { repo.translator.cached(it) }
+                    add("disaster:${e.id}" to "🌍 Alerta vermelho: ${e.title()}" + (if (where.isNotBlank()) " ($where)" else ""))
                 }
             radar.travel?.changes.orEmpty()
                 .filter { it.to == 4 && it.from < 4 && settings.matchesRegion(listOfNotNull(it.tag)) }

@@ -28,6 +28,8 @@ data class RadarData(
     val frontline: FrontlineSection? = null,
     val sirens: SirensSection? = null,
     val quakes: QuakesSection? = null,
+    /** Desastres no mundo (GDACS): ciclones, terremotos, enchentes, vulcões, secas e incêndios. */
+    val disasters: DisastersSection? = null,
     val travel: TravelSection? = null,
     /** Sinais de tipos diferentes na mesma região ao mesmo tempo (correlação do Radar). */
     val incidents: List<Incident> = emptyList(),

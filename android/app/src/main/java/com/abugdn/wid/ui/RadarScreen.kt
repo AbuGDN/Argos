@@ -430,6 +430,7 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
         "frontline" to ((radar.frontline?.change7dKm2 ?: 0L) > 50L),
         "sirens" to sirensRecent(radar),
         "quakes" to radar.quakes?.items.orEmpty().any { it.alert },
+        "disasters" to radar.disasters?.items.orEmpty().any { it.level == "red" && it.active },
     ).sortedByDescending { it.second }
     order.forEach { (key, _) ->
         when (key) {
@@ -441,6 +442,7 @@ private fun LazyListScope.sensors(radar: RadarData, onRegion: (String) -> Unit) 
             "carriers" -> carriersItem(radar)
             "sirens" -> sirensItem(radar)
             "quakes" -> quakesItem(radar, onRegion)
+            "disasters" -> disastersItem(radar)
             else -> frontlineItem(radar)
         }
     }

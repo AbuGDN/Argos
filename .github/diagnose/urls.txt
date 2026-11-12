@@ -1,7 +1,2 @@
-https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia.org/all-access/user/Russian_invasion_of_Ukraine/daily/20260901/20260903	"views"	120
-https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/pt.wikipedia.org/all-access/user/Guerra_Russo-Ucraniana/daily/20260901/20260903	"views"	120
-https://api.gdeltproject.org/api/v2/doc/doc?query=sudan%20sourcelang:english&mode=timelinevol&timespan=7d&format=json	"value"	120
-https://static.cfr.org/cyber-operations/data/cyber-operations-incidents.csv	"20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]"	80
-https://press.un.org/en/content/general-assembly/meetings-coverage	"ga[0-9]+\.doc\.htm"	150
-https://press.un.org/en/2026/ga12784.doc.htm	"recorded vote"	250
-https://digitallibrary.un.org/search?ln=en&cc=Voting+Data&p=Gaza&of=xm&rg=2	"record"	200
+https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?alertlevel=Orange;Red&fromdate=2026-10-25&todate=2026-11-13	"properties"	2600
+https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC&alertlevel=Green;Orange;Red&fromdate=2026-11-01&todate=2026-11-13	"htmldescription"	200

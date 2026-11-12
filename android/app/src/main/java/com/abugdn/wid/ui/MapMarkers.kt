@@ -212,6 +212,94 @@ internal object MapGlyphs {
         }
     }
 
+    // --- Desastres (GDACS) -------------------------------------------------------------------
+
+    fun disasterColor(level: String): Int = when (level) {
+        "red" -> RED
+        "orange" -> 0xFFC8662B.toInt()
+        else -> 0xFF6E8B6A.toInt()
+    }
+
+    private val flamePath by lazy { symbol("🔥") }
+
+    /**
+     * Disco na cor do alerta (vermelho, laranja, verde) com o desenho do tipo: ondas de sismo,
+     * espiral de ciclone, ondas de enchente, vulcão, sol da seca ou chama do incêndio.
+     * Vermelho é maior; evento que já acabou fica translúcido.
+     */
+    fun disaster(context: Context, type: String, level: String, active: Boolean): Bitmap {
+        val d = density(context)
+        return cached("dis:$type:$level:$active:$d") {
+            val sizeDp = when (level) { "red" -> 30; "orange" -> 26; else -> 21 }
+            val s = (sizeDp * d).toInt().coerceAtLeast(8)
+            val bmp = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+            val c = Canvas(bmp)
+            val r = s / 2f
+            val fade = if (active) 255 else 150
+            c.drawCircle(r, r, r - 1f * d, fill(disasterColor(level)).apply { this.alpha = fade })
+            c.drawCircle(r, r, r - 1f * d, stroke(INK, 1.6f * d))
+            val g = stroke(BONE, (1.7f * d).coerceAtLeast(1.5f)).apply { this.alpha = fade }
+            val gf = fill(BONE).apply { this.alpha = fade }
+            val u = r * 0.52f // meia largura do desenho
+            when (type) {
+                "EQ" -> c.drawPath(Path().apply {
+                    moveTo(r - u, r); lineTo(r - u * 0.55f, r); lineTo(r - u * 0.3f, r - u * 0.8f)
+                    lineTo(r + u * 0.05f, r + u * 0.8f); lineTo(r + u * 0.35f, r - u * 0.45f)
+                    lineTo(r + u * 0.55f, r); lineTo(r + u, r)
+                }, g)
+                "TC" -> {
+                    c.drawCircle(r, r, u * 0.28f, gf)
+                    val box = RectF(r - u, r - u, r + u, r + u)
+                    c.drawArc(box, 200f, 110f, false, g)
+                    c.drawArc(box, 20f, 110f, false, g)
+                    val inner = RectF(r - u * 0.62f, r - u * 0.62f, r + u * 0.62f, r + u * 0.62f)
+                    c.drawArc(inner, 290f, 90f, false, g)
+                    c.drawArc(inner, 110f, 90f, false, g)
+                }
+                "FL" -> for (i in -1..1) {
+                    val y = r + i * u * 0.6f
+                    c.drawPath(Path().apply {
+                        moveTo(r - u, y)
+                        quadTo(r - u * 0.5f, y - u * 0.3f, r, y)
+                        quadTo(r + u * 0.5f, y + u * 0.3f, r + u, y)
+                    }, g)
+                }
+                "VO" -> {
+                    c.drawPath(Path().apply {
+                        moveTo(r - u, r + u * 0.75f); lineTo(r - u * 0.25f, r - u * 0.2f); lineTo(r + u * 0.25f, r - u * 0.2f)
+                        lineTo(r + u, r + u * 0.75f); close()
+                    }, gf)
+                    c.drawCircle(r - u * 0.15f, r - u * 0.6f, u * 0.17f, gf)
+                    c.drawCircle(r + u * 0.25f, r - u * 0.85f, u * 0.13f, gf)
+                }
+                "DR" -> {
+                    c.drawCircle(r, r, u * 0.42f, gf)
+                    for (i in 0 until 8) {
+                        val a = Math.toRadians(i * 45.0)
+                        val x1 = r + (u * 0.62f) * cos(a).toFloat(); val y1 = r + (u * 0.62f) * sin(a).toFloat()
+                        val x2 = r + u * cos(a).toFloat(); val y2 = r + u * sin(a).toFloat()
+                        c.drawLine(x1, y1, x2, y2, g)
+                    }
+                }
+                "" -> Unit // só a cor (legenda dos níveis)
+                else -> {
+                    val path = flamePath
+                    if (path != null) {
+                        val scale = u * 2.1f / 960f
+                        c.save()
+                        c.translate(r - 480f * scale, r + 480f * scale)
+                        c.scale(scale, scale)
+                        c.drawPath(path, gf)
+                        c.restore()
+                    } else {
+                        c.drawCircle(r, r, u * 0.5f, gf)
+                    }
+                }
+            }
+            bmp
+        }
+    }
+
     // --- Focos de calor (só para a legenda; no mapa são pontos rápidos) --------------------
 
     fun fire(context: Context): Bitmap {

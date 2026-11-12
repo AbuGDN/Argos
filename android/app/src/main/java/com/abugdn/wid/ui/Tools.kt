@@ -56,7 +56,7 @@ import java.time.temporal.ChronoUnit
 /**
  * Tudo o que o Argos faz, num lugar só. [route] é o mesmo endereço usado pelos atalhos do ícone:
  * "clock", "story", "vigil", "bulletin", "tools", "settings", "radar:N", "map", "map:trend",
- * "map:frontline", "map:carriers", "map:military", "map:ranges", "library:N" e "region:TAG".
+ * "map:frontline", "map:carriers", "map:military", "map:ranges", "map:disasters", "library:N" e "region:TAG".
  */
 data class Tool(val route: String, val icon: String, val name: String, val desc: String, val keywords: String = "")
 
@@ -83,6 +83,7 @@ val TOOL_GROUPS: List<Pair<String, List<Tool>>> = listOf(
         Tool("map:carriers", "⚓", "Porta-aviões", "Onde está cada porta-aviões americano", "frota marinha eua navios"),
         Tool("map:military", "✈", "Aviões militares", "Reabastecedores, aviões-radar e drones no ar", "militar avioes adsb"),
         Tool("map:ranges", "🎯", "Alcance de mísseis", "Até onde chegam mísseis e defesas", "misseis defesa alcance armas"),
+        Tool("map:disasters", "🌍", "Desastres no mundo", "Ciclones, terremotos, enchentes, vulcões, secas e incêndios com alerta da ONU", "desastre ciclone furacao tufao terremoto enchente vulcao seca incendio gdacs clima"),
         Tool("map:bases", "🪖", "Bases militares", "Bases estrangeiras de EUA, Rússia, China, França, Reino Unido e Turquia", "base militar eua russia china tropas exterior"),
         Tool("satellite", "🛰", "Antes e depois por satélite", "Imagens da NASA de uma cidade em duas datas, com controle deslizante", "satelite imagem nasa antes depois destruicao comparar"),
         Tool("compare", "⚖", "Comparar", "Duas regiões lado a lado, ou a mesma região em duas datas", "comparar regioes datas antes depois"),

@@ -96,3 +96,36 @@ def test_siren_hours_histogram():
     t = int(datetime(2026, 9, 29, 7, 30, tzinfo=timezone.utc).timestamp())  # 10:30 em Israel
     s = siren_summary([{"alerts": [{"time": t, "cities": ["a", "b"], "threat": 0}]}], {}, NOW)
     assert s["hours"][10] == 2 and sum(s["hours"]) == 2
+
+
+def _gdacs(kind, eid, level, todate, episode=1, countries=("India",), lon=80.0, lat=15.0, cls="Point_Centroid"):
+    return {
+        "geometry": {"type": "Point", "coordinates": [lon, lat]},
+        "properties": {
+            "eventtype": kind, "eventid": eid, "episodeid": episode, "eventname": f"EV-{eid}", "alertlevel": level,
+            "fromdate": "2026-09-20T00:00:00", "todate": todate, "Class": cls,
+            "affectedcountries": [{"countryname": c} for c in countries],
+            "severitydata": {"severitytext": "Tropical Storm (maximum wind speed of 120 km/h)"},
+            "url": {"report": f"https://www.gdacs.org/report.aspx?eventid={eid}"},
+        },
+    }
+
+
+def test_disasters_dedupe_levels_and_window():
+    from wid.radar import disaster_items
+
+    payload = {"features": [
+        _gdacs("TC", 1, "Red", "2026-09-29T06:00:00", episode=3),
+        _gdacs("TC", 1, "Red", "2026-09-29T06:00:00", episode=3, cls="Point_Polygon"),  # repetido
+        _gdacs("TC", 1, "Orange", "2026-09-28T00:00:00", episode=2),  # episódio antigo
+        _gdacs("FL", 2, "Green", "2026-09-29T00:00:00"),  # enchente verde: rotina, fica fora
+        _gdacs("EQ", 3, "Green", "2026-09-29T10:00:00"),
+        _gdacs("DR", 4, "Orange", "2026-09-28T08:00:00", countries=("Brazil", "Colombia")),
+        _gdacs("VO", 5, "Red", "2026-08-01T00:00:00"),  # fora da janela
+        {"geometry": {"type": "Polygon", "coordinates": []}, "properties": {"eventtype": "TC", "eventid": 9, "alertlevel": "Red"}},
+    ]}
+    items = disaster_items(payload, NOW, days=10)
+    assert [e["id"] for e in items] == ["TC1", "DR4", "EQ3"]
+    assert items[0]["level"] == "red" and items[0]["active"] and items[0]["name"] == "EV-1"
+    assert items[1]["brazil"] and items[1]["countries"] == ["Brazil", "Colombia"]
+    assert items[0]["to"].startswith("2026-09-29T06:00")
