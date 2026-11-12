@@ -1398,6 +1398,8 @@ GDACS_SEARCH = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
 DISASTER_LEVELS = {"red": 3, "orange": 2, "green": 1}
 # Alerta verde só destes tipos (ciclone com nome, vulcão, terremoto): enchente/seca verde é rotina.
 GREEN_TYPES = {"TC", "VO", "EQ"}
+# Terremoto verde só a partir desta magnitude: o GDACS dá verde a todo M4,5, e eles enchiam a lista.
+GREEN_EQ_MIN = 5.5
 
 
 def _gdacs_time(value) -> datetime | None:
@@ -1424,6 +1426,9 @@ def disaster_items(payload: dict, now: datetime, days: int = 10, active_hours: i
         if kind == "" or level not in DISASTER_LEVELS:
             continue
         if level == "green" and kind not in GREEN_TYPES:
+            continue
+        severity = (p.get("severitydata") or {}).get("severity")
+        if level == "green" and kind == "EQ" and not (isinstance(severity, (int, float)) and severity >= GREEN_EQ_MIN):
             continue
         end = _gdacs_time(p.get("todate")) or _gdacs_time(p.get("datemodified"))
         if end is None or now - end > timedelta(days=days):
@@ -1464,7 +1469,8 @@ def collect_disasters(ctx: Ctx) -> dict:
     days = int(ctx.conf.get("days", 10))
     # URL montada à mão: o httpx codificaria o ";" da lista de níveis (%3B), testado só cru.
     url = (f"{ctx.conf.get('url', GDACS_SEARCH)}?alertlevel=Green;Orange;Red"
-           f"&fromdate={(ctx.now - timedelta(days=days)):%Y-%m-%d}&todate={(ctx.now + timedelta(days=1)):%Y-%m-%d}")
+           # O GDACS filtra pela data de INÍCIO: pede o dobro da janela e corta pelo fim (todate) aqui.
+           f"&fromdate={(ctx.now - timedelta(days=2 * days)):%Y-%m-%d}&todate={(ctx.now + timedelta(days=1)):%Y-%m-%d}")
     payload = _get_json(ctx.client, url)
     items = disaster_items(payload, ctx.now, days=days, max_green=int(ctx.conf.get("max_green", 12)))
     return {
