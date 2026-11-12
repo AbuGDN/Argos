@@ -17,8 +17,8 @@ para continuar o trabalho sem redescobrir tudo.
 
 ## Onde estamos (12/11/2026)
 
-- App na **versão 1.0.47** (versionCode = run_number do workflow "App Android"; a próxima entrada do
-  CHANGELOG é **48**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
+- App na **versão 1.0.48** (versionCode = run_number do workflow "App Android"; a próxima entrada do
+  CHANGELOG é **49**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
 - Fluxo usado nas sessões em nuvem: trabalho na branch `claude/app-information-suggestions-8g3ca9`
   (recriada a partir da base a cada rodada) → PR para a base → build "App Android" verde → merge com
   **`[skip ci]` no título do merge** (senão o merge gera uma segunda release igual). Mudanças só em
@@ -35,7 +35,8 @@ para continuar o trabalho sem redescobrir tudo.
   escuro da Esri com nomes em inglês, ícones no lugar de emojis, Radar com 4 abas, Ferramentas com busca/
   mais usadas/grupos recolhíveis, temas num botão da tela Hoje, carregamento sozinho na 1ª abertura);
   46 (nomes e siglas na tradução, fotos maiores); 47 (rework visual do mapa: ícones de avião no rumo,
-  porta-aviões, navios dos estreitos, sismos, escudos das bases, legenda e balão escuro).
+  porta-aviões, navios dos estreitos, sismos, escudos das bases, legenda e balão escuro); 48 (desastres no
+  mundo pelo GDACS: cartão no Radar, camada do mapa, aviso de alerta vermelho — 1º assunto fora de guerra).
 - Pendências para o dono decidir: o cartão da imprensa (CPJ parado, ver abaixo) e atualizar `Arms.kt` para
   o SIPRI 2021–25. Features recusadas por falta de fonte (ver lista abaixo): mapa de eventos (ACLED/GDELT),
   NOTAMs, ciberataques (CFR parado em 2023), votos da Assembleia Geral (só placar, não provado).
@@ -109,7 +110,8 @@ backend/                 Python 3.11 (feedparser, httpx, PyYAML). Rodar: python 
                          RSS oficiais/sanções/análises/checagens, CrisisWatch, Polymarket, aviões
                          militares (adsb.lol), porta-aviões (USNI Fleet Tracker), frente (DeepStateMap), sirenes
                          (Tzeva Adom; oref.org.il dá 403 no GitHub; dicionário de cidades em sirens_cities.json),
-                         sismos (USGS), alertas de viagem (Departamento de Estado dos EUA), Conselho de Segurança
+                         sismos (USGS), desastres (GDACS: SEARCH com datas, URL montada à mão por causa do ";"),
+                         alertas de viagem (Departamento de Estado dos EUA), Conselho de Segurança
                          (press.un.org + Security Council Report: reuniões, aprovadas, vetos) e tempo (Open-Meteo,
                          com poeira do serviço de qualidade do ar), deslocados (ACNUR, anual), fome e preços
                          (IPC/HDX HAPI), gás na Europa (AGSI+ sem chave, ENTSOG/TurkStream), jornalistas mortos (CPJ) e

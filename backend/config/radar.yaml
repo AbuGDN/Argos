@@ -278,6 +278,14 @@ quakes:
     - {name: Dimona, lat: 31.00, lon: 35.14}
     - {name: Zaporíjia (usina nuclear), lat: 47.51, lon: 34.59}
 
+# Desastres no mundo (GDACS: ONU + Comissão Europeia). Laranja e vermelho sempre; verde só ciclone,
+# vulcão e terremoto. days = janela pela data de atualização do evento.
+disasters:
+  interval: 60
+  days: 10
+  max_green: 12
+  max_items: 40
+
 # Alertas de viagem do Departamento de Estado dos EUA (níveis 1 a 4). country = nome no RSS.
 travel:
   interval: 360

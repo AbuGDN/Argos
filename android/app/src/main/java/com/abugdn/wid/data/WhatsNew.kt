@@ -11,6 +11,15 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        48,
+        listOf(
+            "🌍 Desastres no mundo: ciclones, terremotos, enchentes, vulcões, secas e incêndios florestais com o alerta da ONU (GDACS), no Radar → Sensores e numa camada nova do mapa.",
+            "🌀 Cada tipo tem seu ícone, na cor do alerta (verde, laranja, vermelho); os vermelhos em andamento pulsam no mapa, e os que atingem o Brasil levam a bandeira.",
+            "🔔 Aviso quando sai um alerta vermelho de desastre em qualquer lugar do mundo (mesma chave dos avisos do Radar).",
+            "🧰 Atalho em Ferramentas → Mapas → Desastres no mundo.",
+        ),
+    ),
+    ChangelogEntry(
         47,
         listOf(
             "✈ Mapa com ícones: os aviões militares viraram silhuetas apontando para onde voam, cada tipo na sua cor (o avião-radar leva o disco em cima); os que estão no solo ficam apagados e não piscam.",

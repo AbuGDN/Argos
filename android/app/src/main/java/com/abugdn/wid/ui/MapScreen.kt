@@ -76,6 +76,9 @@ import com.abugdn.wid.data.RANGES
 import com.abugdn.wid.data.RangeArc
 import com.abugdn.wid.data.cities
 import com.abugdn.wid.data.QUAKE_TYPES
+import com.abugdn.wid.data.DISASTER_LEVELS
+import com.abugdn.wid.data.DISASTER_TYPES
+import com.abugdn.wid.data.title
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlin.math.roundToInt
@@ -172,6 +175,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var satellite by rememberSaveable { mutableStateOf(false) }
     var showStraits by rememberSaveable { mutableStateOf(false) }
     var showQuakes by rememberSaveable { mutableStateOf(false) }
+    var showDisasters by rememberSaveable { mutableStateOf(false) }
     var showLegend by rememberSaveable { mutableStateOf(true) }
     val reduceMotion = LocalReduceMotion.current
     val repo = context.repository
@@ -181,6 +185,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     val carriers = radar?.carriers?.ships.orEmpty()
     val straits = radar?.straits?.items.orEmpty().filter { !it.error && it.id in STRAIT_POINTS && it.avg7 != null }
     val quakes = radar?.quakes?.items.orEmpty().filter { it.lat != 0.0 || it.lon != 0.0 }
+    val disasters = radar?.disasters?.items.orEmpty().filter { it.lat != 0.0 || it.lon != 0.0 }
     val front by repo.frontline.collectAsStateWithLifecycle()
     // Os polígonos da frente só são baixados quando a camada é ligada.
     LaunchedEffect(showFront) { if (showFront && repo.frontline.value == null) repo.loadFrontline() }
@@ -233,8 +238,17 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 showBases = true
                 mapView.controller.animateTo(GeoPoint(30.0, 42.0), 3.0, 600L)
             }
+            id == "disasters" -> {
+                showDisasters = true
+                mapView.controller.animateTo(GeoPoint(20.0, 30.0), 2.5, 600L)
+            }
+            id.startsWith("disaster:") -> {
+                showDisasters = true
+                repo.radar.value?.disasters?.items?.firstOrNull { it.id == id.removePrefix("disaster:") }
+                    ?.let { mapView.controller.animateTo(GeoPoint(it.lat, it.lon), 5.0, 600L) }
+            }
         }
-        if (id.startsWith("military:") || id == "carriers" || id == "frontline" || id == "bases") {
+        if (id.startsWith("military:") || id == "carriers" || id == "frontline" || id == "bases" || id == "disasters" || id.startsWith("disaster:")) {
             repo.mapFocus.value = null
             return@LaunchedEffect
         }
@@ -328,6 +342,16 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         label = { IconText("🚢 Estreitos") },
                     )
                 }
+                if (disasters.isNotEmpty()) {
+                    FilterChip(
+                        selected = showDisasters,
+                        onClick = {
+                            showDisasters = !showDisasters
+                            if (showDisasters) mapView.controller.animateTo(GeoPoint(20.0, 30.0), 2.5, 600L)
+                        },
+                        label = { IconText("🌍 Desastres") },
+                    )
+                }
                 if (quakes.isNotEmpty()) {
                     FilterChip(
                         selected = showQuakes,
@@ -379,6 +403,20 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             snippet = listOfNotNull(q.place.ifBlank { null }, q.depth?.let { "${it.toInt()} km de profundidade" }, relativeTime(q.time).ifBlank { null })
                                 .joinToString(" · ")
                             icon = MapGlyphs.drawable(context, MapGlyphs.quake(context, q.mag, explosion))
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        })
+                    }
+                    // Verdes primeiro, vermelhos por cima.
+                    if (showDisasters) disasters.sortedBy { DISASTER_ORDER[it.level] ?: 0 }.forEach { e ->
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(e.lat, e.lon)
+                            title = "${e.title()} · ${DISASTER_LEVELS[e.level] ?: e.level}"
+                            snippet = listOfNotNull(
+                                e.countries.take(4).joinToString(", ") { repo.translator.cached(it) }.ifBlank { null },
+                                e.severity.ifBlank { null }?.let { repo.translator.cached(it) },
+                                if (e.active) "em andamento" else relativeTime(e.to).ifBlank { null }?.let { "última atualização $it" },
+                            ).joinToString(" · ")
+                            icon = MapGlyphs.drawable(context, MapGlyphs.disaster(context, e.type, e.level, e.active))
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
                     }
@@ -456,6 +494,10 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             val planes = militaryZones.flatMap { it.aircraft }.filter { it.alt > 0.0 }.map { GeoPoint(it.lat, it.lon) }
                             if (planes.isNotEmpty()) map.overlays.add(PulseOverlay(planes, 0xFFC9A227.toInt(), blink = true))
                         }
+                        if (showDisasters) {
+                            val red = disasters.filter { it.level == "red" && it.active }.map { GeoPoint(it.lat, it.lon) }
+                            if (red.isNotEmpty()) map.overlays.add(PulseOverlay(red, 0xFFB3122E.toInt(), blink = false))
+                        }
                         if (showStraits) {
                             val slow = straits.filter { it.dropped() }.map { STRAIT_POINTS.getValue(it.id).let { (la, lo) -> GeoPoint(la, lo) } }
                             if (slow.isNotEmpty()) map.overlays.add(PulseOverlay(slow, 0xFFB3122E.toInt(), blink = false))
@@ -488,6 +530,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 straits = showStraits && straits.isNotEmpty(),
                 bases = showBases,
                 quakes = showQuakes && quakes.isNotEmpty(),
+                disasters = if (showDisasters) disasters.map { it.type }.distinct() else emptyList(),
                 fires = showFires && fireZones.isNotEmpty(),
             )
             MapLegend(legend, expanded = showLegend, onToggle = { showLegend = !showLegend }, modifier = Modifier.align(Alignment.BottomStart))
@@ -627,6 +670,23 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         Text(
                             "Navios por dia nos estreitos, média da última semana (IMF PortWatch, dados de satélite dos navios). " +
                                 "Vermelho: menos de 75% da média de 90 dias.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        HorizontalDivider()
+                    }
+                }
+                if (showDisasters) {
+                    items(disasters, key = { "dis-" + it.id }) { e ->
+                        DisasterRow(e) { mapView.controller.animateTo(GeoPoint(e.lat, e.lon), 5.0, 600L) }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    item {
+                        Text(
+                            "Desastres dos últimos 10 dias pelo GDACS (sistema de alertas da ONU e da Comissão Europeia). " +
+                                "O alerta mede o impacto esperado sobre as pessoas: vermelho é grave. Laranja e vermelho aparecem sempre; " +
+                                "verde só ciclones, vulcões e terremotos. Evento apagado já terminou.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp),
@@ -988,6 +1048,7 @@ private fun mapLegend(
     straits: Boolean,
     bases: Boolean,
     quakes: Boolean,
+    disasters: List<String>,
     fires: Boolean,
 ): List<LegendItem> = buildList {
     military.sortedBy { MILITARY_ORDER.indexOf(it).let { i -> if (i < 0) 99 else i } }.forEach { cat ->
@@ -1005,6 +1066,14 @@ private fun mapLegend(
     if (quakes) {
         add(LegendItem(MapGlyphs.quake(context, 4.5, explosion = false), "sismo"))
         add(LegendItem(MapGlyphs.quake(context, 4.5, explosion = true), "explosão"))
+    }
+    if (disasters.isNotEmpty()) {
+        listOf("EQ", "TC", "FL", "VO", "DR", "WF").filter { it in disasters }.forEach { t ->
+            add(LegendItem(MapGlyphs.disaster(context, t, "orange", active = true), DISASTER_TYPES[t]?.lowercase() ?: t))
+        }
+        listOf("red", "orange", "green").forEach { l ->
+            add(LegendItem(MapGlyphs.disaster(context, "", l, active = true), DISASTER_LEVELS[l] ?: l))
+        }
     }
     if (regions) {
         listOf("crítica", "alta", "moderada", "baixa").forEach { level ->
@@ -1054,3 +1123,5 @@ private fun MapLegend(items: List<LegendItem>, expanded: Boolean, onToggle: () -
         }
     }
 }
+
+private val DISASTER_ORDER = mapOf("green" to 0, "orange" to 1, "red" to 2)

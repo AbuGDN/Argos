@@ -19,6 +19,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.abugdn.wid.data.QUAKE_TYPES
+import com.abugdn.wid.data.DISASTER_LEVELS
+import com.abugdn.wid.data.title
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.asImageBitmap
 import com.abugdn.wid.data.RadarData
 import com.abugdn.wid.data.TRAVEL_LEVELS
 import com.abugdn.wid.data.TravelSection
@@ -163,6 +167,80 @@ fun TravelCard(section: TravelSection, radar: RadarData, onRegion: (String) -> U
                     },
                     fontWeight = if (t.level >= 3) FontWeight.Bold else FontWeight.Normal,
                 )
+            }
+        }
+    }
+}
+
+/** Linha de um desastre: ícone do mapa, nome, nível, países e intensidade (traduzidos). */
+@Composable
+fun DisasterRow(e: com.abugdn.wid.data.Disaster, inset: Boolean = true, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val repo = context.repository
+    val uri = LocalUriHandler.current
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = if (inset) 16.dp else 0.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val bmp = androidx.compose.runtime.remember(e.type, e.level, e.active) {
+            MapGlyphs.disaster(context, e.type, e.level, e.active).asImageBitmap()
+        }
+        androidx.compose.foundation.Image(bmp, contentDescription = null, modifier = Modifier.size(24.dp))
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Text(
+                e.title() + (if (e.brazil) " · 🇧🇷" else ""),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (e.level == "red") FontWeight.Bold else FontWeight.Normal,
+                color = if (e.level == "red" && e.active) Alert else Color.Unspecified,
+            )
+            val countries = e.countries.take(5).joinToString(", ") { repo.translator.cached(it) } +
+                if (e.countries.size > 5) " e mais ${e.countries.size - 5}" else ""
+            Text(
+                listOfNotNull(
+                    DISASTER_LEVELS[e.level],
+                    countries.ifBlank { null },
+                    if (e.active) "em andamento" else relativeTime(e.to).ifBlank { null },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (e.severity.isNotBlank()) {
+                Text(repo.translator.cached(e.severity), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            }
+        }
+        if (e.url.isNotBlank()) TextButton(onClick = { runCatching { uri.openUri(e.url) } }) { Text("GDACS") }
+    }
+}
+
+/** Cartão do Radar: desastres no mundo (GDACS). Sobe quando há alerta vermelho em andamento. */
+fun LazyListScope.disastersItem(radar: RadarData) {
+    val section = radar.disasters ?: return
+    item {
+        val go = LocalGo.current
+        val redNow = section.items.filter { it.level == "red" && it.active }
+        ArgosCard(
+            "🌍 DESASTRES NO MUNDO · 10 DIAS",
+            alert = redNow.isNotEmpty(),
+            source = "GDACS (ONU e UE)",
+            updated = section.updated,
+            status = radar.status["disasters"],
+            info = "Ciclones, terremotos, enchentes, vulcões, secas e incêndios florestais com alerta do GDACS, o sistema da ONU e da " +
+                "Comissão Europeia. O nível mede o impacto esperado sobre as pessoas (população exposta e vulnerabilidade), não só o " +
+                "tamanho: vermelho é grave, laranja é moderado. Verde aparece só para ciclones, vulcões e terremotos. A bandeira 🇧🇷 marca " +
+                "eventos que atingem o Brasil. Toque numa linha para ver no mapa.",
+            collapsedSummary = when {
+                redNow.isNotEmpty() -> redNow.joinToString(" · ") { it.title() }
+                section.items.isEmpty() -> "nenhum alerta nos últimos 10 dias"
+                else -> "${section.items.size} eventos, nenhum vermelho em andamento"
+            },
+            startExpanded = redNow.isNotEmpty(),
+        ) {
+            if (section.items.isEmpty()) {
+                Text("Nenhum desastre com alerta nos últimos 10 dias.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+            }
+            section.items.take(10).forEach { e -> DisasterRow(e, inset = false) { go("map:disaster:${e.id}") } }
+            if (section.items.size > 10) {
+                TextButton(onClick = { go("map:disasters") }) { Text("Ver todos no mapa (${section.items.size})") }
             }
         }
     }

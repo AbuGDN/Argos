@@ -380,7 +380,8 @@ class Repository(context: Context) {
                 radar?.unsc?.items.orEmpty().map { it.title } +
                 _diplomacy.value?.regions?.values.orEmpty().flatMap { r -> r.events.filter { it.lang != "pt" }.map { it.title } } +
                 _deadlines.value.flatMap { d -> listOfNotNull(d.title.takeIf { d.lang != "pt" }, d.after?.takeIf { it.lang != "pt" }?.title) } +
-                radar?.quakes?.items.orEmpty().map { it.place }.filter { it.isNotBlank() }
+                radar?.quakes?.items.orEmpty().map { it.place }.filter { it.isNotBlank() } +
+                radar?.disasters?.items.orEmpty().flatMap { it.countries + it.severity }.filter { it.isNotBlank() }
             translator.translateAll(texts)
             storage.saveTranslations(keep = texts)
             _radar.value = radar
