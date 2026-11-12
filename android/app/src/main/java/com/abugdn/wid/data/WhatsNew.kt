@@ -11,6 +11,17 @@ data class ChangelogEntry(val versionCode: Long, val items: List<String>)
 
 val CHANGELOG = listOf(
     ChangelogEntry(
+        47,
+        listOf(
+            "✈ Mapa com ícones: os aviões militares viraram silhuetas apontando para onde voam, cada tipo na sua cor (o avião-radar leva o disco em cima); os que estão no solo ficam apagados e não piscam.",
+            "⚓ Porta-aviões vistos de cima, com a sigla do casco embaixo; bases viraram escudos na cor de cada país.",
+            "🚢 Nova camada Estreitos: navios por dia em Bab el-Mandeb, Suez, Ormuz e Bósforo, em vermelho quando o tráfego cai bem abaixo do normal.",
+            "🌋 Nova camada Sismos: terremotos e explosões perto das zonas de guerra, maiores conforme a magnitude.",
+            "🎯 Regiões com um anel na cor da tensão, cidades com alfinete, focos de calor com brilho de brasa e legenda no pé do mapa (toque para recolher).",
+            "🗨 Balão escuro e dourado ao tocar num ícone, com rumo, altitude e outros detalhes.",
+        ),
+    ),
+    ChangelogEntry(
         46,
         listOf(
             "🔤 Tradução sem traduzir nomes: \"Renee Good\" não vira mais \"Renee Bom\", nem a sigla ICE vira \"gelo\". Vale para nomes de pessoas que são palavras do inglês e para siglas.",

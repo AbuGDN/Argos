@@ -15,10 +15,10 @@ para continuar o trabalho sem redescobrir tudo.
   como segunda opção (o GitHub redireciona o nome antigo); pode ficar.
 - Página de download: **https://abugdn.github.io/Argos/** (GitHub Pages da branch `gh-pages`).
 
-## Onde estamos (01/10/2026)
+## Onde estamos (12/11/2026)
 
-- App na **versão 1.0.46** (versionCode = run_number do workflow "App Android"; a próxima entrada do
-  CHANGELOG é **47**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
+- App na **versão 1.0.47** (versionCode = run_number do workflow "App Android"; a próxima entrada do
+  CHANGELOG é **48**). Branch padrão/base: `claude/adoring-hamilton-kr5stn` (ainda não virou `main`).
 - Fluxo usado nas sessões em nuvem: trabalho na branch `claude/app-information-suggestions-8g3ca9`
   (recriada a partir da base a cada rodada) → PR para a base → build "App Android" verde → merge com
   **`[skip ci]` no título do merge** (senão o merge gera uma segunda release igual). Mudanças só em
@@ -33,7 +33,9 @@ para continuar o trabalho sem redescobrir tudo.
   antes e depois por satélite); 45 (feito no PC: atenção do mundo e guerras esquecidas — Wikipédia +
   UCDP —, gastos militares/SIPRI, arsenais nucleares/FAS, "quem sancionou" que vinha vazio; e visual: mapa
   escuro da Esri com nomes em inglês, ícones no lugar de emojis, Radar com 4 abas, Ferramentas com busca/
-  mais usadas/grupos recolhíveis, temas num botão da tela Hoje, carregamento sozinho na 1ª abertura).
+  mais usadas/grupos recolhíveis, temas num botão da tela Hoje, carregamento sozinho na 1ª abertura);
+  46 (nomes e siglas na tradução, fotos maiores); 47 (rework visual do mapa: ícones de avião no rumo,
+  porta-aviões, navios dos estreitos, sismos, escudos das bases, legenda e balão escuro).
 - Pendências para o dono decidir: o cartão da imprensa (CPJ parado, ver abaixo) e atualizar `Arms.kt` para
   o SIPRI 2021–25. Features recusadas por falta de fonte (ver lista abaixo): mapa de eventos (ACLED/GDELT),
   NOTAMs, ciberataques (CFR parado em 2023), votos da Assembleia Geral (só placar, não provado).
@@ -158,6 +160,11 @@ android/app/src/main/java/com/abugdn/wid/
   data/Attention.kt      espelho de radar.json → attention e forgottenRows() (parte nas mortes × parte na atenção);
                          ui/WarDataScreens.kt: Atenção do mundo (rota "attention:0"), Guerras esquecidas
                          ("attention:1"), Gastos militares ("milex") e Arsenais nucleares ("nuclear")
+  ui/MapMarkers.kt       ícones do mapa desenhados no aparelho (MapGlyphs, com cache): avião virado para o rumo
+                         (silhueta ✈ dos Material Symbols via PathParser), porta-aviões, navio dos estreitos
+                         (STRAIT_POINTS), escudo das bases, sismo, alfinete de cidade, disco da região com anel
+                         da tensão. Legenda (MapLegend) no MapScreen. O balão branco do osmdroid é trocado por
+                         res/layout/bonuspack_bubble.xml do app (mesmo nome vence o da biblioteca; mantenha os ids)
   ui/MapTiles.kt         fundo do mapa: Esri World_Dark_Gray_Base + camada de nomes World_Dark_Gray_Reference
                          (mesmos do painel web, sem chave) e satélite; `MapView.useArgosTiles()`. Crédito da Esri
                          visível (DARK_MAP_CREDIT). Não volte ao MAPNIK: claro e com nomes na língua local
@@ -311,6 +318,8 @@ web/                     página de download (index.html, icon.svg), status.html
 - **SIPRI recusa conexões às vezes** (01/10/2026: TLS cortado no site inteiro, do Python e do curl, enquanto
   UCDP e Google respondiam; na véspera o curl baixava). O gerador aceita o arquivo baixado pelo navegador:
   `tools/gerar_dados_fixos.py --milex arquivo.xlsx` (também `--ucdp`, `--fas`).
+- **Artefato do teste de fumaça na sessão em nuvem**: o link de download (blob.core.windows.net) é recusado pelo
+  proxy; dá para ler o log do job (crashes e "processo vivo?" no fim), mas as capturas só no navegador/PC.
 - **Emulador do teste de fumaça tem 320×640**: coordenada fixa (y=1500) cai fora da tela e o passo "passa"
   sem fazer nada. run.sh usa W/H de `wm size` (swipeup, tap relativo) e `tool "busca" "Nome"` para abrir
   ferramenta pela busca. Até 01/10/2026 o roteiro saía do app no passo 15 e as telas seguintes não eram
