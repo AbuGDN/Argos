@@ -2,11 +2,7 @@ package com.abugdn.wid.ui
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
-import android.graphics.Typeface
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -79,6 +75,10 @@ import com.abugdn.wid.data.BASE_FLAGS
 import com.abugdn.wid.data.RANGES
 import com.abugdn.wid.data.RangeArc
 import com.abugdn.wid.data.cities
+import com.abugdn.wid.data.QUAKE_TYPES
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlin.math.roundToInt
 
 /** Abre a aba Mapa com o círculo de alcance [String] em destaque (fornecido pelo MainActivity). */
 val LocalOpenMap = androidx.compose.runtime.staticCompositionLocalOf<(String) -> Unit> { {} }
@@ -170,12 +170,17 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
     var showFront by rememberSaveable { mutableStateOf(false) }
     var showBases by rememberSaveable { mutableStateOf(false) }
     var satellite by rememberSaveable { mutableStateOf(false) }
+    var showStraits by rememberSaveable { mutableStateOf(false) }
+    var showQuakes by rememberSaveable { mutableStateOf(false) }
+    var showLegend by rememberSaveable { mutableStateOf(true) }
     val reduceMotion = LocalReduceMotion.current
     val repo = context.repository
     val radar by repo.radar.collectAsStateWithLifecycle()
     val fireZones = radar?.fires?.zones.orEmpty().filter { it.points.isNotEmpty() }
     val militaryZones = radar?.military?.zones.orEmpty()
     val carriers = radar?.carriers?.ships.orEmpty()
+    val straits = radar?.straits?.items.orEmpty().filter { !it.error && it.id in STRAIT_POINTS && it.avg7 != null }
+    val quakes = radar?.quakes?.items.orEmpty().filter { it.lat != 0.0 || it.lon != 0.0 }
     val front by repo.frontline.collectAsStateWithLifecycle()
     // Os polígonos da frente só são baixados quando a camada é ligada.
     LaunchedEffect(showFront) { if (showFront && repo.frontline.value == null) repo.loadFrontline() }
@@ -313,6 +318,23 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         label = { IconText("⚓ Porta-aviões") },
                     )
                 }
+                if (straits.isNotEmpty()) {
+                    FilterChip(
+                        selected = showStraits,
+                        onClick = {
+                            showStraits = !showStraits
+                            if (showStraits) mapView.controller.animateTo(GeoPoint(28.0, 42.0), 3.4, 600L)
+                        },
+                        label = { IconText("🚢 Estreitos") },
+                    )
+                }
+                if (quakes.isNotEmpty()) {
+                    FilterChip(
+                        selected = showQuakes,
+                        onClick = { showQuakes = !showQuakes },
+                        label = { IconText("🌋 Sismos") },
+                    )
+                }
                 if (radar?.frontline != null) {
                     FilterChip(
                         selected = showFront,
@@ -326,6 +348,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
             }
             // O MapView desenha fora dos próprios limites ao arrastar/dar zoom; a moldura com
             // clipChildren e o clipToBounds impedem que ele pinte por cima do resto da tela.
+            Box(Modifier.fillMaxWidth().weight(0.6f).clipToBounds()) {
             AndroidView(
                 factory = { ctx ->
                     (mapView.parent as? ViewGroup)?.removeView(mapView)
@@ -335,7 +358,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                         addView(mapView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
                     }
                 },
-                modifier = Modifier.fillMaxWidth().weight(0.6f).clipToBounds(),
+                modifier = Modifier.matchParentSize().clipToBounds(),
                 update = { _ -> runCatching {
                     val map = mapView
                     map.useArgosTiles(satellite)
@@ -347,13 +370,25 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     }
                     // Círculos antes dos marcadores, para os marcadores ficarem por cima e receberem o toque.
                     if (showRanges) RANGES.forEach { map.overlays.add(rangePolygon(map, it, it.id == highlight)) }
-                    if (showFires) firesOverlay(fireZones)?.let { map.overlays.add(it) }
+                    if (showFires) firesOverlays(fireZones).forEach { map.overlays.add(it) }
+                    if (showQuakes) quakes.forEach { q ->
+                        val explosion = q.type != "earthquake"
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(q.lat, q.lon)
+                            title = "🌋 ${q.mag?.let { "M ${"%.1f".format(it)}" } ?: "Sismo"} · ${QUAKE_TYPES[q.type] ?: q.type}"
+                            snippet = listOfNotNull(q.place.ifBlank { null }, q.depth?.let { "${it.toInt()} km de profundidade" }, relativeTime(q.time).ifBlank { null })
+                                .joinToString(" · ")
+                            icon = MapGlyphs.drawable(context, MapGlyphs.quake(context, q.mag, explosion))
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        })
+                    }
                     if (byCity) cityStories.forEach { (city, stories) ->
                         map.overlays.add(Marker(map).apply {
                             position = GeoPoint(city.lat, city.lon)
                             title = "${city.name} · ${stories.size}"
-                            icon = countIcon(context, stories.size, small = true)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                            icon = MapGlyphs.drawable(context, MapGlyphs.cityPin(context, stories.size))
+                            // A ponta do alfinete marca a cidade.
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             setOnMarkerClickListener { m, _ ->
                                 if (m.isInfoWindowShown) onOpen(stories.first().id) else m.showInfoWindow()
                                 true
@@ -365,25 +400,48 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             position = GeoPoint(b.lat, b.lon)
                             title = "${BASE_FLAGS[b.operator] ?: "🪖"} ${b.name} · ${b.host}"
                             snippet = b.note
-                            icon = dotIcon(context, BASE_COLORS[b.operator] ?: 0xFF8A8578.toInt(), 13)
+                            icon = MapGlyphs.drawable(context, MapGlyphs.base(context, BASE_COLORS[b.operator] ?: 0xFF8A8578.toInt()))
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
                     }
+                    if (showStraits) straits.forEach { s ->
+                        val (lat, lon) = STRAIT_POINTS.getValue(s.id)
+                        val week = s.avg7 ?: 0.0
+                        val bmp = MapGlyphs.strait(context, "${week.roundToInt()}/dia", s.dropped())
+                        map.overlays.add(Marker(map).apply {
+                            position = GeoPoint(lat, lon)
+                            title = "🚢 ${s.name} · ${"%.1f".format(week)} navios/dia"
+                            snippet = listOfNotNull(
+                                s.avg90?.let { "normal (90 dias): ${"%.1f".format(it)}" },
+                                s.yearAgo?.let { "há um ano: ${"%.1f".format(it)}" },
+                                if (s.dropped()) "tráfego bem abaixo do normal" else null,
+                            ).joinToString(" · ")
+                            icon = MapGlyphs.drawable(context, bmp)
+                            setAnchor(Marker.ANCHOR_CENTER, MapGlyphs.labeledAnchorV(context, bmp, MapGlyphs.STRAIT_BADGE_DP))
+                        })
+                    }
                     if (showCarriers) carriers.forEach { ship ->
+                        val bmp = MapGlyphs.carrier(context, ship.hull)
                         map.overlays.add(Marker(map).apply {
                             position = GeoPoint(ship.lat, ship.lon)
                             title = "⚓ ${ship.name} (${ship.hull})"
                             snippet = "${ship.place} · ${ship.status}"
-                            icon = dotIcon(context, 0xFFC9A227.toInt(), 18)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                            icon = MapGlyphs.drawable(context, bmp)
+                            setAnchor(Marker.ANCHOR_CENTER, MapGlyphs.labeledAnchorV(context, bmp, MapGlyphs.CARRIER_BADGE_DP))
                         })
                     }
                     if (showMilitary) militaryZones.flatMap { it.aircraft }.forEach { ac ->
+                        val grounded = ac.alt <= 0.0
                         map.overlays.add(Marker(map).apply {
                             position = GeoPoint(ac.lat, ac.lon)
                             title = "${MILITARY_ICONS[ac.category] ?: "•"} ${radar?.military?.labels?.get(ac.category) ?: ac.category} · ${ac.type}"
-                            snippet = listOf(ac.callsign, ac.reg, if (ac.alt > 0) "${ac.alt.toInt()} pés" else "").filter { it.isNotBlank() }.joinToString(" · ")
-                            icon = dotIcon(context, militaryColor(ac.category), 12)
+                            snippet = listOf(
+                                ac.callsign,
+                                ac.reg,
+                                if (grounded) "no solo" else "${ac.alt.toInt()} pés",
+                                ac.track?.let { "rumo ${it.toInt()}° (${compassPoint(it)})" } ?: "",
+                            ).filter { it.isNotBlank() }.joinToString(" · ")
+                            icon = MapGlyphs.drawable(context, MapGlyphs.aircraft(context, ac.category, ac.track, grounded))
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         })
                     }
@@ -394,16 +452,23 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             .mapNotNull { (tag, _) -> REGION_POINTS[tag] }
                         if (alertPoints.isNotEmpty()) map.overlays.add(PulseOverlay(alertPoints, 0xFFB3122E.toInt(), blink = false))
                         if (showMilitary) {
-                            val planes = militaryZones.flatMap { it.aircraft }.map { GeoPoint(it.lat, it.lon) }
+                            // Só os que estão no ar piscam, como num radar de controle aéreo.
+                            val planes = militaryZones.flatMap { it.aircraft }.filter { it.alt > 0.0 }.map { GeoPoint(it.lat, it.lon) }
                             if (planes.isNotEmpty()) map.overlays.add(PulseOverlay(planes, 0xFFC9A227.toInt(), blink = true))
+                        }
+                        if (showStraits) {
+                            val slow = straits.filter { it.dropped() }.map { STRAIT_POINTS.getValue(it.id).let { (la, lo) -> GeoPoint(la, lo) } }
+                            if (slow.isNotEmpty()) map.overlays.add(PulseOverlay(slow, 0xFFB3122E.toInt(), blink = false))
                         }
                     }
                     if (!byCity) counts.forEach { (tag, n) ->
                         val point = REGION_POINTS[tag] ?: return@forEach
+                        val r = feed?.regions?.get(tag)
                         map.overlays.add(Marker(map).apply {
                             position = point
                             title = "${TAG_LABELS.getValue(tag)} · $n"
-                            icon = countIcon(context, n)
+                            snippet = r?.let { (if (it.spike) "⚠ alta incomum · " else "") + "tensão ${it.tension} · ${it.level}" } ?: ""
+                            icon = MapGlyphs.drawable(context, MapGlyphs.region(context, n, r?.level, r?.spike == true))
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                             setOnMarkerClickListener { m, _ ->
                                 if (m.isInfoWindowShown) onRegion(tag) else m.showInfoWindow()
@@ -414,6 +479,19 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                     map.invalidate()
                 }.onFailure { android.util.Log.w("Argos", "mapa: falha ao desenhar as camadas", it) } },
             )
+            val legend = mapLegend(
+                context = context,
+                regions = !byCity,
+                military = if (showMilitary) militaryZones.flatMap { it.aircraft }.map { it.category }.distinct() else emptyList(),
+                militaryLabels = radar?.military?.labels.orEmpty(),
+                carriers = showCarriers && carriers.isNotEmpty(),
+                straits = showStraits && straits.isNotEmpty(),
+                bases = showBases,
+                quakes = showQuakes && quakes.isNotEmpty(),
+                fires = showFires && fireZones.isNotEmpty(),
+            )
+            MapLegend(legend, expanded = showLegend, onToggle = { showLegend = !showLegend }, modifier = Modifier.align(Alignment.BottomStart))
+            }
             Text(
                 if (satellite) SATELLITE_CREDIT else DARK_MAP_CREDIT,
                 style = MaterialTheme.typography.labelSmall,
@@ -421,7 +499,7 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp),
             )
             Text(
-                "Toque no marcador para ver o nome; toque de novo (ou na lista) para abrir as notícias.",
+                "Toque no ícone para ver os detalhes; nas regiões e cidades, toque de novo (ou na lista) para abrir as notícias.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp, 8.dp),
@@ -519,6 +597,72 @@ fun MapScreen(onRegion: (String) -> Unit, onOpen: (String) -> Unit) {
                             }
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+                if (showStraits) {
+                    items(straits, key = { "strait-" + it.id }) { st ->
+                        val (lat, lon) = STRAIT_POINTS.getValue(st.id)
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { mapView.controller.animateTo(GeoPoint(lat, lon), 6.0, 600L) }
+                                .padding(16.dp, 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            IconText("🚢 ${st.name}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    "${"%.1f".format(st.avg7 ?: 0.0)} navios/dia",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (st.dropped()) Alert else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (st.dropped()) FontWeight.Bold else FontWeight.Normal,
+                                )
+                                st.avg90?.let {
+                                    Text("normal: ${"%.1f".format(it)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    item {
+                        Text(
+                            "Navios por dia nos estreitos, média da última semana (IMF PortWatch, dados de satélite dos navios). " +
+                                "Vermelho: menos de 75% da média de 90 dias.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        HorizontalDivider()
+                    }
+                }
+                if (showQuakes) {
+                    items(quakes) { q ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { mapView.controller.animateTo(GeoPoint(q.lat, q.lon), 6.5, 600L) }
+                                .padding(16.dp, 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                IconText(
+                                    "🌋 " + (q.mag?.let { "M ${"%.1f".format(it)} · " } ?: "") + (QUAKE_TYPES[q.type] ?: q.type),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (q.type != "earthquake") Alert else MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(q.place, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(relativeTime(q.time), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    item {
+                        Text(
+                            "Sismos e explosões perto das zonas de guerra (Serviço Geológico dos EUA, USGS). " +
+                                "O tamanho do ícone cresce com a magnitude; vermelho: explosão registrada pelos sismógrafos.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        HorizontalDivider()
                     }
                 }
                 if (showMilitary) {
@@ -645,25 +789,6 @@ private fun frontPolygon(map: MapView, rings: List<List<List<Double>>>, occupied
     setOnClickListener { _, _, _ -> false }
 }
 
-/** Bolinha colorida para marcadores pequenos (aviões, navios). */
-private fun dotIcon(context: Context, color: Int, sizeDp: Int): Drawable =
-    android.graphics.drawable.GradientDrawable().apply {
-        shape = android.graphics.drawable.GradientDrawable.OVAL
-        setColor(color)
-        setStroke((1.5f * context.resources.displayMetrics.density).toInt(), 0xFF050505.toInt())
-        val px = (sizeDp * context.resources.displayMetrics.density).toInt()
-        setSize(px, px)
-    }
-
-private fun militaryColor(category: String): Int = when (category) {
-    "reabastecedor" -> 0xFFC9A227.toInt()
-    "radar" -> 0xFF4FC3F7.toInt()
-    "espionagem" -> 0xFFB388FF.toInt()
-    "bombardeiro" -> 0xFFB3122E.toInt()
-    "caça" -> 0xFFC8662B.toInt()
-    else -> 0xFF8A8578.toInt()
-}
-
 fun formatKm2(km2: Long): String = java.text.NumberFormat.getIntegerInstance(java.util.Locale("pt", "BR")).format(km2) + " km²"
 
 @Composable
@@ -689,23 +814,6 @@ private fun fireCenter(z: com.abugdn.wid.data.FireZone): GeoPoint? {
     val pts = z.points.filter { it.size >= 2 }
     if (pts.isEmpty()) return null
     return GeoPoint(pts.sumOf { it[0] } / pts.size, pts.sumOf { it[1] } / pts.size)
-}
-
-/** Pontos vermelho-alaranjados, desenhados rápido (podem ser mais de mil). */
-private fun firesOverlay(zones: List<com.abugdn.wid.data.FireZone>): SimpleFastPointOverlay? {
-    val points = zones.flatMap { z -> z.points.filter { it.size >= 2 }.map { LabelledGeoPoint(it[0], it[1], z.name) } }
-    if (points.isEmpty()) return null
-    val paint = android.graphics.Paint().apply {
-        color = 0xFFE0521B.toInt()
-        style = android.graphics.Paint.Style.FILL
-        isAntiAlias = true
-    }
-    val options = SimpleFastPointOverlayOptions.getDefaultStyle()
-        .setAlgorithm(SimpleFastPointOverlayOptions.RenderingAlgorithm.MAXIMUM_OPTIMIZATION)
-        .setRadius(4f)
-        .setIsClickable(false)
-        .setPointStyle(paint)
-    return SimpleFastPointOverlay(SimplePointTheme(points, false), options)
 }
 
 private val RANGE_RED = 0xFFB3122E.toInt()
@@ -842,28 +950,107 @@ fun TrendRow(label: String, values: List<Int>, highlight: Boolean, onClick: (() 
     }
 }
 
-/** Marcador: círculo vermelho com o número de histórias da região. */
-private fun countIcon(context: Context, count: Int, small: Boolean = false): Drawable {
-    val density = context.resources.displayMetrics.density
-    val size = ((if (small) 26 else if (count >= 100) 40 else 34) * density).toInt()
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = AndroidCanvas(bitmap)
-    val r = size / 2f
-    // Ouro Argos com contorno preto e número em preto.
-    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFC9A227.toInt() }
-    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF050505.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = 2.5f * density
+/**
+ * Focos de calor: um halo largo e fraco por baixo e o ponto vivo por cima, para os focos parecerem
+ * brasas no mapa escuro. Os dois são desenhados rápido (podem ser mais de mil pontos).
+ */
+private fun firesOverlays(zones: List<com.abugdn.wid.data.FireZone>): List<SimpleFastPointOverlay> {
+    val points = zones.flatMap { z -> z.points.filter { it.size >= 2 }.map { LabelledGeoPoint(it[0], it[1], z.name) } }
+    if (points.isEmpty()) return emptyList()
+    fun layer(color: Int, radius: Float) = SimpleFastPointOverlay(
+        SimplePointTheme(points, false),
+        SimpleFastPointOverlayOptions.getDefaultStyle()
+            .setAlgorithm(SimpleFastPointOverlayOptions.RenderingAlgorithm.MAXIMUM_OPTIMIZATION)
+            .setRadius(radius)
+            .setIsClickable(false)
+            .setPointStyle(Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }),
+    )
+    return listOf(layer(0x40E0521B, 10f), layer(0xFFFF7A2E.toInt(), 3.5f))
+}
+
+/** Rumo em graus → ponto cardeal em português (N, NE, L, SE, S, SO, O, NO). */
+private fun compassPoint(deg: Double): String {
+    val names = listOf("N", "NE", "L", "SE", "S", "SO", "O", "NO")
+    return names[(((deg % 360 + 360) % 360 + 22.5) / 45).toInt() % 8]
+}
+
+/** Item da legenda do mapa: o mesmo desenho do marcador e o que ele quer dizer. */
+private class LegendItem(val bitmap: Bitmap, val label: String)
+
+private val MILITARY_ORDER = listOf("bombardeiro", "caça", "reabastecedor", "radar", "espionagem", "transporte", "outro")
+
+private fun mapLegend(
+    context: Context,
+    regions: Boolean,
+    military: List<String>,
+    militaryLabels: Map<String, String>,
+    carriers: Boolean,
+    straits: Boolean,
+    bases: Boolean,
+    quakes: Boolean,
+    fires: Boolean,
+): List<LegendItem> = buildList {
+    military.sortedBy { MILITARY_ORDER.indexOf(it).let { i -> if (i < 0) 99 else i } }.forEach { cat ->
+        add(LegendItem(MapGlyphs.aircraft(context, cat, 45.0, grounded = false), militaryLabels[cat] ?: cat))
     }
-    canvas.drawCircle(r, r, r - 2 * density, fill)
-    canvas.drawCircle(r, r, r - 2 * density, stroke)
-    val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF050505.toInt()
-        textAlign = Paint.Align.CENTER
-        textSize = (if (small) 11 else 13) * density
-        typeface = Typeface.DEFAULT_BOLD
+    if (carriers) add(LegendItem(MapGlyphs.carrier(context, ""), "porta-aviões dos EUA"))
+    if (straits) {
+        add(LegendItem(MapGlyphs.strait(context, "", dropped = false), "navios/dia no estreito"))
+        add(LegendItem(MapGlyphs.strait(context, "", dropped = true), "tráfego caiu"))
     }
-    canvas.drawText(count.toString(), r, r - (text.descent() + text.ascent()) / 2, text)
-    return BitmapDrawable(context.resources, bitmap)
+    if (bases) {
+        listOf("EUA" to "EUA", "Rússia" to "Rússia", "China" to "China", "França" to "França/Reino Unido", "Turquia" to "Turquia")
+            .forEach { (op, label) -> add(LegendItem(MapGlyphs.base(context, BASE_COLORS[op] ?: 0xFF8A8578.toInt()), "base: $label")) }
+    }
+    if (quakes) {
+        add(LegendItem(MapGlyphs.quake(context, 4.5, explosion = false), "sismo"))
+        add(LegendItem(MapGlyphs.quake(context, 4.5, explosion = true), "explosão"))
+    }
+    if (regions) {
+        listOf("crítica", "alta", "moderada", "baixa").forEach { level ->
+            add(LegendItem(MapGlyphs.region(context, -1, level, spike = false), "tensão $level"))
+        }
+    }
+    if (fires) add(LegendItem(MapGlyphs.fire(context), "foco de calor (24 h)"))
+}
+
+/** Faixa no pé do mapa com o que cada ícone quer dizer; recolhe num toque. */
+@Composable
+private fun MapLegend(items: List<LegendItem>, expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    if (items.isEmpty()) return
+    Row(
+        modifier.padding(6.dp)
+            .background(Ink.copy(alpha = 0.78f), androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (expanded) "Legenda ‹" else "Legenda ›",
+            style = MaterialTheme.typography.labelSmall,
+            color = Accent,
+            fontWeight = FontWeight.Bold,
+        )
+        if (expanded) {
+            Row(
+                Modifier.padding(start = 8.dp).horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items.forEach { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val bmp = remember(item.bitmap) { item.bitmap.asImageBitmap() }
+                        Image(bmp, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text(
+                            item.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Bone,
+                            maxLines = 1,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
