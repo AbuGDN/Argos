@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Argos · baixar para Android</title>
+<meta name="description" content="Argos: notícias de guerra em português, com o Oriente Médio em primeiro plano. Baixe o app para Android.">
+<meta name="theme-color" content="#050505">
+<meta property="og:title" content="Argos">
+<meta property="og:description" content="Notícias de guerra em português. Baixe o app para Android.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --ink: #050505;
+    --panel: #0e0e10;
+    --line: #26241f;
+    --gold: #c9a227;
+    --bone: #e8e2d0;
+    --ash: #8a8578;
+    --blood: #b3122e;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--bone);
+    font: 16px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--gold); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+  header { text-align: center; padding: 64px 0 40px; }
+  .eye { width: 128px; height: 128px; display: block; margin: 0 auto; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 56px;
+    letter-spacing: 0.32em;
+    margin: 18px 0 8px;
+    padding-left: 0.32em; /* compensa o espaçamento da última letra */
+  }
+  .lead { color: var(--bone); font-size: 18px; margin: 0 auto; max-width: 30em; }
+
+  .download { margin-top: 32px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--gold); color: var(--ink);
+    font-weight: 700; font-size: 18px; text-decoration: none;
+    padding: 16px 28px; border-radius: 10px;
+    transition: transform .08s ease, filter .15s ease;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+  .btn svg { width: 22px; height: 22px; }
+  .meta { color: var(--ash); font-size: 14px; margin-top: 12px; min-height: 1.5em; }
+  .clock {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 22px; padding: 6px 14px;
+    border: 1px solid var(--line); border-radius: 999px;
+    color: var(--ash); font-size: 13px;
+  }
+  .clock b { font-variant-numeric: tabular-nums; }
+  .clock[hidden] { display: none; }
+
+  section { border-top: 1px solid var(--line); padding: 40px 0; }
+  h2 {
+    font-family: var(--serif); font-weight: 700; color: var(--gold);
+    font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 20px;
+  }
+  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; display: grid; gap: 16px; }
+  ol.steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
+  ol.steps li::before {
+    content: counter(step);
+    font-family: var(--serif); font-weight: 700; color: var(--gold); font-size: 22px; line-height: 1.2;
+  }
+  ol.steps strong { color: var(--bone); }
+  ol.steps span { color: var(--ash); }
+
+  .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .feature { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .feature h3 { font-family: var(--serif); font-size: 17px; margin: 0 0 4px; color: var(--bone); }
+  .feature p { margin: 0; color: var(--ash); font-size: 14px; }
+  @media (max-width: 560px) {
+    header { padding-top: 44px; }
+    h1 { font-size: 44px; }
+    .features { grid-template-columns: 1fr; }
+  }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--ash); font-size: 13px; text-align: center; }
+  footer p { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="eye" viewBox="0 0 108 108" role="img" aria-label="Logo do Argos: olho dentro de um triângulo">
+      <g transform="translate(54 54) scale(1.15) translate(-54 -54)" fill="none" stroke="#c9a227" stroke-linejoin="round" stroke-linecap="round">
+        <circle cx="54" cy="55" r="15" fill="#c9a227" fill-opacity=".12" stroke="none"/>
+        <path d="M54 27 L77.5 68.5 L30.5 68.5 Z" stroke-width="3.2"/>
+        <path d="M54 42.5V45.5M46.5 45L48 47.3M61.5 45L60 47.3M42 50.5L44.5 51.5M66 50.5L63.5 51.5" stroke-width="1.4" stroke-opacity=".6"/>
+        <path d="M42 57 Q54 47 66 57 Q54 67 42 57 Z" stroke-width="2.4"/>
+        <circle cx="54" cy="57" r="4.7" fill="#c9a227" stroke="none"/>
+        <circle cx="54" cy="57" r="1.8" fill="#050505" stroke="none"/>
+      </g>
+    </svg>
+    <h1>ARGOS</h1>
+    <p class="lead">Notícias de guerra em português, com o Oriente Médio em primeiro plano. Dezenas de veículos de Israel, do mundo árabe, dos EUA e do Brasil, lado a lado.</p>
+
+    <div class="download">
+      <a class="btn" id="download" href="https://github.com/AbuGDN/Argos/releases/latest">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.4l3.3 3.3V4a1 1 0 0 1 1-1zM5 19h14a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2z"/></svg>
+        Baixar para Android
+      </a>
+      <p class="meta" id="meta">Arquivo APK · Android 8 ou mais novo</p>
+      <p class="meta"><a href="painel/">No computador? Abra o painel com o globo →</a></p>
+      <p class="clock" id="clock" hidden>👁 Relógio do Argos agora: <b id="clock-value"></b></p>
+    </div>
+  </header>
+
+  <section>
+    <h2>Como instalar</h2>
+    <ol class="steps">
+      <li><div><strong>Baixe o APK</strong> no botão acima, pelo celular.<br><span>O Argos não está na Play Store, por isso vem como arquivo.</span></div></li>
+      <li><div><strong>Abra o arquivo baixado</strong> e permita “instalar apps desconhecidos” para o navegador quando o Android pedir.<br><span>É um aviso padrão para qualquer app fora da loja.</span></div></li>
+      <li><div><strong>Pronto.</strong> As próximas versões chegam pelo próprio app.<br><span>Ele avisa quando há atualização e instala com um toque.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>O que tem dentro</h2>
+    <div class="features">
+      <div class="feature"><h3>Tudo traduzido</h3><p>Inglês, hebraico e árabe viram português no próprio celular, sem custo.</p></div>
+      <div class="feature"><h3>Como cada lado noticiou</h3><p>A mesma história na imprensa israelense, árabe, americana e brasileira.</p></div>
+      <div class="feature"><h3>Relógio e tensão</h3><p>Índice de tensão por região e global, com alerta de alta incomum.</p></div>
+      <div class="feature"><h3>Mapa</h3><p>Notícias por região e cidade, e o alcance dos principais mísseis e defesas.</p></div>
+      <div class="feature"><h3>Widgets</h3><p>A principal do dia, uma região ou o relógio na tela inicial.</p></div>
+      <div class="feature"><h3>Vigília e boletim</h3><p>Registro de todos os alertas e um boletim semanal em imagem.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Projeto pessoal, sem anúncios e sem cadastro. Só para Android.</p>
+    <p><a id="source" href="https://github.com/AbuGDN/Argos">Código no GitHub</a> · <a id="all" href="https://github.com/AbuGDN/Argos/releases">Versões anteriores</a></p>
+  </footer>
+</div>
+
+<script>
+  // O repositório pode se chamar WID ou Argos: tenta o nome novo primeiro, como o app.
+  const REPOS = ["AbuGDN/Argos", "AbuGDN/WID"];
+  const LEVEL_COLORS = { "baixa": "#6e8b6a", "moderada": "#c9a227", "alta": "#c8662b", "crítica": "#b3122e" };
+
+  function formatSize(bytes) {
+    return (bytes / 1048576).toFixed(1).replace(".", ",") + " MB";
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  async function latestRelease() {
+    for (const repo of REPOS) {
+      try {
+        const resp = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+          headers: { Accept: "application/vnd.github+json" },
+        });
+        if (resp.ok) return { repo, release: await resp.json() };
+      } catch (e) { /* tenta o próximo */ }
+    }
+    return null;
+  }
+
+  latestRelease().then((found) => {
+    if (!found) return; // o botão continua apontando para a página de releases
+    const { repo, release } = found;
+    const apk = (release.assets || []).find((a) => a.name.endsWith(".apk"));
+    const version = release.tag_name.replace(/^v/, "");
+    if (apk) {
+      document.getElementById("download").href = apk.browser_download_url;
+      document.getElementById("meta").textContent =
+        `Versão ${version} · ${formatSize(apk.size)} · ${formatDate(release.published_at)} · Android 8 ou mais novo`;
+    }
+    document.getElementById("source").href = `https://github.com/${repo}`;
+    document.getElementById("all").href = `https://github.com/${repo}/releases`;
+  });
+
+  // O feed é publicado junto desta página: mostra o relógio de agora.
+  fetch("feed.json", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((feed) => {
+      const clock = feed && feed.global;
+      if (!clock) return;
+      const value = document.getElementById("clock-value");
+      value.textContent = `${clock.index} · ${clock.level}`;
+      value.style.color = LEVEL_COLORS[clock.level] || "inherit";
+      document.getElementById("clock").hidden = false;
+    })
+    .catch(() => {});
+</script>
+<script>
+// Contagem anônima de visitas (GoatCounter); o código fica em app-config.json.
+fetch('app-config.json', { cache: 'no-store' }).then((r) => r.json()).then((c) => {
+  const code = String(c.goatcounter || '').trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,50}$/.test(code) || navigator.doNotTrack === '1') return;
+  const q = new URLSearchParams({ p: '/', t: document.title, s: `${screen.width},${screen.height},${devicePixelRatio}`, r: document.referrer, rnd: Math.random() });
+  new Image().src = `https://${code}.goatcounter.com/count?${q}`;
+}).catch(() => {});
+</script>
+</body>
+</html>
